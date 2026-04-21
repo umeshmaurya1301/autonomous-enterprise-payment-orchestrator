@@ -25,19 +25,19 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import ValidationError
 
-from unified_gateway import UFRGAction, UFRGReward, UnifiedFintechEnv
+from unified_gateway import AEPOObservation, UFRGAction, UFRGObservation, UFRGReward, UnifiedFintechEnv
 
 # ---------------------------------------------------------------------------
 # Application bootstrap
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="Unified Fintech Risk Gateway",
+    title="Autonomous Enterprise Payment Orchestrator (AEPO)",
     description=(
-        "OpenEnv-compliant simulation of a UPI payment risk gateway. "
+        "OpenEnv-compliant causally-structured simulation of a UPI payment risk gateway. "
         "Supports three difficulty tiers: easy, medium, hard."
     ),
-    version="0.1.0",
+    version="0.2.0",
 )
 
 # Global environment instance.  Re-created on POST /reset to prevent state bleed.
@@ -60,7 +60,7 @@ async def root_health_check():
     """
     return {
         "status": "healthy",
-        "message": "UFRG is live. Use POST /reset to initialise a task.",
+        "message": "AEPO is live. Use POST /reset to initialise a task.",
     }
 
 

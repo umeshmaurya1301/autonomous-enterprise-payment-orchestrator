@@ -36,15 +36,20 @@ tasks:
     max_steps: 100
     reward_threshold: 0.30
 
-# Observation space definition
+# Observation space definition (10 fields — Phase 2 expansion)
 observation_space:
   type: "dict"
   fields:
-    channel:     { type: "float", min: 0,    max: 2     }
-    risk_score:  { type: "float", min: 0,    max: 100   }
-    kafka_lag:   { type: "float", min: 0,    max: 10000 }
-    api_latency: { type: "float", min: 0,    max: 5000  }
-    rolling_p99: { type: "float", min: 0,    max: 5000  }
+    channel:                { type: "float", min: 0, max: 2     }
+    risk_score:             { type: "float", min: 0, max: 100   }
+    adversary_threat_level: { type: "float", min: 0, max: 10    }
+    system_entropy:         { type: "float", min: 0, max: 100   }
+    kafka_lag:              { type: "float", min: 0, max: 10000 }
+    api_latency:            { type: "float", min: 0, max: 5000  }
+    rolling_p99:            { type: "float", min: 0, max: 5000  }
+    db_connection_pool:     { type: "float", min: 0, max: 100   }
+    bank_api_status:        { type: "float", min: 0, max: 2     }
+    merchant_tier:          { type: "float", min: 0, max: 1     }
 
 # Action space definition
 action_space:
