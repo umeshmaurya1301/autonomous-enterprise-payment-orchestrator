@@ -1,0 +1,353 @@
+# ============================================================
+# AEPO — Autonomous Enterprise Payment Orchestrator
+# .gitignore — Python · Java/Spring · IntelliJ · PyCharm
+#              VS Code · Cursor · Claude · Windsurf · OS
+# ============================================================
+
+
+# ------------------------------------------------------------
+# PYTHON
+# ------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+.eggs/
+*.egg-link
+MANIFEST
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.env/
+env.bak/
+venv.bak/
+.python-version
+Pipfile.lock
+uv.lock
+.uv/
+
+# pytest
+.pytest_cache/
+.cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+*.cover
+*.py,cover
+nosetests.xml
+pytest.xml
+test-results/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ruff / black / isort / pylint
+.ruff_cache/
+.pylint.d/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# PyInstaller
+*.manifest
+*.spec
+
+# celery
+celerybeat-schedule
+celerybeat.pid
+
+# spyder
+.spyderproject.db
+.spyproject/
+
+# rope
+.ropeproject/
+
+
+# ------------------------------------------------------------
+# JAVA / MAVEN / GRADLE / SPRING BOOT
+# ------------------------------------------------------------
+
+# Maven build output
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+.gradletasknamecache
+build/
+out/
+
+# Compiled Java
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+
+# Spring Boot specific
+spring/
+*.original
+spring-shell.log
+application-local.properties
+application-local.yml
+
+# Lombok
+lombok.config
+
+# Java package artifacts
+*.iml
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+
+# ------------------------------------------------------------
+# INTELLIJ IDEA / PYCHARM / ALL JETBRAINS IDEs
+# ------------------------------------------------------------
+.idea/
+*.iws
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# Specific IntelliJ files that leak local paths
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/dictionaries/
+.idea/shelf/
+.idea/aws.xml
+.idea/vcs.xml
+.idea/jsLibraryMappings.xml
+.idea/datasources/
+.idea/dataSources.ids
+.idea/dataSources.local.xml
+.idea/sqlDataSources.xml
+.idea/dynamic.xml
+.idea/uiDesigner.xml
+.idea/gradle.xml
+.idea/libraries/
+.idea/modules.xml
+.idea/replstate.xml
+.idea/sonarlint/
+.idea/inspectionProfiles/
+
+# CMake (JetBrains CLion)
+cmake-build-*/
+
+# Fleet (JetBrains new editor)
+.fleet/
+
+
+# ------------------------------------------------------------
+# VS CODE
+# ------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+*.code-workspace
+.history/
+
+
+# ------------------------------------------------------------
+# CURSOR
+# ------------------------------------------------------------
+.cursor/
+.cursorignore
+.cursorindexingignore
+.cursor-tutor/
+.cursorignore
+
+
+# ------------------------------------------------------------
+# CLAUDE (Anthropic desktop app / Claude Code)
+# ------------------------------------------------------------
+# CLAUDE.md is intentionally KEPT — it is our project rules file
+# Exclude only Claude's local session/cache data
+.claude/
+.claude-history/
+claude_cache/
+.claudeignore
+
+
+# ------------------------------------------------------------
+# WINDSURF / CODEIUM / ANTIGRAVITY / OTHER AI EDITORS
+# ------------------------------------------------------------
+.windsurf/
+.codeium/
+.antigravity/
+.aide/
+.continue/
+.aider
+.aider.tags.cache.v*/
+.aider.chat.history.md
+.aider.input.history
+.sourcegraph/
+.copilot/
+.tabnine/
+.kite/
+
+
+# ------------------------------------------------------------
+# DOCKER
+# ------------------------------------------------------------
+.docker/
+docker-compose.override.yml
+.dockerignore.local
+
+
+# ------------------------------------------------------------
+# ENVIRONMENT & SECRETS — NEVER COMMIT THESE
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.env
+local.env
+secrets.yaml
+secrets.json
+secrets/
+*_secret*
+*_secrets*
+hf_token*
+HF_TOKEN*
+openai_key*
+api_key*
+*.pem
+*.key
+*.p12
+*.pfx
+
+
+# ------------------------------------------------------------
+# PROJECT SPECIFIC — AEPO
+# ------------------------------------------------------------
+
+# Training outputs — large binary files
+results/*.pkl
+results/*.pt
+results/*.pth
+results/checkpoints/
+
+# Model weights — never commit raw weights
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+model_weights/
+checkpoints/
+
+# Logs
+*.log
+logs/
+*.out
+nohup.out
+
+# Java mirror — deleted before submission
+# Uncomment ONLY on final submission day:
+# java-mirror/
+
+# Temporary scratch docs
+docs/scratch/
+
+# Local test config overrides
+pytest.ini.local
+conftest.local.py
+
+# HuggingFace cache
+.huggingface/
+~/.cache/huggingface/
+
+
+# ------------------------------------------------------------
+# WINDOWS OS
+# ------------------------------------------------------------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+[Dd]esktop.ini
+._*
+
+# ------------------------------------------------------------
+# macOS (in case teammates are on Mac)
+# ------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# ------------------------------------------------------------
+# LINUX
+# ------------------------------------------------------------
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+
+# Runtime outputs — not source code
+inference_result.txt
+inference_result*.txt
+
+# Manual utility scripts (not part of submission)
+verify_foundation.py
+verify_step.py
+

@@ -1,0 +1,52 @@
+version: "1.0"
+name: "unified-fintech-risk-gateway"
+version_env: "0.1.0"
+description: "SRE/DevOps Gateway Orchestrator for UPI architectures. An LLM agent manages fraud risk, Kafka infrastructure health, and P99 SLA compliance across three escalating difficulty tiers."
+
+# Required by HF automated discovery — Space must be tagged 'openenv'
+tags:
+  - openenv
+
+# Live deployment URL — used by validate-submission.sh and evaluators
+space_url: "https://unknown1321-unified-fintech-risk-gateway.hf.space"
+
+# Entry point for openenv validate
+entry_point: "unified_gateway:UnifiedFintechEnv"
+
+# Episode reward bounds (all rewards normalised to [0.0, 1.0])
+reward_range: [0.0, 1.0]
+
+# Per-task definitions with grader thresholds
+tasks:
+  - id: "easy"
+    name: "Normal Traffic"
+    description: "Standard UPI routing during business hours. 100% normal transactions with low risk (5–30). Agent must learn the approval baseline and action cost structure."
+    max_steps: 100
+    reward_threshold: 0.75
+
+  - id: "medium"
+    name: "Flash Sale"
+    description: "Flipkart Big Billion Day scenario. 80% normal traffic with 20% flash-sale volume spikes. Agent must proactively throttle during surges to prevent Kafka lag breach."
+    max_steps: 100
+    reward_threshold: 0.50
+
+  - id: "hard"
+    name: "Botnet Storm"
+    description: "Sustained distributed credential-stuffing attack. 100% high-risk botnet traffic (risk 85–100). Agent must reject/challenge all fraud while preventing infrastructure collapse."
+    max_steps: 100
+    reward_threshold: 0.30
+
+# Observation space definition
+observation_space:
+  type: "dict"
+  fields:
+    channel:     { type: "float", min: 0,    max: 2     }
+    risk_score:  { type: "float", min: 0,    max: 100   }
+    kafka_lag:   { type: "float", min: 0,    max: 10000 }
+    api_latency: { type: "float", min: 0,    max: 5000  }
+    rolling_p99: { type: "float", min: 0,    max: 5000  }
+
+# Action space definition
+action_space:
+  type: "multidiscrete"
+  dimensions: [3, 3, 2]
