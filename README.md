@@ -1,5 +1,5 @@
 ---
-title: Unified Fintech Risk Gateway
+title: Autonomous Enterprise Payment Orchestrator
 emoji: 🛡️
 colorFrom: indigo
 colorTo: green
@@ -12,9 +12,9 @@ tags:
 
 <div align="center">
 
-# 🛡️ Unified Fintech Risk Gateway
+# 🛡️ Autonomous Enterprise Payment Orchestrator (AEPO)
 
-### An OpenEnv Environment for Multi-Objective SRE Decision-Making in Real-Time UPI Payment Infrastructure
+### A Causally-Structured OpenEnv Environment for Autonomous SRE Decision-Making in Real-Time UPI Payment Infrastructure
 
 [![OpenEnv Validated](https://img.shields.io/badge/openenv_validate-Passed-brightgreen?logo=checkmarx&logoColor=white)](#)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
@@ -24,9 +24,9 @@ tags:
 
 ---
 
-**A typed, task-driven OpenEnv environment where an LLM agent must simultaneously manage fraud risk, Kafka infrastructure health, and P99 SLA compliance across escalating difficulty tiers — one transaction at a time.**
+**A typed, task-driven OpenEnv environment where an autonomous agent must simultaneously manage fraud risk, Kafka infrastructure health, and P99 SLA compliance — with causal transitions that make every decision echo across future steps.**
 
-_Built for the Meta OpenEnv Hackathon · Passes `openenv validate` ✅_
+_Built for the Meta PyTorch OpenEnv Hackathon × Scaler School of Technology · Passes `openenv validate` ✅_
 
 </div>
 
@@ -50,9 +50,11 @@ _Built for the Meta OpenEnv Hackathon · Passes `openenv validate` ✅_
 
 India's **Unified Payments Interface (UPI)** processes over **14 billion transactions per month**. Behind every tap-to-pay lies a fragile chain of microservices — risk engines, Kafka brokers, bank API gateways, and cryptographic verification layers — each managed in isolation by static rules that know nothing about each other.
 
-### The SRE/DevOps Challenge
+### The SRE/Fraud Coordination Problem
 
-In production payment infrastructure, three catastrophic failure modes destroy uptime and revenue:
+In production payment infrastructure, SRE and fraud teams are blind to each other. When a botnet hits, fraud teams reject transactions — not knowing that each rejection still consumes a Kafka slot. SREs throttle — not knowing that 90% of throttled traffic is malicious. No single static rule can see both planes simultaneously.
+
+**AEPO is the causally-structured simulation environment where an AI learns to see both simultaneously.**
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -72,17 +74,17 @@ In production payment infrastructure, three catastrophic failure modes destroy u
 └────────────────────────────────────────────────────────────┘
 ```
 
-**No single static rule can balance all three.** An SRE needs to dynamically trade off queue health against latency, security against throughput, and caution against speed — on every single transaction.
+**No single static rule can balance all three.** An autonomous agent must dynamically trade off queue health against latency, security against throughput, and caution against speed — on every single transaction.
 
-**This environment teaches an AI agent to make exactly those decisions.**
+**This environment is where that agent is built.**
 
 ---
 
 ## ⚙️ How It Works
 
-The agent observes **five real-time signals** and outputs **three simultaneous decisions** on every step:
+The agent observes **real-time signals** across risk, infrastructure, and business layers, and outputs **simultaneous decisions** on every step. Each decision has causal consequences — throttling now reduces lag two steps later, skipping verification saves lag units per step, and adversarial pressure escalates automatically as the agent improves.
 
-### Observation Space (`UFRGObservation`)
+### Observation Space
 
 | Signal | Range | What It Measures |
 |---|---|---|
@@ -92,7 +94,7 @@ The agent observes **five real-time signals** and outputs **three simultaneous d
 | `api_latency` | `[0, 5000]` | Downstream bank API latency in ms |
 | `rolling_p99` | `[0, 5000]` | EMA-smoothed P99 latency — >800 = **SLA BREACH** |
 
-### Action Space (`UFRGAction`)
+### Action Space
 
 | Dimension | Choices | Trade-off |
 |---|---|---|
@@ -100,13 +102,13 @@ The agent observes **five real-time signals** and outputs **three simultaneous d
 | **Infra Routing** | 0=Normal · 1=Throttle · 2=CircuitBreaker | Queue health vs. dropped traffic |
 | **Crypto Verify** | 0=FullVerify · 1=SkipVerify | Security vs. latency |
 
-**18 unique action combinations** per step. Every choice has a cost. Every shortcut has a consequence.
+**Every action has a failure condition. No free actions. Every shortcut has a consequence.**
 
 ---
 
 ## 📊 Task Progression — Easy → Medium → Hard
 
-The OpenEnv rubric requires three tasks with increasing difficulty. Each task models a real-world SRE scenario:
+The OpenEnv rubric requires three tasks with increasing difficulty. Each task models a real-world SRE scenario with a fixed phase sequence the agent must navigate:
 
 ### 🟢 Task: `easy` — Normal Traffic
 
@@ -116,9 +118,10 @@ The OpenEnv rubric requires three tasks with increasing difficulty. Each task mo
 | **Traffic Mix** | 100% normal transactions |
 | **Risk Score** | Low (5–30) — no fraud pressure |
 | **Infra Stress** | Minimal — lag/latency near baseline with minor jitter |
-| **Agent Challenge** | Learn the approval baseline; understand action costs |
+| **Success Threshold** | Mean reward ≥ **0.75** over 10 episodes |
+| **Agent Challenge** | Learn the approval baseline; understand action cost structure |
 
-The agent should learn to **approve everything, skip verify, route normal** — harvesting the `0.8` baseline reward consistently.
+The agent should learn to **approve transactions, skip verify, route normal** — harvesting the `0.8` baseline reward consistently.
 
 ---
 
@@ -130,6 +133,7 @@ The agent should learn to **approve everything, skip verify, route normal** — 
 | **Traffic Mix** | 80% normal / 20% flash-sale bursts |
 | **Risk Score** | Very low (0–10) during spikes — users are real, not attackers |
 | **Infra Stress** | **Severe** — Kafka lag surges +500–1000 per spike tick, latency degrades +100–300 |
+| **Success Threshold** | Mean reward ≥ **0.50** over 10 episodes |
 | **Agent Challenge** | Manage infrastructure without falsely rejecting legitimate users |
 
 The agent must learn to **throttle proactively** during volume spikes to prevent lag from crossing the 4,000 crash threshold — but throttling costs `-0.2` per step, so timing matters.
@@ -144,9 +148,10 @@ The agent must learn to **throttle proactively** during volume spikes to prevent
 | **Traffic Mix** | 100% high-risk botnet traffic every tick |
 | **Risk Score** | Extreme (85–100) on every transaction |
 | **Infra Stress** | Steady accumulator growth — lag +100–400, latency +50–150 per tick |
+| **Success Threshold** | Mean reward ≥ **0.30** over 10 episodes |
 | **Agent Challenge** | Balance fraud rejection against infrastructure collapse |
 
-The agent must **reject or challenge every transaction** while managing the relentless infrastructure pressure. Approving + SkipVerify on a high-risk transaction triggers the catastrophic **-1.0 fraud penalty** — immediately zeroing the reward.
+The agent must **reject or challenge every transaction** while managing the relentless infrastructure pressure. Approving + SkipVerify on a high-risk transaction triggers the catastrophic fraud gate — immediately zeroing the reward and ending the episode.
 
 ---
 

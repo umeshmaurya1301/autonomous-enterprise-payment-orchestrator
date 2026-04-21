@@ -1,7 +1,7 @@
 version: "1.0"
-name: "unified-fintech-risk-gateway"
-version_env: "0.1.0"
-description: "SRE/DevOps Gateway Orchestrator for UPI architectures. An LLM agent manages fraud risk, Kafka infrastructure health, and P99 SLA compliance across three escalating difficulty tiers."
+name: "autonomous-enterprise-payment-orchestrator"
+version_env: "0.2.0"
+description: "Autonomous Enterprise Payment Orchestrator (AEPO). A causally-structured OpenEnv environment where an autonomous agent manages fraud risk, Kafka infrastructure health, and P99 SLA compliance simultaneously — with causal state transitions that make every decision echo across future steps."
 
 # Required by HF automated discovery — Space must be tagged 'openenv'
 tags:
