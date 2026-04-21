@@ -114,8 +114,9 @@ async def reset_env(request: Request):
             detail=f"Invalid task '{task_name}'. Must be one of: easy, medium, hard.",
         )
 
-    # Re-instantiate completely — guarantees zero state bleed between episodes.
-    env = UnifiedFintechEnv()
+    # episode_reset() — NOT re-instantiation. The module-level singleton is kept alive
+    # so curriculum_level and adversary_threat_level accumulate across episodes.
+    # Calling UnifiedFintechEnv() here would wipe those accumulators (Risk #4).
     obs, _info = env.reset(options={"task": task_name})
 
     return {"observation": obs.model_dump(), "info": _info}
