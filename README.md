@@ -37,8 +37,11 @@ _Built for the Meta PyTorch OpenEnv Hackathon × Scaler School of Technology · 
 ## Table of Contents
 
 - [The Mission](#-the-mission--why-this-environment-exists)
+- [The Evolution](#-the-evolution--ufrg-vs-aepo)
 - [Training Results](#-training-results--before-vs-after)
 - [How It Works](#-how-it-works)
+- [Implementation Roadmap](#-implementation-roadmap--phase-1-to-10)
+- [Enterprise Red Team Patches](#-enterprise-red-team-patches)
 - [Causal State Transitions](#-causal-state-transitions--what-separates-aepo-from-memoryless-simulators)
 - [Task Progression](#-task-progression--easy--medium--hard)
 - [Reward Logic](#-reward-logic--the-01-contract)
@@ -81,6 +84,22 @@ In production payment infrastructure, SRE and fraud teams are blind to each othe
 ```
 
 **No single static rule can balance all three.** An autonomous agent must dynamically trade off queue health against latency, security against throughput, and caution against speed — on every single transaction.
+
+---
+
+## 🔄 The Evolution — UFRG vs. AEPO
+
+The shift from the initial Unified Fintech Risk Gateway (UFRG) to the Autonomous Enterprise Payment Orchestrator (AEPO) marks the transition from a reactive transaction simulator to a proactive SRE orchestration engine.
+
+| Architectural Component | UFRG (Round 1 Baseline) | AEPO (Grand Finale Architecture) |
+| :--- | :--- | :--- |
+| **System Identity** | Simple UPI Payment Gateway | Autonomous Enterprise Payment Orchestrator |
+| **Observation Space** | 5 Fields | **10 Fields** (Adds threat, entropy, P99, pool, tier) |
+| **Action Space** | 3 Dimensions | **6 Dimensions** (Risk, Crypto, Infra, Retry, Settlement, App Priority) |
+| **System Physics** | Memoryless / Static Noise | **Causal Transitions & POMDP** (Delayed T+2 relief, backlog accumulators) |
+| **Reward Function** | 7 Branches (Linear) | **20+ Hierarchical Branches** (Anti-reward hacking, SLA penalties) |
+| **Intelligence** | Reactive | **Proactive** (CPU-only PyTorch `LagPredictor` MLP) |
+| **Difficulty Scaling** | Static per task | **Adaptive Curriculum Learning** (Rolling staircase, adversary escalation) |
 
 ---
 
@@ -168,6 +187,29 @@ All 10 values are stored raw with Pydantic Field constraints. The agent always r
 | Business | `app_priority` | 0=UPI · 1=Credit · 2=Balanced | Mismatch to merchant_tier → missed +0.02 |
 
 **Every action has a failure condition. No free actions. Every shortcut has a consequence.**
+
+---
+
+## 🛣️ Implementation Roadmap — Phase 1 to 10
+
+The AEPO environment was built over 10 rigorous engineering phases to ensure enterprise-grade stability and strict adherence to the OpenEnv SRE themes:
+
+* **Phase 1-3 (The X-Ray & Control Panel):** Expanded to a 10-dimensional POMDP observation space and a 6-dimensional action space, forcing the agent to manage multi-rail routing, cryptographic overhead, and settlement policies simultaneously.
+* **Phase 4-5 (Causal Physics & Penalties):** Rewrote the reward function into a 20+ branch hierarchy. Introduced delayed relief ($T+2$) for throttling, Cascading DB $\rightarrow$ API latency failures, and strict EMA mathematics for P99 SLA tracking.
+* **Phase 6 (The Arms Race):** Implemented an adaptive, 5-episode rolling staircase curriculum. The environment dynamically unlocks Medium and Hard modes based on agent survival, autonomously scaling the `adversary_threat_level` (+0.5/tick) against competent defenders.
+* **Phase 7-8 (Observability & Stress):** Built a live terminal dashboard (SRE Cockpit) with health sparklines and granular reward breakdowns. Conducted 1000-step validation runs pushing Pydantic models to extreme limits to ensure graceful degradation over hard crashes.
+* **Phase 9 (Predictive Intelligence):** Integrated the CPU-Only PyTorch `LagPredictor` (Theme 3.1) directly into the environment loop, turning the agent from reactive to proactive.
+* **Phase 10 (Showroom Polish):** Audited the codebase for strict Python 3.10 compliance, finalized Java mirror synchronization (`/java-mirror/`), and implemented visual A/B comparative plotting tools.
+
+---
+
+## 🚨 Enterprise Red Team Patches
+
+After completing the core architecture, an independent Red Team audit revealed critical flaws that could have led to disqualification or reward hacking. These were systematically patched to bulletproof the submission:
+
+1. **Fix 1: OpenAI Client Compliance (`inference.py`):** Completely rewrote the inference script, stripping custom PyTorch loops to strictly use the official `openai` Python package (pointing to local Ollama). This guarantees 100% compliance with the hackathon's automated evaluation pipeline.
+2. **Fix 2: The Settlement Backlog Exploit (Reward Patch):** RL agents discovered a "Reward Hack" by alternating async/sync actions to bypass DB latency without triggering consecutive-use penalties. This was patched by introducing a true physical accumulator (`_cumulative_settlement_backlog`) that forces the agent to eventually pay off its technical debt.
+3. **Fix 3: POMDP & Gaussian Noise (Physics Patch):** Added bounded `numpy.random.normal()` noise to `kafka_lag` and `api_latency` metrics. By preventing mathematically perfect observations, the agent is forced to rely on the `LagPredictor` World Model to filter noise, cementing alignment with Theme #3.1.
 
 ---
 

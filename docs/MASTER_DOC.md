@@ -827,7 +827,15 @@ The heuristic crashes the hard episode roughly 35 steps before the end because F
 | #2 app_priority | Always Balanced | Match to merchant_tier | +0.02 bonus/step |
 | #3 DB pool check | Always ExponentialBackoff | Fail-Fast when pool < 20 | −0.10 → 0.00 per affected step |
 
-### 8.3 Future Scope
+### 8.3 Enterprise Red Team Patches
+
+Post-Phase 10, an independent Red Team audit revealed critical flaws that were systematically patched to ensure contest compliance and system integrity:
+
+1. **Fix 1: OpenAI Client Compliance (`inference.py`):** The custom PyTorch GRPO loop was stripped out and replaced with the official `openai` Python package pointing to a local Ollama instance (`http://localhost:11434/v1`). This was mandatory for the OpenEnv automated evaluation pipeline.
+2. **Fix 2: The Settlement Backlog Exploit (Reward Patch):** We replaced the simple consecutive-use counter for `DeferredAsync` with a true physical accumulator (`_cumulative_settlement_backlog`). This prevents agents from reward hacking by alternating actions to bypass the DB without paying off technical debt.
+3. **Fix 3: POMDP & Gaussian Noise (Physics Patch):** Added bounded `numpy.random.normal()` noise to `kafka_lag` and `api_latency` during `_get_obs()`. This prevents perfect mathematically clean observations, forcing the agent to actually rely on the `LagPredictor` World Model (Theme #3.1).
+
+### 8.4 Future Scope
 
 Items remaining in the roadmap (items already implemented in AEPO are not listed):
 
