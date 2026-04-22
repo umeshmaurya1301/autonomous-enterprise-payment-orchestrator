@@ -6,17 +6,16 @@ Evolved from: Unified Fintech Risk Gateway (UFRG) — Round 1
 Observation space  : Box(10,) float32
   [0]  channel               — payment channel ID         [0,     2]
   [1]  risk_score            — fraud risk signal          [0,   100]
-  [2]  adversary_threat_level — adversary escalation      [0,    10]  ★ Phase 2
-  [3]  system_entropy        — system entropy index       [0,   100]  ★ Phase 2
+  [2]  adversary_threat_level — adversary escalation      [0,    10]
+  [3]  system_entropy        — system entropy index       [0,   100]
   [4]  kafka_lag             — consumer lag (msgs)        [0, 10000]
   [5]  api_latency           — bank API latency (ms)      [0,  5000]
   [6]  rolling_p99           — EMA P99 SLA (ms)           [0,  5000]
-  [7]  db_connection_pool    — DB pool utilization        [0,   100]  ★ Phase 2
-  [8]  bank_api_status       — bank API status            [0,     2]  ★ Phase 2
-  [9]  merchant_tier         — merchant tier              [0,     1]  ★ Phase 2
+  [7]  db_connection_pool    — DB pool utilization        [0,   100]
+  [8]  bank_api_status       — bank API status            [0,     2]
+  [9]  merchant_tier         — merchant tier              [0,     1]
 
-  ★ Phase 2: observed but inert — not yet influencing reward or transitions.
-    Full causal wiring implemented in Phase 5.
+  Phase 5: All 10 fields are now causally wired.  See Causal Transitions below.
 
 Action space       : MultiDiscrete([3, 2, 3, 2, 2, 3])
   [0] risk_decision    — 0=APPROVE  1=REJECT     2=CHALLENGE
@@ -25,11 +24,27 @@ Action space       : MultiDiscrete([3, 2, 3, 2, 2, 3])
   [3] db_retry_policy  — 0=FAIL_FAST  1=EXPONENTIAL_BACKOFF
   [4] settlement_policy— 0=STANDARD_SYNC  1=DEFERRED_ASYNC_FALLBACK
   [5] app_priority     — 0=UPI  1=CREDIT  2=BALANCED
+
+Causal Transitions (Phase 5):
+  1. Lag→Latency:     api_latency[t+1] += 0.1 × max(0, kafka_lag[t] - 3000)
+  2. Throttle relief: Throttle → schedules -150 kafka_lag for next 2 steps
+  3. Bank coupling:   Degraded + StandardSync → rolling_p99 += 200 that step
+  4. DB pressure:     db_pool > 80 + Backoff → api_latency += 100 that step
+  5. DB waste:        db_pool < 20 + Backoff → -0.10 reward (in reward fn)
+  6. Entropy spike:   entropy > 70 → api_latency += uniform(100,300) that step
+  7. Adversary lag:   5-ep rolling avg gates (Phase 6 activates logic)
+  8. P99 EMA:         rolling_p99[t] = 0.8 × p99[t-1] + 0.2 × api_latency[t]
+
+Phase Machine (fixed at reset, never mixed by curriculum):
+  easy:   Normal × 100
+  medium: Normal × 40 → Spike × 60
+  hard:   Normal × 20 → Spike × 20 → Attack × 40 → Recovery × 20
 """
 
 from __future__ import annotations
 
 import logging
+from collections import deque
 from typing import Any
 
 import numpy as np
@@ -66,6 +81,16 @@ HIGH_RISK_THRESHOLD: float = 80.0     # risk_score above this = high risk
 
 EMA_ALPHA: float = 0.2  # smoothing coefficient for rolling accumulators
 
+# ---------------------------------------------------------------------------
+# Phase 5 constants
+# ---------------------------------------------------------------------------
+
+THROTTLE_RELIEF_PER_STEP: float = -150.0   # kafka_lag relief per queued tick
+THROTTLE_RELIEF_QUEUE_MAXLEN: int = 4      # max queued relief items (2 throttle actions)
+P99_EMA_ALPHA: float = 0.2                 # α for rolling_p99 EMA (spec: 0.8/0.2 split)
+LATENCY_MEAN_REVERT_ALPHA: float = 0.2     # natural mean-reversion of api_latency toward baseline
+LATENCY_BASELINE: float = 50.0             # baseline api_latency for mean-reversion
+
 
 # ---------------------------------------------------------------------------
 # OpenEnv Data Models  (Pydantic v2 — typed contract between agent and gateway)
@@ -78,10 +103,6 @@ class AEPOObservation(BaseModel):
     Stores raw values with Pydantic Field constraints.
     Call .normalized() to get agent-facing values, all in [0.0, 1.0].
     Raw values are exposed to graders via info["raw_obs"] (Phase 4).
-
-    Fields [2]–[9] are observed-but-inert in Phase 2: generated and visible
-    in every observation but do not yet affect reward or state transitions.
-    Full causal wiring is added in Phase 5.
     """
 
     # ── Risk layer ────────────────────────────────────────────────────────────
@@ -99,7 +120,7 @@ class AEPOObservation(BaseModel):
     )
     system_entropy: float = Field(
         default=0.0, ge=0.0, le=ENTROPY_MAX,
-        description="System entropy index [0, 100] — above 70 triggers latency spike (Phase 5)",
+        description="System entropy index [0, 100] — above 70 triggers latency spike",
     )
 
     # ── Infrastructure layer ──────────────────────────────────────────────────
@@ -117,7 +138,7 @@ class AEPOObservation(BaseModel):
     )
     db_connection_pool: float = Field(
         default=50.0, ge=0.0, le=DB_POOL_MAX,
-        description="DB connection pool utilization [0, 100] — above 80 triggers retry overhead (Phase 5)",
+        description="DB connection pool utilization [0, 100] — above 80 triggers retry overhead",
     )
 
     # ── Business layer ────────────────────────────────────────────────────────
@@ -127,7 +148,7 @@ class AEPOObservation(BaseModel):
     )
     merchant_tier: float = Field(
         default=0.0, ge=0.0, le=MERCHANT_TIER_MAX,
-        description="Merchant tier: 0=Small, 1=Enterprise — shapes optimal app_priority (Phase 4)",
+        description="Merchant tier: 0=Small, 1=Enterprise — shapes optimal app_priority",
     )
 
     def normalized(self) -> dict[str, float]:
@@ -224,7 +245,7 @@ class AEPOAction(BaseModel):
     )
     db_retry_policy: int = Field(
         default=0, ge=0, le=1,
-        description="DB retry: 0=FailFast, 1=ExponentialBackoff — backoff when pool<20 → -0.10 (Phase 4)",
+        description="DB retry: 0=FailFast, 1=ExponentialBackoff — backoff when pool<20 → -0.10",
     )
 
     # ── Business layer ────────────────────────────────────────────────────────
@@ -234,7 +255,7 @@ class AEPOAction(BaseModel):
     )
     app_priority: int = Field(
         default=2, ge=0, le=2,
-        description="App priority: 0=UPI, 1=Credit, 2=Balanced — match merchant_tier for +0.02 bonus (Phase 4)",
+        description="App priority: 0=UPI, 1=Credit, 2=Balanced — match merchant_tier for +0.02 bonus",
     )
 
 
@@ -284,6 +305,9 @@ class UnifiedFintechEnv(gym.Env):
 
     Episode length is capped at max_steps (100) steps. Early termination on
     system crash (kafka_lag > 4000) or catastrophic fraud.
+
+    Phase 5: Implements the 4-phase state machine (Normal, Spike, Attack,
+    Recovery) and all 8 causal state transitions.
     """
 
     metadata: dict[str, Any] = {"render_modes": []}
@@ -293,32 +317,46 @@ class UnifiedFintechEnv(gym.Env):
 
         self.max_steps: int = 100
 
-        # Rolling EMA accumulators — reset again inside reset()
+        # ── Phase machine state (set in reset) ─────────────────────────────
+        self._phase_schedule: list[str] = []
+
+        # ── Direct accumulators (replace old EMA-only approach) ────────────
+        self._kafka_lag: float = 0.0
+        self._api_latency: float = LATENCY_BASELINE
+        self._rolling_p99: float = LATENCY_BASELINE
+        self._db_pool: float = 50.0
+        self._bank_status: float = 0.0
+        self._system_entropy: float = 0.0
+        self._merchant_tier: float = 0.0
+        self._adversary_threat_level: float = 0.0
+
+        # ── Backward-compat aliases (tests may reference these) ────────────
         self._rolling_lag: float = 0.0
-        self._rolling_latency: float = 50.0
+        self._rolling_latency: float = LATENCY_BASELINE
 
+        # ── Causal transition state ────────────────────────────────────────
+        # Transition #2: Throttle relief queue — pops one item per step
+        # BOUNDARY RULE: cleared in reset() to prevent cross-episode bleed
+        self._throttle_relief_queue: deque[float] = deque(maxlen=THROTTLE_RELIEF_QUEUE_MAXLEN)
+
+        # Transition #1: Lag→Latency carry-over for next step
+        self._lag_latency_carry: float = 0.0
+
+        # ── Episode-level counters ─────────────────────────────────────────
         self.current_step: int = 0
-
-        # Tracks consecutive DeferredAsyncFallback steps — penalty after 5 (Phase 4)
         self._consecutive_deferred_async: int = 0
 
         # curriculum_level advances in Phase 6; held at 0 here
         self._curriculum_level: int = 0
 
+        # Adversary: episode history for 5-ep rolling avg (Phase 6 activates)
+        self._episode_reward_history: list[float] = []
+
+        # Spike-phase sub-event tracking
+        self._is_burst_step: bool = False
+
         # ------------------------------------------------------------------
         # Observation space — Box(10,) dtype=float32
-        #
-        # Index → field mapping (declaration order of AEPOObservation):
-        #   0  channel               [0,       2]
-        #   1  risk_score            [0,     100]
-        #   2  adversary_threat_level[0,      10]
-        #   3  system_entropy        [0,     100]
-        #   4  kafka_lag             [0,   10000]
-        #   5  api_latency           [0,    5000]
-        #   6  rolling_p99           [0,    5000]
-        #   7  db_connection_pool    [0,     100]
-        #   8  bank_api_status       [0,       2]
-        #   9  merchant_tier         [0,       1]
         # ------------------------------------------------------------------
         obs_low = np.array(
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -339,16 +377,39 @@ class UnifiedFintechEnv(gym.Env):
 
         # ------------------------------------------------------------------
         # Action space — MultiDiscrete([3, 2, 3, 2, 2, 3])
-        #   0  risk_decision    {0: APPROVE, 1: REJECT, 2: CHALLENGE}
-        #   1  crypto_verify    {0: FULL_VERIFY, 1: SKIP_VERIFY}
-        #   2  infra_routing    {0: ROUTE_NORMAL, 1: THROTTLE, 2: CIRCUIT_BREAKER}
-        #   3  db_retry_policy  {0: FAIL_FAST, 1: EXPONENTIAL_BACKOFF}
-        #   4  settlement_policy{0: STANDARD_SYNC, 1: DEFERRED_ASYNC}
-        #   5  app_priority     {0: UPI, 1: CREDIT, 2: BALANCED}
         # ------------------------------------------------------------------
         self.action_space = spaces.MultiDiscrete(
             nvec=np.array([3, 2, 3, 2, 2, 3], dtype=np.int64),
         )
+
+    # =====================================================================
+    # Phase Machine — build schedule fixed at reset
+    # =====================================================================
+
+    @staticmethod
+    def _build_phase_schedule(task_name: str) -> list[str]:
+        """
+        Build the 100-step phase schedule for a given task.
+
+        Phase sequences are FIXED AT INIT, NEVER MIXED BY CURRICULUM:
+          easy:   Normal × 100
+          medium: Normal × 40  → Spike × 60
+          hard:   Normal × 20  → Spike × 20 → Attack × 40 → Recovery × 20
+        """
+        if task_name == "easy":
+            return ["normal"] * 100
+        elif task_name == "medium":
+            return ["normal"] * 40 + ["spike"] * 60
+        elif task_name == "hard":
+            return ["normal"] * 20 + ["spike"] * 20 + ["attack"] * 40 + ["recovery"] * 20
+        else:
+            raise ValueError(
+                f"Unknown task {task_name!r}; expected 'easy', 'medium', or 'hard'."
+            )
+
+    # =====================================================================
+    # reset()
+    # =====================================================================
 
     def reset(
         self,
@@ -385,15 +446,38 @@ class UnifiedFintechEnv(gym.Env):
         self.current_task: str = task_name
         self.current_step: int = 0
 
-        # Reset rolling EMA accumulators to safe baselines
-        self._rolling_lag: float = 0.0
-        self._rolling_latency: float = 50.0
+        # ── Build phase schedule ─────────────────────────────────────────
+        self._phase_schedule = self._build_phase_schedule(task_name)
+
+        # ── Reset direct accumulators to safe baselines ──────────────────
+        self._kafka_lag = 0.0
+        self._api_latency = LATENCY_BASELINE
+        self._rolling_p99 = LATENCY_BASELINE
+        self._db_pool = 50.0
+        self._bank_status = 0.0
+        self._system_entropy = 0.0
+        self._is_burst_step = False
+
+        # Merchant tier: Enterprise on hard task; Small elsewhere
+        self._merchant_tier = 1.0 if task_name == "hard" else 0.0
+
+        # Backward-compat aliases — kept in sync with accumulators
+        self._rolling_lag = 0.0
+        self._rolling_latency = LATENCY_BASELINE
+
+        # ── Clear causal transition state ────────────────────────────────
+        # BOUNDARY RULE (CLAUDE.md): _throttle_relief_queue.clear() MUST be
+        # called inside reset() — otherwise lag relief from the previous
+        # episode bleeds into the first steps of the next episode.
+        self._throttle_relief_queue.clear()
+        self._lag_latency_carry = 0.0
 
         # Clear settlement backlog counter — must happen here or previous-episode
         # deferred-async count bleeds into the first steps of the new episode.
-        self._consecutive_deferred_async: int = 0
+        self._consecutive_deferred_async = 0
 
-        self._current_obs: AEPOObservation = self._generate_transaction(self.current_task)
+        # ── Generate initial observation ─────────────────────────────────
+        self._current_obs = self._generate_phase_observation()
 
         return self._current_obs, {"task": task_name}
 
@@ -401,133 +485,185 @@ class UnifiedFintechEnv(gym.Env):
         """Return the current observation without advancing the clock."""
         return self._current_obs
 
-    def _generate_transaction(self, task_name: str) -> AEPOObservation:
+    # =====================================================================
+    # Phase-driven observation generation (replaces _generate_transaction)
+    # =====================================================================
+
+    def _generate_phase_observation(self) -> AEPOObservation:
         """
-        Produce a synthetic transaction observation controlled by task_name.
+        Generate a phase-driven observation using internal accumulators.
 
-        Fields [2]–[9] (adversary_threat_level, system_entropy, db_connection_pool,
-        bank_api_status, merchant_tier) are generated here but marked inert in
-        Phase 2 — they do not yet influence reward or transitions.
+        This replaces the old memoryless ``_generate_transaction()`` with a
+        causally-structured generator where:
+        - Phase determines risk_score range, kafka_lag delta, bank_api_status
+        - Throttle relief queue pops one item per step (Transition #2)
+        - Lag→Latency carry-over applied (Transition #1)
+        - api_latency mean-reverts toward baseline with small random variation
+        - System entropy, DB pool, bank status generated per phase dynamics
 
-        Parameters
-        ----------
-        task_name : str
-            One of ``{"easy", "medium", "hard"}``.
-
-        Returns
-        -------
-        AEPOObservation
+        The P99 EMA (Transition #8) is computed in step(), NOT here, to ensure
+        it incorporates action-dependent transitions (#3, #4, #6).
         """
-        rng = self.np_random  # gymnasium-seeded Generator
+        rng = self.np_random
 
-        # ── Channel (common to all profiles) ─────────────────────────────
+        # Phase for this observation
+        step_idx = min(self.current_step, len(self._phase_schedule) - 1)
+        phase = self._phase_schedule[step_idx] if self._phase_schedule else "normal"
+
+        # ── Channel (common to all phases) ───────────────────────────────
         channel: float = float(rng.integers(0, 3))  # {0, 1, 2}
 
-        # ================================================================
-        # EASY — 100 % Normal Traffic
-        # ================================================================
-        if task_name == "easy":
-            risk_score  = rng.uniform(5.0, 30.0)
-            kafka_lag   = max(0.0, self._rolling_lag   + rng.uniform(-50.0,  50.0))
-            api_latency = max(10.0, self._rolling_latency + rng.uniform(-30.0, 30.0))
-            event_type  = "normal"
+        # ── Phase-driven risk_score and kafka_lag delta ───────────────────
+        self._is_burst_step = False
 
-        # ================================================================
-        # MEDIUM — 80 % Normal / 20 % Flash-Sale Volume Spike
-        # ================================================================
-        elif task_name == "medium":
-            roll: float = rng.uniform(0.0, 1.0)
+        if phase == "normal":
+            # Normal: 100% standard, risk 5–30, lag +50–150
+            risk_score = rng.uniform(5.0, 30.0)
+            lag_delta = rng.uniform(50.0, 150.0)
+            self._bank_status = 0.0  # Always Healthy
 
+        elif phase == "spike":
+            # Spike: 80% normal / 20% flash burst
+            roll = rng.uniform(0.0, 1.0)
             if roll < 0.80:
-                risk_score  = rng.uniform(5.0, 30.0)
-                kafka_lag   = max(0.0, self._rolling_lag + rng.uniform(-50.0, 50.0))
-                api_latency = max(10.0, self._rolling_latency + rng.uniform(-30.0, 30.0))
-                event_type  = "normal"
+                risk_score = rng.uniform(5.0, 30.0)
+                lag_delta = rng.uniform(50.0, 150.0)
             else:
-                risk_score  = rng.uniform(0.0, 10.0)
-                self._rolling_lag     += rng.uniform(500.0, 1000.0)
-                self._rolling_latency += rng.uniform(100.0,  300.0)
-                kafka_lag   = self._rolling_lag   + rng.uniform(0.0, 200.0)
-                api_latency = self._rolling_latency + rng.uniform(0.0, 100.0)
-                event_type  = "flash_sale"
+                # Flash burst: low risk, high lag surge
+                risk_score = rng.uniform(0.0, 10.0)
+                lag_delta = rng.uniform(500.0, 1000.0)
+                self._is_burst_step = True
+            # Healthy↔Degraded flicker: 30% chance of Degraded
+            self._bank_status = 1.0 if rng.uniform(0.0, 1.0) < 0.3 else 0.0
 
-        # ================================================================
-        # HARD — Sustained Botnet Storm
-        # ================================================================
-        elif task_name == "hard":
-            risk_score  = rng.uniform(85.0, 100.0)
-            self._rolling_lag     += rng.uniform(100.0, 400.0)
-            self._rolling_latency += rng.uniform(50.0,  150.0)
-            kafka_lag   = self._rolling_lag   + rng.uniform(0.0, 300.0)
-            api_latency = self._rolling_latency + rng.uniform(0.0, 200.0)
-            event_type  = "botnet_attack"
+        elif phase == "attack":
+            # Attack: 100% botnet, risk 85–100, lag +100–400
+            risk_score = rng.uniform(85.0, 100.0)
+            lag_delta = rng.uniform(100.0, 400.0)
+            self._bank_status = 1.0  # Degraded
+
+        elif phase == "recovery":
+            # Recovery: declining botnet, risk 40–70, lag drain -100 to -200
+            risk_score = rng.uniform(40.0, 70.0)
+            lag_delta = rng.uniform(-200.0, -100.0)  # drain
+            # Degraded→Healthy: probability increases across recovery steps
+            if "recovery" in self._phase_schedule:
+                first_recovery = self._phase_schedule.index("recovery")
+                total_recovery = self._phase_schedule.count("recovery")
+                steps_into_recovery = max(0, self.current_step - first_recovery)
+                heal_prob = min(1.0, steps_into_recovery / max(1, total_recovery))
+            else:
+                heal_prob = 0.5
+            self._bank_status = 0.0 if rng.uniform(0.0, 1.0) < heal_prob else 1.0
 
         else:
-            raise ValueError(
-                f"Unknown task_name {task_name!r}; expected 'easy', 'medium', or 'hard'."
-            )
+            # Fallback (should never reach here)
+            risk_score = rng.uniform(5.0, 30.0)
+            lag_delta = rng.uniform(50.0, 150.0)
+            self._bank_status = 0.0
 
-        # ── Update rolling EMA accumulators (α = 0.2) ────────────────────
-        self._rolling_lag     = EMA_ALPHA * kafka_lag     + (1.0 - EMA_ALPHA) * self._rolling_lag
-        self._rolling_latency = EMA_ALPHA * api_latency   + (1.0 - EMA_ALPHA) * self._rolling_latency
+        # ── Apply kafka_lag delta from phase ──────────────────────────────
+        self._kafka_lag += lag_delta
 
-        smoothed_p99: float = min(self._rolling_latency, P99_MAX)
+        # ── Transition #2: Throttle relief queue (pop one per step) ──────
+        if self._throttle_relief_queue:
+            self._kafka_lag += self._throttle_relief_queue.popleft()
 
-        # ── Clip core fields to observation-space bounds ──────────────────
-        kafka_lag   = float(np.clip(kafka_lag,   0.0,  LAG_MAX))
-        api_latency = float(np.clip(api_latency, 0.0,  LATENCY_MAX))
-        risk_score  = float(np.clip(risk_score,  0.0,  RISK_MAX))
-        channel     = float(np.clip(channel,     0.0,  CHANNEL_MAX))
+        # Clamp kafka_lag to valid range
+        self._kafka_lag = max(0.0, self._kafka_lag)
 
-        # Store event type for step() reward shaping
-        self._last_event_type: str = event_type
+        # ── Transition #1: Apply lag→latency carry-over from previous step
+        self._api_latency += self._lag_latency_carry
+        self._lag_latency_carry = 0.0
 
-        # ── New inert fields (Phase 2) ─────────────────────────────────────
-        # adversary_threat_level: Phase 6 adaptive curriculum manages escalation
-        adv_threat: float = 0.0
-
-        # system_entropy: random [0, 100]; causal spike effect wired in Phase 5
-        system_entropy: float = float(rng.uniform(0.0, ENTROPY_MAX))
-
-        # db_connection_pool: reflects infra pressure by task / event
-        if task_name == "easy":
-            db_pool = float(rng.uniform(30.0, 70.0))
-        elif event_type == "flash_sale":
-            db_pool = float(rng.uniform(60.0, 95.0))   # surge inflates pool usage
-        else:
-            db_pool = float(rng.uniform(50.0, 90.0))
-        db_pool = float(np.clip(db_pool, 0.0, DB_POOL_MAX))
-
-        # bank_api_status: Healthy under easy; Degraded under hard; flickers in medium spike
-        if task_name == "easy":
-            bank_status: float = 0.0
-        elif event_type == "flash_sale" and rng.uniform(0.0, 1.0) < 0.3:
-            bank_status = 1.0   # 30 % chance of Degraded during flash-sale burst
-        elif task_name == "hard":
-            bank_status = 1.0
-        else:
-            bank_status = 0.0
-
-        # merchant_tier: Enterprise on hard task; Small elsewhere
-        tier: float = 1.0 if task_name == "hard" else 0.0
-
-        return AEPOObservation(
-            channel=channel,
-            risk_score=risk_score,
-            adversary_threat_level=adv_threat,
-            system_entropy=system_entropy,
-            kafka_lag=kafka_lag,
-            api_latency=api_latency,
-            rolling_p99=smoothed_p99,
-            db_connection_pool=db_pool,
-            bank_api_status=bank_status,
-            merchant_tier=tier,
+        # ── api_latency: natural mean-reversion + small random variation ──
+        # This provides natural cooldown — without it, latency only goes up.
+        self._api_latency = (
+            LATENCY_MEAN_REVERT_ALPHA * LATENCY_BASELINE
+            + (1.0 - LATENCY_MEAN_REVERT_ALPHA) * self._api_latency
+            + rng.uniform(-10.0, 10.0)
         )
+        self._api_latency = max(10.0, self._api_latency)
+
+        # ── System entropy (random each step) ────────────────────────────
+        self._system_entropy = float(rng.uniform(0.0, ENTROPY_MAX))
+
+        # ── DB pool (varies by phase) ────────────────────────────────────
+        if phase == "normal":
+            self._db_pool = float(rng.uniform(30.0, 70.0))
+        elif phase == "spike" and self._is_burst_step:
+            self._db_pool = float(rng.uniform(60.0, 95.0))
+        else:
+            self._db_pool = float(rng.uniform(50.0, 90.0))
+        self._db_pool = float(np.clip(self._db_pool, 0.0, DB_POOL_MAX))
+
+        # ── Derive event_type for backward compat ────────────────────────
+        if phase == "normal":
+            self._last_event_type = "normal"
+        elif phase == "spike":
+            self._last_event_type = "flash_sale" if self._is_burst_step else "normal"
+        elif phase == "attack":
+            self._last_event_type = "botnet_attack"
+        elif phase == "recovery":
+            self._last_event_type = "recovery"
+        else:
+            self._last_event_type = "normal"
+
+        # ── Sync backward-compat aliases ─────────────────────────────────
+        self._rolling_lag = self._kafka_lag
+        self._rolling_latency = self._api_latency
+
+        # ── Clip and build observation ───────────────────────────────────
+        return AEPOObservation(
+            channel=float(np.clip(channel, 0.0, CHANNEL_MAX)),
+            risk_score=float(np.clip(risk_score, 0.0, RISK_MAX)),
+            adversary_threat_level=float(np.clip(self._adversary_threat_level, 0.0, ADV_THREAT_MAX)),
+            system_entropy=float(np.clip(self._system_entropy, 0.0, ENTROPY_MAX)),
+            kafka_lag=float(np.clip(self._kafka_lag, 0.0, LAG_MAX)),
+            api_latency=float(np.clip(self._api_latency, 0.0, LATENCY_MAX)),
+            rolling_p99=float(np.clip(self._rolling_p99, 0.0, P99_MAX)),
+            db_connection_pool=float(np.clip(self._db_pool, 0.0, DB_POOL_MAX)),
+            bank_api_status=float(np.clip(self._bank_status, 0.0, BANK_STATUS_MAX)),
+            merchant_tier=float(np.clip(self._merchant_tier, 0.0, MERCHANT_TIER_MAX)),
+        )
+
+    def _generate_transaction(self, task_name: str) -> AEPOObservation:
+        """
+        Backward-compatibility wrapper around ``_generate_phase_observation``.
+
+        Legacy code (test_foundation.py, etc.) may call this directly.
+        Temporarily overrides the phase schedule so that the passed task_name
+        controls the risk/lag ranges (e.g., "hard" → attack phase dynamics).
+        """
+        # Map task to a representative phase for backward-compat callers
+        _task_to_phase = {"easy": "normal", "medium": "spike", "hard": "attack"}
+        override_phase = _task_to_phase.get(task_name, "normal")
+
+        # Temporarily override the schedule for this single generation
+        saved_schedule = self._phase_schedule
+        saved_step = self.current_step
+        self._phase_schedule = [override_phase] * self.max_steps
+        self.current_step = min(self.current_step, self.max_steps - 1)
+
+        obs = self._generate_phase_observation()
+
+        # Restore original state
+        self._phase_schedule = saved_schedule
+        self.current_step = saved_step
+        return obs
 
     @staticmethod
     def _phase_from_event(event_type: str) -> str:
         """Map internal event-type label to CLAUDE.md phase name."""
-        return {"flash_sale": "spike", "botnet_attack": "attack"}.get(event_type, "normal")
+        return {
+            "flash_sale": "spike",
+            "botnet_attack": "attack",
+            "recovery": "recovery",
+        }.get(event_type, "normal")
+
+    # =====================================================================
+    # step() — with all 8 causal transitions
+    # =====================================================================
 
     def step(
         self,
@@ -538,6 +674,8 @@ class UnifiedFintechEnv(gym.Env):
 
         OpenEnv spec: 4-tuple (observation, reward, done, info) — no truncated flag.
         Reward is always in [0.0, 1.0].
+
+        Phase 5: Applies all 8 causal state transitions before reward calculation.
 
         Parameters
         ----------
@@ -551,44 +689,57 @@ class UnifiedFintechEnv(gym.Env):
         done : bool
         info : dict
         """
-        # ── ① Snapshot current observation fields ─────────────────────────
+        # ── ① Determine phase and snapshot current observation ────────────
+        step_idx = min(self.current_step, len(self._phase_schedule) - 1)
+        current_phase = self._phase_schedule[step_idx] if self._phase_schedule else "normal"
+        current_event_type: str = self._last_event_type
+
         risk_score:   float = self._current_obs.risk_score
         kafka_lag:    float = self._current_obs.kafka_lag
-        rolling_p99:  float = self._current_obs.rolling_p99
         db_pool:      float = self._current_obs.db_connection_pool
-        bank_status:  float = self._current_obs.bank_api_status   # 0=Healthy, 1=Degraded
-        merchant_tier: float = self._current_obs.merchant_tier    # 0=Small, 1=Enterprise
-        current_event_type: str = self._last_event_type
-        current_phase: str = self._phase_from_event(current_event_type)
+        bank_status:  float = self._current_obs.bank_api_status
+        merchant_tier: float = self._current_obs.merchant_tier
+        system_entropy: float = self._current_obs.system_entropy
 
         circuit_breaker_tripped: bool = False
         done: bool = False
         termination_reason: str | None = None
         blind_spot_triggered: bool = False
 
-        # ── ② Apply action modifiers to internal accumulators ─────────────
-        if action.crypto_verify == 0:       # FullVerify — thorough but adds lag
-            self._rolling_lag     += 150.0
-            self._rolling_latency += 200.0
-        else:                               # SkipVerify — sheds queue pressure
-            self._rolling_lag -= 100.0
+        # ── ② Causal transitions that affect THIS step's reward context ───
+        #
+        # These modify effective values BEFORE reward calculation, ensuring
+        # action consequences are immediately reflected in the reward signal.
 
-        if action.infra_routing == 0:       # Normal routing
-            self._rolling_lag += 100.0
-        elif action.infra_routing == 1:     # Throttle — sheds queue load
-            self._rolling_lag -= 300.0
-        else:                               # CircuitBreaker — full accumulator reset
-            self._rolling_lag     = 0.0
-            self._rolling_latency = 50.0
-            circuit_breaker_tripped = True
+        effective_api_latency: float = self._api_latency
 
-        self._rolling_lag     = max(0.0, self._rolling_lag)
-        self._rolling_latency = max(0.0, self._rolling_latency)
+        # Transition #4: DB pressure
+        # db_pool > 80 AND ExponentialBackoff → api_latency += 100 that step
+        if db_pool > 80 and action.db_retry_policy == 1:
+            effective_api_latency += 100.0
 
-        # ── ③ Reward calculation — AEPO Reward v2 (CLAUDE.md spec) ──────────
-        # Phase 4 introduced this via AEPO_REWARD_V2 env-var gate; flag was
-        # promoted (removed) after all 24 test_reward.py / test_step.py tests
-        # passed, making v2 the unconditional active reward function.
+        # Transition #6: Entropy spike
+        # system_entropy > 70 → api_latency += uniform(100, 300) that step
+        if system_entropy > 70:
+            effective_api_latency += self.np_random.uniform(100.0, 300.0)
+
+        # Transition #8: P99 EMA with modified latency
+        # rolling_p99[t] = 0.8 × rolling_p99[t-1] + 0.2 × api_latency[t]
+        effective_p99: float = (1.0 - P99_EMA_ALPHA) * self._rolling_p99 + P99_EMA_ALPHA * effective_api_latency
+
+        # Transition #3: Bank coupling
+        # bank_api_status=Degraded AND StandardSync → rolling_p99 += 200 that step
+        if bank_status == 1.0 and action.settlement_policy == 0:
+            effective_p99 += 200.0
+
+        # Update internal accumulators with effective values
+        self._api_latency = effective_api_latency
+        self._rolling_p99 = effective_p99
+
+        # Use effective P99 for reward calculation (causal wiring)
+        rolling_p99 = effective_p99
+
+        # ── ③ Reward calculation — AEPO Reward v2 (CLAUDE.md spec) ────────
         base: float = 0.8
         fraud_penalty: float = 0.0
         sla_penalty: float = 0.0
@@ -614,7 +765,7 @@ class UnifiedFintechEnv(gym.Env):
             done = True
             termination_reason = "crash"
 
-        # ── SLA penalty (applied unless fraud gate already zeroed reward) ──
+        # ── SLA penalty (using causal-transition-modified P99) ────────────
         if rolling_p99 > SLA_BREACH_THRESHOLD:
             sla_penalty = -0.30
         elif SLA_PROXIMITY_LOWER < rolling_p99 <= SLA_BREACH_THRESHOLD:
@@ -632,7 +783,7 @@ class UnifiedFintechEnv(gym.Env):
         elif action.infra_routing == 2:     # CircuitBreaker
             infra_penalty += -0.50
 
-        # ── DB retry policy ────────────────────────────────────────────────
+        # ── DB retry policy (Transition #5: DB waste is reward-only) ──────
         if action.db_retry_policy == 1:     # ExponentialBackoff
             if db_pool > 80:
                 db_penalty = 0.03           # correct use: pool is stressed
@@ -677,14 +828,43 @@ class UnifiedFintechEnv(gym.Env):
         else:
             final_reward = max(0.0, min(1.0, raw_reward))
 
-        # ── ④ Advance counter and generate next observation ────────────────
+        # ── ④ Action effects on kafka_lag accumulator ─────────────────────
+        if action.crypto_verify == 0:       # FullVerify — thorough but adds lag
+            self._kafka_lag += 150.0
+            self._api_latency += 200.0
+        else:                               # SkipVerify — sheds queue pressure
+            self._kafka_lag -= 100.0
+
+        if action.infra_routing == 0:       # Normal routing
+            self._kafka_lag += 100.0
+        elif action.infra_routing == 1:     # Throttle
+            # Transition #2: schedule -150 to kafka_lag for next 2 steps
+            self._throttle_relief_queue.append(THROTTLE_RELIEF_PER_STEP)
+            self._throttle_relief_queue.append(THROTTLE_RELIEF_PER_STEP)
+        else:                               # CircuitBreaker — full accumulator reset
+            self._kafka_lag = 0.0
+            self._api_latency = LATENCY_BASELINE
+            circuit_breaker_tripped = True
+
+        self._kafka_lag = max(0.0, self._kafka_lag)
+        self._api_latency = max(0.0, self._api_latency)
+
+        # ── Transition #1: Store lag→latency carry for NEXT step ──────────
+        # api_latency[t+1] += 0.1 × max(0, kafka_lag[t] - 3000)
+        self._lag_latency_carry = 0.1 * max(0.0, kafka_lag - 3000.0)
+
+        # ── Sync backward-compat aliases ─────────────────────────────────
+        self._rolling_lag = self._kafka_lag
+        self._rolling_latency = self._api_latency
+
+        # ── ⑤ Advance counter and generate next observation ────────────────
         self.current_step += 1
-        self._current_obs = self._generate_transaction(self.current_task)
+        self._current_obs = self._generate_phase_observation()
 
         if self.current_step >= self.max_steps and not done:
             done = True
 
-        # ── ⑤ Build reward_breakdown (CLAUDE.md contract) ─────────────────
+        # ── ⑥ Build reward_breakdown (CLAUDE.md contract) ─────────────────
         reward_breakdown: dict[str, float] = {
             "base":               base,
             "fraud_penalty":      fraud_penalty,
@@ -703,7 +883,7 @@ class UnifiedFintechEnv(gym.Env):
             circuit_breaker_tripped=circuit_breaker_tripped,
         )
 
-        # ── ⑥ Build info dict — CLAUDE.md contract + backward-compat keys ─
+        # ── ⑦ Build info dict — CLAUDE.md contract + backward-compat keys ─
         info: dict[str, Any] = {
             # ── CLAUDE.md Phase 4 contract ────────────────────────────────
             "phase":                        current_phase,

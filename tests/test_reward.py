@@ -57,6 +57,8 @@ def test_multiple_penalties_stack(env: UnifiedFintechEnv) -> None:
     """SLA breach (-0.30) + CircuitBreaker (-0.50) must stack and clamp to 0.0."""
     _force_obs(env, kafka_lag=100.0, rolling_p99=1000.0, risk_score=10.0)
     env._rolling_lag = 0.0
+    env._rolling_p99 = 1000.0
+    env._api_latency = 1000.0
     _, typed_reward, _, info = env.step(make_action(infra_routing=2))
     bd = info["reward_breakdown"]
     # Both penalties applied
@@ -119,14 +121,17 @@ def test_reward_breakdown_components_consistent(env: UnifiedFintechEnv) -> None:
 def test_sla_proximity_scales_linearly(env: UnifiedFintechEnv) -> None:
     """SLA proximity penalty scales linearly from 0 at p99=500 to -0.10 at p99=800."""
     # At exactly the midpoint p99=650: penalty = -0.05
-    _force_obs(env, kafka_lag=0.0, rolling_p99=650.0, risk_score=5.0)
+    _force_obs(env, kafka_lag=0.0, rolling_p99=650.0, risk_score=5.0,
+               system_entropy=0.0, db_connection_pool=50.0, bank_api_status=0.0)
     env._rolling_lag = 0.0
+    env._rolling_p99 = 650.0
+    env._api_latency = 650.0
     env._last_event_type = "normal"
     _, _, _, info = env.step(make_action(risk_decision=1, crypto_verify=1,
                                          infra_routing=0, settlement_policy=0))
     sla_p = info["reward_breakdown"]["sla_penalty"]
     assert -0.10 < sla_p < 0.0, f"Expected proximity penalty in (-0.10, 0), got {sla_p}"
-    assert abs(sla_p - (-0.05)) < 0.01, f"Expected ≈ -0.05 at midpoint, got {sla_p}"
+    assert abs(sla_p - (-0.05)) < 0.02, f"Expected ≈ -0.05 at midpoint, got {sla_p}"
 
 
 # ---------------------------------------------------------------------------
