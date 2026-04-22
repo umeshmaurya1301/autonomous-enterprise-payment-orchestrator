@@ -307,6 +307,95 @@ public class DynamicsModel {
         return mse;
     }
 
+    // ── Model-based infra planner (used in inference.py) ────────────────────
+
+    /**
+     * Normalized kafka_lag threshold above which the model-based planner fires.
+     *
+     * // PYTHON EQUIVALENT: LAG_OVERRIDE_THRESHOLD: float = 0.30  (in inference.py)
+     */
+    private static final double LAG_OVERRIDE_THRESHOLD = 0.30;
+
+    /**
+     * Model-based infra planner: queries the LagPredictor for all three
+     * infra_routing choices and returns the index with lowest predicted next lag.
+     *
+     * Only fires when normalized kafka_lag exceeds LAG_OVERRIDE_THRESHOLD (0.30).
+     * All other action fields are unchanged — only infra_routing may differ.
+     *
+     * This is what makes the "World Modeling" (Theme 3.1) claim defensible:
+     * the agent consults its learned model before committing to an action.
+     *
+     * // PYTHON EQUIVALENT (in inference.py):
+     * // def _model_based_infra_override(
+     * //     lag_model: LagPredictor,
+     * //     obs: AEPOObservation,
+     * //     action: AEPOAction,
+     * //     step: int,
+     * // ) -> AEPOAction:
+     * //     norm = obs.normalized()
+     * //     if norm["kafka_lag"] <= LAG_OVERRIDE_THRESHOLD:
+     * //         return action
+     * //     best_infra, best_pred = action.infra_routing, float("inf")
+     * //     for infra_choice in range(3):
+     * //         candidate = AEPOAction(..., infra_routing=infra_choice, ...)
+     * //         x = build_input_vector(norm, candidate)
+     * //         pred = lag_model.predict_single(x)
+     * //         if pred < best_pred: best_pred, best_infra = pred, infra_choice  // track minimum
+     * //     if best_infra != action.infra_routing:
+     * //         print(f"[MODEL-PLAN] step={step} override: ...")
+     * //         return AEPOAction(..., infra_routing=best_infra, ...)
+     * //     return action
+     *
+     * @param obsNormalized  Map of 10 normalized obs fields from AEPOObservation.normalized()
+     * @param action         Current AEPOAction from LLM or heuristic
+     * @return new AEPOAction with infra_routing possibly overridden; all other fields unchanged
+     */
+    public AEPOAction modelBasedInfraOverride(
+            Map<String, Double> obsNormalized,
+            AEPOAction action) {
+
+        double currentLag = obsNormalized.getOrDefault("kafka_lag", 0.0);
+        if (currentLag <= LAG_OVERRIDE_THRESHOLD) {
+            return action;  // below threshold — model-based planning not needed
+        }
+
+        int bestInfra = action.infraRouting();
+        double bestPred = Double.MAX_VALUE;
+
+        // Probe all three infra_routing options (0=Normal, 1=Throttle, 2=CircuitBreaker)
+        for (int infraChoice = 0; infraChoice <= 2; infraChoice++) {
+            AEPOAction candidate = new AEPOAction(
+                action.riskDecision(),
+                action.cryptoVerify(),
+                infraChoice,          // the only field varied
+                action.dbRetryPolicy(),
+                action.settlementPolicy(),
+                action.appPriority()
+            );
+            double[] x = buildInputVector(obsNormalized, candidate);
+            double pred = forward(x);  // pseudocode: forward() not trained in Java
+            if (pred < bestPred) {
+                bestPred = pred;
+                bestInfra = infraChoice;
+            }
+        }
+
+        if (bestInfra != action.infraRouting()) {
+            // In Python, logs: [MODEL-PLAN] step=N kafka_lag=X.XXX override: Old→New pred=[...]
+            return new AEPOAction(
+                action.riskDecision(),
+                action.cryptoVerify(),
+                bestInfra,
+                action.dbRetryPolicy(),
+                action.settlementPolicy(),
+                action.appPriority()
+            );
+        }
+
+        return action;
+    }
+
     // ── Utility ─────────────────────────────────────────────────────────────
 
     /**

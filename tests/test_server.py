@@ -172,3 +172,41 @@ def test_server_uses_same_env_class() -> None:
         "server.app.env must be an instance of UnifiedFintechEnv "
         "(dual-mode architecture contract)"
     )
+
+
+# ---------------------------------------------------------------------------
+# Test 11 — POST /step before reset returns 400 (no active episode)
+# ---------------------------------------------------------------------------
+
+def test_step_before_reset_returns_400(monkeypatch) -> None:
+    """
+    POST /step before calling POST /reset must return HTTP 400.
+
+    Covered by CLAUDE.md spec: 'POST /step before reset returns 400 (no active episode)'.
+    Uses monkeypatch to temporarily clear _episode_active so the test is
+    independent of other tests that may have already called /reset.
+    """
+    import server.app as server_module
+    monkeypatch.setattr(server_module, "_episode_active", False)
+    resp = client.post("/step", json={"action": _valid_action_dict()})
+    assert resp.status_code == 400, (
+        f"Expected 400 before reset, got {resp.status_code}: {resp.text}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Test 12 — GET /state before reset returns 400
+# ---------------------------------------------------------------------------
+
+def test_state_before_reset_returns_400(monkeypatch) -> None:
+    """
+    GET /state before calling POST /reset must return HTTP 400.
+
+    Covered by CLAUDE.md spec: 'GET /state before reset returns 400'.
+    """
+    import server.app as server_module
+    monkeypatch.setattr(server_module, "_episode_active", False)
+    resp = client.get("/state")
+    assert resp.status_code == 400, (
+        f"Expected 400 before reset, got {resp.status_code}: {resp.text}"
+    )

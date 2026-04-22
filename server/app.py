@@ -13,13 +13,21 @@ GET  /state      → inspect current observation without side-effects
 
 Design decisions
 ----------------
-* env is **re-instantiated** on every POST /reset to guarantee zero state
-  bleed between episodes (EMA accumulators, step counter, etc.).
-* Actions are validated through the UFRGAction Pydantic model before they
+* env is a **module-level singleton** kept alive across episodes so that
+  curriculum_level and adversary Q-table persist (re-instantiating on
+  every /reset would wipe those cross-episode accumulators).
+* _env_lock (asyncio.Lock) serialises all env mutations. FastAPI uses an
+  async event loop — without the lock, a concurrent /step coroutine can
+  interleave between the 'await request.json()' and 'env.reset()' calls
+  in /reset, silently corrupting mid-episode state.
+* _episode_active tracks whether the client has called POST /reset in this
+  session. /step and /state return 400 until the first explicit reset.
+* Actions are validated through AEPOAction Pydantic model before they
   reach env.step(), so malformed payloads return HTTP 422 automatically.
-* Observations are serialised with .model_dump() to produce plain JSON
-  dicts that any OpenEnv client can consume without Pydantic installed.
+* Observations are serialised with .model_dump() for OpenEnv clients.
 """
+
+import asyncio
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
@@ -40,9 +48,25 @@ app = FastAPI(
     version="0.2.0",
 )
 
-# Global environment instance.  Re-created on POST /reset to prevent state bleed.
+# ---------------------------------------------------------------------------
+# Module-level singleton state
+# ---------------------------------------------------------------------------
+
+# Single env instance — kept alive so curriculum_level and adversary Q-table
+# accumulate across episodes (re-instantiating would wipe them).
 env = UnifiedFintechEnv()
-env.reset(options={"task": "easy"})   # prime with a valid initial state
+env.reset(options={"task": "easy"})   # prime env to a valid state on startup
+
+# asyncio.Lock — serialises all env mutations against event-loop interleaving.
+# Must be created at module level (not inside an async function) so it is
+# shared across all coroutines running in the same event loop.
+_env_lock: asyncio.Lock = asyncio.Lock()
+
+# True only after the client has called POST /reset at least once in this
+# session.  /step and /state return HTTP 400 until this flag is set.
+# Note: the module-level env.reset() above does NOT set this flag — that
+# call primes the env but the client has not yet started an episode.
+_episode_active: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -98,26 +122,28 @@ async def reset_env(request: Request):
     JSON object with an ``observation`` key containing the initial
     ``UFRGObservation`` dict.
     """
-    global env
+    global _episode_active
 
-    # Gracefully parse the task name (body may be absent or malformed)
+    # Parse task before acquiring the lock — I/O (JSON decode) outside critical section.
     try:
         body = await request.json()
         task_name: str = body.get("task", "easy")
     except Exception:
         task_name = "easy"
 
-    # Validate task before touching the environment
     if task_name not in {"easy", "medium", "hard"}:
         raise HTTPException(
             status_code=422,
             detail=f"Invalid task '{task_name}'. Must be one of: easy, medium, hard.",
         )
 
-    # episode_reset() — NOT re-instantiation. The module-level singleton is kept alive
-    # so curriculum_level and adversary_threat_level accumulate across episodes.
-    # Calling UnifiedFintechEnv() here would wipe those accumulators (Risk #4).
-    obs, _info = env.reset(options={"task": task_name})
+    # Acquire lock before touching env — prevents a concurrent /step coroutine
+    # from interleaving between this point and env.reset() below.
+    async with _env_lock:
+        # NOT re-instantiation: keep singleton alive so curriculum_level and
+        # adversary Q-table persist across episodes.
+        obs, _info = env.reset(options={"task": task_name})
+        _episode_active = True
 
     return {"observation": obs.model_dump(), "info": _info}
 
@@ -143,6 +169,14 @@ async def step_env(request: Request):
     JSON object conforming to the OpenEnv step response spec:
     ``{ observation, reward, done, info }``.
     """
+    # Guard: client must call POST /reset before stepping.
+    if not _episode_active:
+        raise HTTPException(
+            status_code=400,
+            detail="No active episode. Call POST /reset with a task before stepping.",
+        )
+
+    # Parse and validate action outside the lock — CPU work, no env mutation.
     try:
         body = await request.json()
         action_dict = body.get("action")
@@ -156,19 +190,18 @@ async def step_env(request: Request):
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Malformed JSON body: {exc}") from exc
 
-    # Validate action through the Pydantic model — rejects out-of-range values
-    # before they reach the environment step logic.
     try:
         action = AEPOAction(**action_dict)
     except (ValidationError, TypeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    obs, typed_reward, done, info = env.step(action)
+    async with _env_lock:
+        obs, typed_reward, done, info = env.step(action)
 
     return {
         "observation": obs.model_dump(),
-        "reward": typed_reward.value,          # scalar for OpenEnv clients
-        "reward_breakdown": typed_reward.breakdown,  # structured breakdown
+        "reward": typed_reward.value,
+        "reward_breakdown": typed_reward.breakdown,
         "done": bool(done),
         "info": info,
     }
@@ -185,8 +218,16 @@ async def get_state():
 
     Satisfies the OpenEnv ``state()`` contract: any evaluation harness can
     inspect the current environment state without triggering side-effects.
+    Returns HTTP 400 if called before POST /reset.
     """
-    return {"observation": env.state().model_dump()}
+    if not _episode_active:
+        raise HTTPException(
+            status_code=400,
+            detail="No active episode. Call POST /reset with a task first.",
+        )
+    async with _env_lock:
+        current_obs = env.state()
+    return {"observation": current_obs.model_dump()}
 
 
 # ---------------------------------------------------------------------------

@@ -251,3 +251,50 @@ def test_throttle_queue_maxlen() -> None:
     # But maxlen=4 ensures we never exceed 4
     assert len(e._throttle_relief_queue) <= 4, \
         f"Queue size {len(e._throttle_relief_queue)} exceeds maxlen 4"
+
+
+# ---------------------------------------------------------------------------
+# Test 9 — Transition #9: system_entropy is lag-driven, not random
+# ---------------------------------------------------------------------------
+
+def test_entropy_tracks_kafka_lag() -> None:
+    """
+    Transition #9: system_entropy must converge toward (kafka_lag / 4000) × 100
+    over several steps.
+
+    With high lag the entropy EMA should trend above the mid-range (>40) within
+    5 steps; with lag clamped to 0 the EMA should trend toward 0.
+    """
+    from unified_gateway import CRASH_THRESHOLD, ENTROPY_MAX
+
+    # ── High-lag scenario: entropy should rise toward 100 ────────────────────
+    # Use lag=8000 (80% of LAG_MAX=10000) so target_entropy=80, well above the
+    # 70 spike threshold.  (We use LAG_MAX as denominator, not CRASH_THRESHOLD.)
+    from unified_gateway import LAG_MAX
+    e_high = UnifiedFintechEnv()
+    e_high.reset(seed=7, options={"task": "easy"})
+    e_high._kafka_lag = 0.8 * LAG_MAX   # lag=8000 → target_entropy=80
+    e_high._system_entropy = 0.0        # start low so the rise is measurable
+
+    for _ in range(10):
+        e_high._generate_phase_observation()  # drives EMA each call
+
+    # After 10 updates at target=80 with alpha=0.3, EMA should be well above 40
+    assert e_high._system_entropy > 40.0, (
+        f"Entropy {e_high._system_entropy:.2f} did not rise with high lag "
+        f"(kafka_lag={e_high._kafka_lag})"
+    )
+
+    # ── Low-lag scenario: entropy should drain toward 0 ──────────────────────
+    e_low = UnifiedFintechEnv()
+    e_low.reset(seed=7, options={"task": "easy"})
+    e_low._kafka_lag = 0.0
+    e_low._system_entropy = 80.0   # start high so the drain is measurable
+
+    for _ in range(15):
+        e_low._generate_phase_observation()
+
+    # After 15 updates at lag=0, target=0; expect well below 40
+    assert e_low._system_entropy < 40.0, (
+        f"Entropy {e_low._system_entropy:.2f} did not drain with zero lag"
+    )

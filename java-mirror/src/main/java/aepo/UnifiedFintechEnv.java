@@ -41,9 +41,15 @@ public class UnifiedFintechEnv {
     // ── Phase 5 constants ──────────────────────────────────────────────
     public static final double THROTTLE_RELIEF_PER_STEP = -150.0;
     public static final int THROTTLE_RELIEF_QUEUE_MAXLEN = 4;
-    public static final double P99_EMA_ALPHA = 0.2;           // α for rolling_p99 EMA
+    public static final double P99_EMA_ALPHA = 0.2;           // α for rolling_p99 EMA (agent training signal)
     public static final double LATENCY_MEAN_REVERT_ALPHA = 0.2;
     public static final double LATENCY_BASELINE = 50.0;
+
+    // True sliding-window P99 window size.
+    // PYTHON EQUIVALENT: P99_WINDOW_SIZE: int = 20
+    // Rationale: 20 steps ≈ 2 seconds of UPI traffic at 10 TPS simulation rate.
+    // The ring buffer uses Java ArrayDeque with manual size enforcement (no maxlen in Java).
+    public static final int P99_WINDOW_SIZE = 20;
 
     // ── Phase 6 curriculum constants ───────────────────────────────────
     // PYTHON EQUIVALENT: class-level tuple/int/float constants in UnifiedFintechEnv
@@ -81,6 +87,18 @@ public class UnifiedFintechEnv {
     // Transition #1: Lag→Latency carry-over for next step
     private double lagLatencyCarry = 0.0;
 
+    // True sliding-window P99 ring buffer (cleared each reset, same boundary rule as throttleReliefQueue).
+    // PYTHON EQUIVALENT:
+    //   self._latency_window: deque[float] = deque(maxlen=P99_WINDOW_SIZE)
+    //
+    // In step(): self._latency_window.append(effective_api_latency)
+    //            true_p99 = float(np.percentile(list(self._latency_window), 99))
+    //                       if len(self._latency_window) >= 2 else effective_api_latency
+    //
+    // Java equivalent uses percentile99() helper below.
+    // Note: Java ArrayDeque has no maxlen — enforce P99_WINDOW_SIZE manually in append.
+    private final Deque<Double> latencyWindow = new ArrayDeque<>();
+
     // ── Episode counters (cleared each reset) ─────────────────────────
     private int cumulativeSettlementBacklog = 0;
     private boolean isBurstStep = false;
@@ -103,6 +121,44 @@ public class UnifiedFintechEnv {
     // Separate 5-ep window for adversary escalation (Transition #7)
     // PYTHON EQUIVALENT: self._adversary_ep_window (deque[float], maxlen=5)
     private final Deque<Double> adversaryEpWindow = new ArrayDeque<>();
+
+    // ── Phase 11: Adversary Q-table policy ────────────────────────────
+    // Two learning agents, one environment — makes Theme #4 claim defensible.
+    // PYTHON EQUIVALENT:
+    //   self._adversary_policy: AdversaryPolicy = AdversaryPolicy()
+    //   self._adversary_lag_multiplier: float = 1.0
+    private final AdversaryPolicy adversaryPolicy = new AdversaryPolicy();
+    private double adversaryLagMultiplier = 1.0;  // set each episode in reset()
+
+    // ── System entropy — lag-driven EMA constants (Transition #9) ────────
+    // PYTHON EQUIVALENT:
+    //   ENTROPY_EMA_ALPHA: float = 0.3
+    //   ENTROPY_NOISE_SCALE: float = 10.0
+    //
+    // Each step:
+    //   target_entropy = (min(kafka_lag, LAG_MAX) / LAG_MAX) × ENTROPY_MAX
+    //   _system_entropy = ENTROPY_EMA_ALPHA × target + (1-α) × prev + noise(-10, +10)
+    //
+    // Second-order causal chain: lag → entropy → latency spike (#6)
+    // Spike threshold is 70; with LAG_MAX denominator it is only reached at lag > 7000.
+    public static final double ENTROPY_EMA_ALPHA    = 0.3;
+    public static final double ENTROPY_NOISE_SCALE  = 10.0;
+
+    // ── Circuit-breaker half-open state machine ────────────────────────
+    // PYTHON EQUIVALENT: self._cb_consecutive_steps: int = 0
+    //
+    // 0                          : not in CB mode
+    // 1..CB_HALF_OPEN_AFTER      : breaker "open" — flat -0.50 penalty, full accumulator reset
+    // > CB_HALF_OPEN_AFTER       : breaker "half-open" — probe mode (-0.10 penalty)
+    //   kafka_lag < CB_LAG_RECOVERY_THRESHOLD -> close breaker (+CB_CLOSE_BONUS), counter=0
+    //   otherwise                             -> stay half-open, counter++
+    //
+    // Cleared in reset() to prevent cross-episode bleed.
+    public static final int    CB_HALF_OPEN_AFTER         = 5;
+    public static final double CB_HALF_OPEN_PENALTY       = -0.10;
+    public static final double CB_CLOSE_BONUS             = 0.05;
+    public static final double CB_LAG_RECOVERY_THRESHOLD  = 2000.0;
+    private int cbConsecutiveSteps = 0;
 
     // ── Current observation ────────────────────────────────────────────
     // PYTHON EQUIVALENT: AEPOObservation (Pydantic BaseModel)
@@ -256,6 +312,10 @@ public class UnifiedFintechEnv {
         this.throttleReliefQueue.clear();
         this.lagLatencyCarry = 0.0;
         this.cumulativeSettlementBacklog = 0;
+        // PYTHON EQUIVALENT: self._cb_consecutive_steps = 0
+        // Clear CB state — a breaker left open at end of episode must not carry
+        // its half-open counter into the first steps of the next episode.
+        this.cbConsecutiveSteps = 0;
 
         // Generate initial observation
         this.currentObs = generatePhaseObservation();
@@ -362,8 +422,20 @@ public class UnifiedFintechEnv {
                      + uniform(-10.0, 10.0);
         apiLatency = Math.max(10.0, apiLatency);
 
-        // System entropy (random each step)
-        systemEntropy = uniform(0.0, ENTROPY_MAX);
+        // System entropy — lag-driven EMA (Transition #9)
+        // PYTHON EQUIVALENT:
+        //   target_entropy = (min(self._kafka_lag, LAG_MAX) / LAG_MAX) * ENTROPY_MAX
+        //   entropy_noise  = rng.uniform(-ENTROPY_NOISE_SCALE, ENTROPY_NOISE_SCALE)
+        //   self._system_entropy = clip(
+        //       ENTROPY_EMA_ALPHA * target_entropy
+        //       + (1 - ENTROPY_EMA_ALPHA) * self._system_entropy
+        //       + entropy_noise, 0, 100)
+        double targetEntropy = (Math.min(kafkaLag, LAG_MAX) / LAG_MAX) * ENTROPY_MAX;
+        double entropyNoise  = uniform(-ENTROPY_NOISE_SCALE, ENTROPY_NOISE_SCALE);
+        systemEntropy = clamp(
+            ENTROPY_EMA_ALPHA * targetEntropy + (1.0 - ENTROPY_EMA_ALPHA) * systemEntropy + entropyNoise,
+            0.0, ENTROPY_MAX
+        );
 
         // DB pool (varies by phase)
         if ("normal".equals(phase)) {
@@ -512,11 +584,34 @@ public class UnifiedFintechEnv {
             infraPenalty += Math.round(-0.10 * prox * 10000.0) / 10000.0;
         }
 
-        // Infra routing penalties
+        // Infra routing penalties — CB uses half-open state machine.
+        // PYTHON EQUIVALENT:
+        //   if action.infra_routing == 1:   infra_penalty += -0.10 or -0.20 by phase
+        //   elif action.infra_routing == 2: cbConsecutiveSteps += 1
+        //       if cbConsecutiveSteps <= CB_HALF_OPEN_AFTER:  infra_penalty += -0.50
+        //       else (half-open probe):
+        //           if kafkaLag < CB_LAG_RECOVERY_THRESHOLD:  bonus += CB_CLOSE_BONUS; cbConsecutiveSteps = 0
+        //           else:                                      infra_penalty += CB_HALF_OPEN_PENALTY
+        //   else:  cbConsecutiveSteps = 0
         if (action.infraRouting() == 1) {           // Throttle
             infraPenalty += "spike".equals(currentPhase) ? -0.10 : -0.20;
-        } else if (action.infraRouting() == 2) {    // CircuitBreaker
-            infraPenalty += -0.50;
+        } else if (action.infraRouting() == 2) {    // CircuitBreaker — half-open state machine
+            cbConsecutiveSteps++;
+            if (cbConsecutiveSteps <= CB_HALF_OPEN_AFTER) {
+                // Breaker open: reject all traffic, full penalty
+                infraPenalty += -0.50;
+            } else {
+                // Breaker half-open: probe downstream health
+                if (kafkaLag < CB_LAG_RECOVERY_THRESHOLD) {
+                    bonus += CB_CLOSE_BONUS;        // recovery confirmed — close breaker
+                    cbConsecutiveSteps = 0;
+                } else {
+                    infraPenalty += CB_HALF_OPEN_PENALTY;  // still degraded, stay half-open
+                }
+            }
+        } else {
+            // Agent switched away from CB — reset counter
+            cbConsecutiveSteps = 0;
         }
 
         // DB retry policy (Transition #5: DB waste)
@@ -585,9 +680,16 @@ public class UnifiedFintechEnv {
                 throttleReliefQueue.addLast(THROTTLE_RELIEF_PER_STEP);
             }
         } else {                                    // CircuitBreaker
-            kafkaLag = 0.0;
-            apiLatency = LATENCY_BASELINE;
             circuitBreakerTripped = true;
+            // PYTHON EQUIVALENT:
+            //   if self._cb_consecutive_steps <= CB_HALF_OPEN_AFTER:
+            //       self._kafka_lag = 0.0; self._api_latency = LATENCY_BASELINE
+            //   # half-open: do NOT hard-reset — probe traffic flows normally
+            if (cbConsecutiveSteps <= CB_HALF_OPEN_AFTER) {
+                kafkaLag = 0.0;
+                apiLatency = LATENCY_BASELINE;
+            }
+            // Half-open: accumulators left intact so agent can observe lag level
         }
 
         kafkaLag = Math.max(0.0, kafkaLag);
@@ -657,6 +759,8 @@ public class UnifiedFintechEnv {
         info.put("reward_raw", rawReward);
         info.put("reward_final", finalReward);
         info.put("circuit_breaker_tripped", circuitBreakerTripped);
+        // PYTHON EQUIVALENT: info["cb_consecutive_steps"] = self._cb_consecutive_steps
+        info.put("cb_consecutive_steps", cbConsecutiveSteps);
         info.put("crashed", crashed);
         info.put("done", done);
         info.put("internal_rolling_lag", kafkaLag);
@@ -681,6 +785,39 @@ public class UnifiedFintechEnv {
     /** PYTHON EQUIVALENT: rng.uniform(lo, hi) → ThreadLocalRandom.current().nextDouble(lo, hi) */
     private double uniform(double lo, double hi) {
         return lo + rng.nextDouble() * (hi - lo);
+    }
+
+    /**
+     * Append a latency sample to the ring buffer, enforcing P99_WINDOW_SIZE capacity.
+     * Then return the true 99th percentile of all samples in the buffer.
+     *
+     * // PYTHON EQUIVALENT (in step()):
+     * // self._latency_window.append(effective_api_latency)   # deque(maxlen=20) auto-evicts
+     * // true_p99 = float(np.percentile(list(self._latency_window), 99))
+     * //            if len(self._latency_window) >= 2 else effective_api_latency
+     *
+     * Java uses a sorted-copy approach since there is no numpy.percentile.
+     * Cost: O(N log N) on 20 elements = negligible.
+     *
+     * @param latencySample  effective api_latency for this step (ms)
+     * @return true 99th percentile from the sliding window (or latencySample if window too small)
+     */
+    private double appendAndComputeTrueP99(double latencySample) {
+        // Enforce maxlen manually (ArrayDeque has no built-in capacity limit)
+        if (latencyWindow.size() >= P99_WINDOW_SIZE) {
+            latencyWindow.pollFirst();
+        }
+        latencyWindow.addLast(latencySample);
+
+        if (latencyWindow.size() < 2) {
+            return latencySample;  // not enough data yet
+        }
+
+        // Sort a copy and pick the 99th percentile index
+        double[] sorted = latencyWindow.stream().mapToDouble(Double::doubleValue).sorted().toArray();
+        int idx = (int) Math.ceil(0.99 * sorted.length) - 1;
+        idx = Math.max(0, Math.min(idx, sorted.length - 1));
+        return sorted[idx];
     }
 
     // =====================================================================

@@ -26,7 +26,11 @@ public record AEPOObservation(
     double dbConnectionPool,      // DB pool utilization         raw [0.0, 100.0]  ★ Phase 2
     // ── Business layer ─────────────────────────────────────────────────────────
     double bankApiStatus,         // bank status {0=Healthy,1=Degraded,2=Unknown} ★ Phase 2
-    double merchantTier           // merchant tier {0=Small, 1=Enterprise}        ★ Phase 2
+    // POMDP Tweak #3: merchantTier may be 0.5 (MERCHANT_TIER_UNKNOWN) when the
+    // environment hides the true tier. Range is [0.0, 1.0] — 0.5 is a valid sentinel.
+    // PYTHON EQUIVALENT: merchant_tier: float = Field(ge=0.0, le=MERCHANT_TIER_MAX)
+    //   where MERCHANT_TIER_UNKNOWN = 0.5
+    double merchantTier           // 0=Small, 1=Enterprise, 0.5=UNKNOWN (POMDP-hidden 30% of steps)
 ) {
 
     // PYTHON EQUIVALENT: Pydantic Field(ge=..., le=...) — raises ValidationError on violation.
@@ -41,7 +45,7 @@ public record AEPOObservation(
         validate("rollingP99",            rollingP99,           0.0,  5000.0);
         validate("dbConnectionPool",      dbConnectionPool,     0.0,  100.0);
         validate("bankApiStatus",         bankApiStatus,        0.0,  2.0);
-        validate("merchantTier",          merchantTier,         0.0,  1.0);
+        validate("merchantTier",          merchantTier,         0.0,  1.0);  // 0.5 is valid (unknown sentinel)
     }
 
     /**

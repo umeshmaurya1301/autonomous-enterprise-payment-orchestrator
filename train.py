@@ -50,6 +50,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+import torch
 
 from dynamics_model import LagPredictor, build_input_vector
 from graders import EasyGrader, HardGrader, MediumGrader, heuristic_policy, random_policy
@@ -683,8 +684,11 @@ def main() -> None:
     else:
         logger.warning("One or more tasks below threshold. Review reward curve and hyperparameters.")
 
-    # ── LagPredictor buffer info ──────────────────────────────────────────────
-    logger.info("LagPredictor replay buffer size: %d transitions", lag_model.buffer_size())
+    # ── Save LagPredictor weights for model-based planning in inference.py ──────
+    lag_model_path = results_dir / "lag_predictor.pt"
+    torch.save(lag_model.state_dict(), lag_model_path)
+    logger.info("LagPredictor weights saved to %s (buffer size: %d)", lag_model_path, lag_model.buffer_size())
+
     logger.info("=== Training complete. Charts: results/reward_curve.png | results/reward_staircase.png ===")
 
 

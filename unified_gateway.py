@@ -10,7 +10,7 @@ Observation space  : Box(10,) float32
   [3]  system_entropy        — system entropy index       [0,   100]
   [4]  kafka_lag             — consumer lag (msgs)        [0, 10000]
   [5]  api_latency           — bank API latency (ms)      [0,  5000]
-  [6]  rolling_p99           — EMA P99 SLA (ms)           [0,  5000]
+  [6]  rolling_p99           — EMA-smoothed latency (ms)  [0,  5000]  (true P99 in info["true_p99"])
   [7]  db_connection_pool    — DB pool utilization        [0,   100]
   [8]  bank_api_status       — bank API status            [0,     2]
   [9]  merchant_tier         — merchant tier              [0,     1]
@@ -34,6 +34,8 @@ Causal Transitions (Phase 5):
   6. Entropy spike:   entropy > 70 → api_latency += uniform(100,300) that step
   7. Adversary lag:   5-ep rolling avg gates (Phase 6 activates logic)
   8. P99 EMA:         rolling_p99[t] = 0.8 × p99[t-1] + 0.2 × api_latency[t]
+  9. Entropy driver:  system_entropy EMA tracks kafka_lag/crash_threshold × 100
+                      (second-order loop: lag → entropy → latency spike via #6)
 
 Phase Machine (fixed at reset, never mixed by curriculum):
   easy:   Normal × 100
@@ -68,6 +70,8 @@ P99_MAX: float = 5000.0         # rolling_p99 [0, 5000]
 DB_POOL_MAX: float = 100.0      # db_connection_pool [0, 100]
 BANK_STATUS_MAX: float = 2.0    # bank_api_status {0, 1, 2}
 MERCHANT_TIER_MAX: float = 1.0  # merchant_tier {0, 1}
+MERCHANT_TIER_HIDDEN_PROB: float = 0.30   # 30% of steps tier is masked from agent
+MERCHANT_TIER_UNKNOWN: float = 0.5        # sentinel returned to agent when tier is hidden
 
 # ---------------------------------------------------------------------------
 # Named constants — reward / done thresholds
@@ -90,6 +94,53 @@ THROTTLE_RELIEF_QUEUE_MAXLEN: int = 4      # max queued relief items (2 throttle
 P99_EMA_ALPHA: float = 0.2                 # α for rolling_p99 EMA (spec: 0.8/0.2 split)
 LATENCY_MEAN_REVERT_ALPHA: float = 0.2     # natural mean-reversion of api_latency toward baseline
 LATENCY_BASELINE: float = 50.0             # baseline api_latency for mean-reversion
+
+# True sliding-window P99 (separate from the EMA training signal)
+# Computed from the last P99_WINDOW_SIZE api_latency samples each step.
+# Exposed in info["true_p99"] — not used by the reward function.
+P99_WINDOW_SIZE: int = 20   # ~2 seconds of UPI traffic at 10 TPS simulation rate
+
+# ---------------------------------------------------------------------------
+# System entropy — lag-driven EMA constants (Transition #9, new causal driver)
+# ---------------------------------------------------------------------------
+
+# system_entropy was previously random noise.  It is now causally driven by
+# kafka_lag, creating a second-order feedback loop:
+#   kafka_lag → system_entropy → api_latency spike (transition #6)
+# This gives the agent a predictive signal: keep lag below ~7000 and entropy
+# stays below 70, preventing the latency spike entirely (attack phase only).
+#
+# Formula each step:
+#   target_entropy = (kafka_lag / CRASH_THRESHOLD) × ENTROPY_MAX
+#   _system_entropy = ENTROPY_EMA_ALPHA × target + (1-α) × prev + noise
+ENTROPY_EMA_ALPHA: float = 0.3   # entropy converges to lag-target at rate 0.3
+ENTROPY_NOISE_SCALE: float = 10.0  # ±10 jitter so entropy is not fully deterministic
+
+# ---------------------------------------------------------------------------
+# Adversary policy constants (Phase 11 — tiny Q-table adversary)
+# ---------------------------------------------------------------------------
+
+ADV_BURST_MULTIPLIER: float = 1.5    # Burst: amplify lag_delta 1.5× in spike/attack
+ADV_SUSTAIN_MULTIPLIER: float = 1.0  # Sustain: no change to lag_delta
+ADV_FADE_MULTIPLIER: float = 0.6     # Fade: reduce lag_delta 0.6×, tests defender recovery
+ADV_POLICY_LR: float = 0.2           # Q-table learning rate for adversary
+ADV_POLICY_EPS_START: float = 0.8    # initial ε for ε-greedy adversary exploration
+ADV_POLICY_EPS_END: float = 0.1      # final ε after decay
+ADV_POLICY_EPS_DECAY_EPS: int = 200  # episodes over which ε decays linearly
+
+# ---------------------------------------------------------------------------
+# Circuit-breaker half-open state machine constants
+# ---------------------------------------------------------------------------
+
+# Number of consecutive CB steps before the breaker enters "half-open" probe mode.
+# Real circuit breakers do not stay open forever; after a cooling-off period they
+# send a probe request to check if the downstream system has recovered.
+CB_HALF_OPEN_AFTER: int = 5           # steps of open state before probing
+CB_HALF_OPEN_PENALTY: float = -0.10   # reduced penalty during half-open probe
+CB_CLOSE_BONUS: float = 0.05          # bonus for successfully closing a tripped breaker
+# Lag must be below this threshold for the CB to transition from half-open → closed.
+# If lag is still too high the breaker stays half-open (no bonus, -0.10 penalty).
+CB_LAG_RECOVERY_THRESHOLD: float = 2000.0
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +185,11 @@ class AEPOObservation(BaseModel):
     )
     rolling_p99: float = Field(
         ge=0.0, le=P99_MAX,
-        description="EMA-smoothed P99 latency in ms [0, 5000] — above 800 = SLA BREACH",
+        description=(
+            "EMA-smoothed latency in ms [0, 5000] used as the agent's SLA training signal. "
+            "Formula: 0.8 * prev + 0.2 * api_latency. Above 800 = SLA BREACH penalty. "
+            "True P99 from a 20-step ring buffer is exposed separately in info['true_p99']."
+        ),
     )
     db_connection_pool: float = Field(
         default=50.0, ge=0.0, le=DB_POOL_MAX,
@@ -295,6 +350,120 @@ class UFRGReward(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class AdversaryPolicy:
+    """
+    Tiny 9-state x 3-action Q-table adversary that maximises defender regret.
+
+    This makes the Theme #4 (Self-Improvement) claim technically defensible:
+    there are now TWO learning policies in the environment — the defender and
+    the adversary — and they are genuinely antagonistic.
+
+    State (3 x 3 = 9 cells):
+        perf_bin   : defender 5-ep rolling avg bucketed into low/mid/high
+        threat_bin : current adversary_threat_level bucketed into low/mid/high
+
+    Actions:
+        BURST   (0) : lag_delta multiplied by 1.5x during spike/attack phases
+        SUSTAIN (1) : no change to lag_delta (neutral pressure)
+        FADE    (2) : lag_delta multiplied by 0.6x — appears to back off,
+                      forces the defender to navigate a recovery trap
+
+    Reward: -defender_ep_mean  (adversary wins when defender score is low)
+
+    The Q-table is updated once per episode (episodic bandit update):
+        Q(s,a) += lr * (-defender_ep_mean - Q(s,a))
+    """
+
+    BURST: int = 0
+    SUSTAIN: int = 1
+    FADE: int = 2
+
+    LAG_MULTIPLIERS: dict[int, float] = {
+        BURST:   ADV_BURST_MULTIPLIER,
+        SUSTAIN: ADV_SUSTAIN_MULTIPLIER,
+        FADE:    ADV_FADE_MULTIPLIER,
+    }
+
+    def __init__(self) -> None:
+        from collections import defaultdict as _dd
+        # Q[( perf_bin, threat_bin ), action] = float value
+        self._q: dict[tuple[int, int, int], float] = _dd(float)
+        self._ep_count: int = 0
+        self._last_state: tuple[int, int] | None = None
+        self._last_action: int = self.SUSTAIN
+
+    # ── Internal helpers ─────────────────────────────────────────────────
+
+    @staticmethod
+    def _bin3(value: float, lo: float, hi: float) -> int:
+        """Bucket value into {0, 1, 2} using two equal-width thresholds."""
+        mid = (hi - lo) / 3.0
+        if value < lo + mid:
+            return 0
+        if value < lo + 2 * mid:
+            return 1
+        return 2
+
+    def _state(self, defender_5ep_avg: float, threat_level: float) -> tuple[int, int]:
+        perf_bin = self._bin3(defender_5ep_avg, 0.0, 1.0)       # 0=low 1=mid 2=high
+        threat_bin = self._bin3(threat_level, 0.0, ADV_THREAT_MAX)  # 0=low 1=mid 2=high
+        return (perf_bin, threat_bin)
+
+    def _epsilon(self) -> float:
+        t = min(self._ep_count / max(1, ADV_POLICY_EPS_DECAY_EPS), 1.0)
+        return ADV_POLICY_EPS_START + t * (ADV_POLICY_EPS_END - ADV_POLICY_EPS_START)
+
+    # ── Public API ───────────────────────────────────────────────────────
+
+    def select_action(
+        self,
+        rng: np.random.Generator,
+        defender_5ep_avg: float,
+        threat_level: float,
+    ) -> int:
+        """
+        Choose adversary action for the upcoming episode (e-greedy).
+
+        Caches the selected (state, action) for use in the next update() call.
+        """
+        state = self._state(defender_5ep_avg, threat_level)
+        self._last_state = state
+        if rng.uniform(0.0, 1.0) < self._epsilon():
+            action = int(rng.integers(0, 3))
+        else:
+            q_vals = [self._q[(*state, a)] for a in range(3)]
+            action = int(np.argmax(q_vals))
+        self._last_action = action
+        return action
+
+    def update(self, defender_ep_mean: float) -> None:
+        """
+        Episodic Q-update: reward = -defender_ep_mean (adversary maximises regret).
+
+        Uses a single-step terminal update (no next-state needed — one action
+        per episode makes this a contextual bandit, not a sequential MDP).
+        """
+        if self._last_state is None:
+            return
+        key = (*self._last_state, self._last_action)
+        adv_reward = -defender_ep_mean  # adversary wins when defender loses
+        self._q[key] += ADV_POLICY_LR * (adv_reward - self._q[key])
+        self._ep_count += 1
+        logger.debug(
+            "[ADVERSARY-POLICY] ep=%d state=%s action=%d adv_reward=%.3f eps=%.3f",
+            self._ep_count, self._last_state, self._last_action,
+            adv_reward, self._epsilon(),
+        )
+
+    def lag_multiplier(self) -> float:
+        """Return the lag_delta multiplier for the current episode's adversary action."""
+        return self.LAG_MULTIPLIERS[self._last_action]
+
+    def action_name(self) -> str:
+        """Human-readable label for logging and the pitch demo."""
+        return {self.BURST: "Burst", self.SUSTAIN: "Sustain", self.FADE: "Fade"}[self._last_action]
+
+
 class UnifiedFintechEnv(gym.Env):
     """
     Gymnasium environment modelling a unified fintech risk gateway (AEPO).
@@ -309,6 +478,7 @@ class UnifiedFintechEnv(gym.Env):
     Phase 5: 4-phase state machine + all 8 causal state transitions.
     Phase 6: Adaptive curriculum (curriculum_level never regresses) +
              adversary escalation with 5-episode lag.
+    Phase 11: Adversary Q-table policy — two learning agents, one environment.
     """
 
     metadata: dict[str, Any] = {"render_modes": []}
@@ -351,6 +521,11 @@ class UnifiedFintechEnv(gym.Env):
         # Transition #1: Lag→Latency carry-over for next step
         self._lag_latency_carry: float = 0.0
 
+        # True sliding-window P99: ring buffer of last P99_WINDOW_SIZE api_latency values.
+        # Cleared in reset() to prevent cross-episode bleed (same boundary rule as throttle queue).
+        # Not used in reward — exposed in info["true_p99"] for monitoring and pitch demo.
+        self._latency_window: deque[float] = deque(maxlen=P99_WINDOW_SIZE)
+
         # ── Episode-level counters (cleared each reset) ────────────────────
         self.current_step: int = 0
         self._cumulative_settlement_backlog: int = 0
@@ -376,11 +551,32 @@ class UnifiedFintechEnv(gym.Env):
         # window has a mean above 0.6 or below 0.3.
         self._adversary_ep_window: deque[float] = deque(maxlen=self._ADVERSARY_WINDOW)
 
+        # Phase 11: Adversary Q-table policy (two learning agents, one env).
+        # _adversary_policy holds the learned policy; _adversary_lag_multiplier
+        # is set once per episode in reset() and applied in _generate_phase_observation().
+        self._adversary_policy: AdversaryPolicy = AdversaryPolicy()
+        self._adversary_lag_multiplier: float = 1.0  # default: Sustain
+
         # Backward-compat — tests may still reference this name
         self._episode_reward_history: list[float] = []
 
         # Spike-phase sub-event tracking
         self._is_burst_step: bool = False
+
+        # POMDP Tweak #3: merchant_tier visibility flag.
+        # True when this step's obs returns 0.5 (unknown) instead of the real tier.
+        # step() always rewards against self._merchant_tier (true value) so the agent
+        # can still earn the +0.02 bonus if it infers tier correctly from other signals.
+        self._tier_hidden: bool = False
+
+        # Circuit-breaker half-open state machine (Section 5 fix #4).
+        # Tracks how many consecutive steps the agent has held infra_routing=CircuitBreaker.
+        # 0          : CB not active (Normal or Throttle routing)
+        # 1–(CB_HALF_OPEN_AFTER-1) : "open" — flat -0.50 penalty, hard reset each step
+        # CB_HALF_OPEN_AFTER+     : "half-open" — reduced -0.10 penalty, probe lag level
+        #   → if kafka_lag < CB_LAG_RECOVERY_THRESHOLD: +CB_CLOSE_BONUS, counter resets to 0
+        #   → otherwise: stays half-open, counter increments
+        self._cb_consecutive_steps: int = 0
 
         # ------------------------------------------------------------------
         # Observation space — Box(10,) dtype=float32
@@ -473,7 +669,7 @@ class UnifiedFintechEnv(gym.Env):
                     self._adversary_threat_level + self._ADVERSARY_STEP,
                 )
                 logger.debug(
-                    "[ADVERSARY] 5-ep avg=%.3f > %.1f → threat_level=%.1f",
+                    "[ADVERSARY] 5-ep avg=%.3f > %.1f -> threat_level=%.1f",
                     window_mean, self._ADVERSARY_HIGH_THRESHOLD,
                     self._adversary_threat_level,
                 )
@@ -483,10 +679,15 @@ class UnifiedFintechEnv(gym.Env):
                     self._adversary_threat_level - self._ADVERSARY_STEP,
                 )
                 logger.debug(
-                    "[ADVERSARY] 5-ep avg=%.3f < %.1f → threat_level=%.1f",
+                    "[ADVERSARY] 5-ep avg=%.3f < %.1f -> threat_level=%.1f",
                     window_mean, self._ADVERSARY_LOW_THRESHOLD,
                     self._adversary_threat_level,
                 )
+
+        # ── Phase 11: Update adversary Q-table policy ─────────────────────
+        # update() must be called AFTER threat_level is adjusted so the next
+        # select_action() call sees the freshly updated threat state.
+        self._adversary_policy.update(ep_mean)
 
     # =====================================================================
     # Phase Machine — build schedule fixed at reset
@@ -548,6 +749,24 @@ class UnifiedFintechEnv(gym.Env):
 
         super().reset(seed=seed)
 
+        # ── Phase 11: Adversary selects action for the upcoming episode ───
+        # Called AFTER super().reset() so self.np_random is seeded.
+        # Called AFTER _close_episode() so Q-table reflects the last episode.
+        defender_5ep_avg: float = (
+            sum(self._adversary_ep_window) / len(self._adversary_ep_window)
+            if self._adversary_ep_window else 0.5
+        )
+        adv_action = self._adversary_policy.select_action(
+            self.np_random, defender_5ep_avg, self._adversary_threat_level
+        )
+        self._adversary_lag_multiplier = self._adversary_policy.lag_multiplier()
+        logger.info(
+            "[ADVERSARY-POLICY] episode start: action=%s (multiplier=%.1fx) eps=%.3f",
+            self._adversary_policy.action_name(),
+            self._adversary_lag_multiplier,
+            self._adversary_policy._epsilon(),
+        )
+
         task_name: str = (options or {}).get("task", "easy")
 
         if task_name not in {"easy", "medium", "hard"}:
@@ -583,10 +802,18 @@ class UnifiedFintechEnv(gym.Env):
         # episode bleeds into the first steps of the next episode.
         self._throttle_relief_queue.clear()
         self._lag_latency_carry = 0.0
+        # Same boundary rule for the true-P99 ring buffer — stale latency
+        # samples from the previous episode must not inflate the first true_p99
+        # reading of the new episode.
+        self._latency_window.clear()
 
         # Clear settlement backlog counter — must happen here or previous-episode
         # deferred-async count bleeds into the first steps of the new episode.
         self._cumulative_settlement_backlog = 0
+
+        # Clear circuit-breaker state — a CB left open at end of an episode must not
+        # carry its half-open counter into the first steps of the next episode.
+        self._cb_consecutive_steps = 0
 
         # Clear per-episode step-reward collector for the new episode
         self._episode_step_rewards = []
@@ -677,6 +904,13 @@ class UnifiedFintechEnv(gym.Env):
             lag_delta = rng.uniform(50.0, 150.0)
             self._bank_status = 0.0
 
+        # ── Phase 11: Apply adversary lag multiplier (spike/attack only) ──
+        # Normal and recovery phases are unaffected to preserve their semantics:
+        # Normal is the "safe" baseline; recovery is a drain phase — multiplying
+        # it would break the phase contract and confuse the defender unfairly.
+        if phase in ("spike", "attack"):
+            lag_delta *= self._adversary_lag_multiplier
+
         # ── Apply kafka_lag delta from phase ──────────────────────────────
         self._kafka_lag += lag_delta
 
@@ -700,8 +934,22 @@ class UnifiedFintechEnv(gym.Env):
         )
         self._api_latency = max(10.0, self._api_latency)
 
-        # ── System entropy (random each step) ────────────────────────────
-        self._system_entropy = float(rng.uniform(0.0, ENTROPY_MAX))
+        # ── System entropy — lag-driven EMA (Transition #9) ──────────────
+        # target_entropy is proportional to kafka_lag / crash_threshold.
+        # At lag=0 → target=0 (entropy drains); at lag=4000 → target=100.
+        # EMA smoothing means entropy rises/falls gradually as lag changes,
+        # giving the agent a 2–3 step warning before entropy crosses 70
+        # and triggers the latency spike (Transition #6).
+        # Second-order chain: lag → entropy → latency_spike (non-linear feedback)
+        # Use LAG_MAX (10000) not CRASH_THRESHOLD (4000) as denominator so entropy
+        # stays below 70 during normal/easy operation (lag ≈ 1000–3000 → target ≈ 10–30).
+        # The spike threshold of 70 is only reached in Attack phase (lag > 7000).
+        target_entropy: float = (min(self._kafka_lag, LAG_MAX) / LAG_MAX) * ENTROPY_MAX
+        entropy_noise: float = float(rng.uniform(-ENTROPY_NOISE_SCALE, ENTROPY_NOISE_SCALE))
+        self._system_entropy = float(np.clip(
+            ENTROPY_EMA_ALPHA * target_entropy + (1.0 - ENTROPY_EMA_ALPHA) * self._system_entropy + entropy_noise,
+            0.0, ENTROPY_MAX,
+        ))
 
         # ── DB pool (varies by phase) ────────────────────────────────────
         if phase == "normal":
@@ -738,6 +986,17 @@ class UnifiedFintechEnv(gym.Env):
             0.0, LATENCY_MAX
         )
 
+        # ── POMDP Tweak #3: randomly hide merchant_tier from agent ───────
+        # 30% of steps the agent sees 0.5 (unknown) instead of true tier.
+        # self._merchant_tier retains the true value for reward calculation.
+        # The agent must infer tier from transaction_type + risk_score to earn
+        # the +0.02 app_priority bonus on hidden-tier steps.
+        self._tier_hidden = bool(rng.uniform(0.0, 1.0) < MERCHANT_TIER_HIDDEN_PROB)
+        observed_tier: float = (
+            MERCHANT_TIER_UNKNOWN if self._tier_hidden
+            else float(np.clip(self._merchant_tier, 0.0, MERCHANT_TIER_MAX))
+        )
+
         # ── Clip and build observation ───────────────────────────────────
         return AEPOObservation(
             channel=float(np.clip(channel, 0.0, CHANNEL_MAX)),
@@ -749,7 +1008,7 @@ class UnifiedFintechEnv(gym.Env):
             rolling_p99=float(np.clip(self._rolling_p99, 0.0, P99_MAX)),
             db_connection_pool=float(np.clip(self._db_pool, 0.0, DB_POOL_MAX)),
             bank_api_status=float(np.clip(self._bank_status, 0.0, BANK_STATUS_MAX)),
-            merchant_tier=float(np.clip(self._merchant_tier, 0.0, MERCHANT_TIER_MAX)),
+            merchant_tier=observed_tier,
         )
 
     def _generate_transaction(self, task_name: str) -> AEPOObservation:
@@ -823,8 +1082,10 @@ class UnifiedFintechEnv(gym.Env):
         kafka_lag:    float = self._current_obs.kafka_lag
         db_pool:      float = self._current_obs.db_connection_pool
         bank_status:  float = self._current_obs.bank_api_status
-        merchant_tier: float = self._current_obs.merchant_tier
         system_entropy: float = self._current_obs.system_entropy
+        # Use true internal tier (not the obs) so reward is always correct even
+        # when merchant_tier is POMDP-hidden (0.5 sentinel) in the agent's view.
+        merchant_tier: float = self._merchant_tier
 
         circuit_breaker_tripped: bool = False
         done: bool = False
@@ -861,7 +1122,17 @@ class UnifiedFintechEnv(gym.Env):
         self._api_latency = effective_api_latency
         self._rolling_p99 = effective_p99
 
-        # Use effective P99 for reward calculation (causal wiring)
+        # True sliding-window P99 — append this step's latency then compute 99th pct.
+        # numpy.percentile on a 20-element list costs ~2 µs; acceptable for 100-step episodes.
+        # Falls back to current latency when window has < 2 samples (first steps of episode).
+        self._latency_window.append(effective_api_latency)
+        true_p99: float = (
+            float(np.percentile(list(self._latency_window), 99))
+            if len(self._latency_window) >= 2
+            else effective_api_latency
+        )
+
+        # Use effective P99 (EMA) for reward calculation — smooth agent training signal.
         rolling_p99 = effective_p99
 
         # ── ③ Reward calculation — AEPO Reward v2 (CLAUDE.md spec) ────────
@@ -905,8 +1176,23 @@ class UnifiedFintechEnv(gym.Env):
         # ── Infra routing penalties ────────────────────────────────────────
         if action.infra_routing == 1:       # Throttle
             infra_penalty += -0.10 if current_phase == "spike" else -0.20
-        elif action.infra_routing == 2:     # CircuitBreaker
-            infra_penalty += -0.50
+        elif action.infra_routing == 2:     # CircuitBreaker — half-open state machine
+            self._cb_consecutive_steps += 1
+            if self._cb_consecutive_steps <= CB_HALF_OPEN_AFTER:
+                # Breaker is "open": hard reject all traffic, full penalty
+                infra_penalty += -0.50
+            else:
+                # Breaker has entered "half-open": send a probe request
+                if self._kafka_lag < CB_LAG_RECOVERY_THRESHOLD:
+                    # Downstream has recovered — close the breaker, award recovery bonus
+                    bonus += CB_CLOSE_BONUS
+                    self._cb_consecutive_steps = 0   # breaker closed
+                else:
+                    # Downstream still degraded — remain half-open, reduced penalty
+                    infra_penalty += CB_HALF_OPEN_PENALTY
+        else:
+            # Agent switched away from CB — reset counter (Normal or Throttle routing)
+            self._cb_consecutive_steps = 0
 
         # ── DB retry policy (Transition #5: DB waste is reward-only) ──────
         if action.db_retry_policy == 1:     # ExponentialBackoff
@@ -966,10 +1252,14 @@ class UnifiedFintechEnv(gym.Env):
             # Transition #2: schedule -150 to kafka_lag for next 2 steps
             self._throttle_relief_queue.append(THROTTLE_RELIEF_PER_STEP)
             self._throttle_relief_queue.append(THROTTLE_RELIEF_PER_STEP)
-        else:                               # CircuitBreaker — full accumulator reset
-            self._kafka_lag = 0.0
-            self._api_latency = LATENCY_BASELINE
+        else:                               # CircuitBreaker
             circuit_breaker_tripped = True
+            if self._cb_consecutive_steps <= CB_HALF_OPEN_AFTER:
+                # Breaker open: hard-reset accumulators to shed all queued traffic
+                self._kafka_lag = 0.0
+                self._api_latency = LATENCY_BASELINE
+            # Half-open: do NOT hard-reset — probe traffic flows normally so the
+            # agent can observe whether lag stays below CB_LAG_RECOVERY_THRESHOLD.
 
         self._kafka_lag = max(0.0, self._kafka_lag)
         self._api_latency = max(0.0, self._api_latency)
@@ -1024,13 +1314,21 @@ class UnifiedFintechEnv(gym.Env):
                 "rolling_p99":              rolling_p99,
                 "db_connection_pool":       db_pool,
                 "bank_api_status":          bank_status,
-                "merchant_tier":            merchant_tier,
+                "merchant_tier":            self._merchant_tier,  # always true value, never masked
             },
+            # True P99 from 20-step sliding window — separate from the EMA training signal.
+            # rolling_p99 in the obs is the smooth EMA; true_p99 here is the real percentile.
+            "true_p99":                     true_p99,
             "reward_breakdown":             reward_breakdown,
             "termination_reason":           termination_reason,
             "adversary_threat_level_raw":   self._current_obs.adversary_threat_level,
             "blind_spot_triggered":         blind_spot_triggered,
             "cumulative_settlement_backlog":   self._cumulative_settlement_backlog,
+            # POMDP Tweak #3: agent sees 0.5 when this is True (for pitch demo logging)
+            "tier_hidden":                  self._tier_hidden,
+            # CB half-open state: 0 = not in CB; 1–CB_HALF_OPEN_AFTER = open;
+            # >CB_HALF_OPEN_AFTER = half-open probe phase.
+            "cb_consecutive_steps":         self._cb_consecutive_steps,
             # ── Backward-compat keys required by graders.py ───────────────
             "step":                         self.current_step,
             "task":                         self.current_task,
