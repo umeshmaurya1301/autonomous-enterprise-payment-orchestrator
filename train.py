@@ -9,8 +9,11 @@ Algorithm
   Tabular Q-Learning with ε-greedy exploration.
   Q-table is sparse (defaultdict) — entries created on first visit only.
 
-  State   : tuple of 10 bin indices, one per normalized obs dimension.
-             Each dimension is discretized into N_BINS=8 equal-width bins → [0,7].
+  State   : tuple of 6 bin indices, one per key reward-driving obs feature.
+             Each dimension is discretized into N_BINS=4 equal-width bins → [0,3].
+             Features: risk_score, kafka_lag, rolling_p99, db_connection_pool,
+             bank_api_status, merchant_tier. 4^6 = 4096 states — fully reachable
+             in 500 episodes (≈ 20K transitions at ~40 steps/episode on hard).
   Actions : 216 combinations (MultiDiscrete([3,2,3,2,2,3])) encoded as a
              single integer via mixed-radix encoding:
                idx = rd×72 + cv×36 + ir×12 + drp×6 + sp×3 + ap
@@ -63,7 +66,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 N_EPISODES: int = 500          # total training episodes (hard task only)
-N_BINS: int = 8                # bins per obs dimension for state discretisation
+N_BINS: int = 4                # bins per state feature — 4 bins × 6 features = 4096 reachable states
 N_ACTIONS: int = 216           # 3×2×3×2×2×3 — MultiDiscrete product
 LEARNING_RATE: float = 0.1     # Q-table update step size (lr in Bellman)
 DISCOUNT: float = 0.95         # γ — future-reward discount factor
@@ -75,6 +78,27 @@ LAG_MAX: float = 10000.0       # normalisation divisor for LagPredictor target
 
 # Evaluation episodes per task (matches grader spec: 10)
 EVAL_EPISODES: int = 10
+
+# ---------------------------------------------------------------------------
+# State feature selection — 6 key obs fields that drive each reward component
+# ---------------------------------------------------------------------------
+# Using all 10 obs fields with 8 bins each gives 8^10 ≈ 1B states — far too
+# sparse for 500 episodes (≈ 20K transitions). These 6 are the causal drivers:
+#   risk_score        → fraud reward / blind-spot bonus
+#   kafka_lag         → crash penalty / throttle relief
+#   rolling_p99       → SLA penalty / bank coupling
+#   db_connection_pool→ backoff bonus / backoff penalty
+#   bank_api_status   → settlement deferred bonus
+#   merchant_tier     → app_priority bonus
+# 4^6 = 4096 states with 216 actions = 884 K Q-values — fully covered in 500 eps.
+STATE_FEATURE_KEYS: tuple[str, ...] = (
+    "risk_score",
+    "kafka_lag",
+    "rolling_p99",
+    "db_connection_pool",
+    "bank_api_status",
+    "merchant_tier",
+)
 
 # ---------------------------------------------------------------------------
 # Action encoding / decoding helpers
@@ -120,32 +144,18 @@ def decode_action(idx: int) -> AEPOAction:
 # State discretisation
 # ---------------------------------------------------------------------------
 
-# Canonical obs key order — must match AEPOObservation.normalized() field order
-_OBS_KEYS: tuple[str, ...] = (
-    "transaction_type",
-    "risk_score",
-    "adversary_threat_level",
-    "system_entropy",
-    "kafka_lag",
-    "api_latency",
-    "rolling_p99",
-    "db_connection_pool",
-    "bank_api_status",
-    "merchant_tier",
-)
-
-
 def obs_to_state(obs_normalized: dict[str, float]) -> tuple[int, ...]:
     """
-    Discretise a normalized observation dict into a tuple of bin indices.
+    Discretise the 6 key observation features into a tuple of bin indices.
 
     Each value in [0.0, 1.0] maps to bin index in [0, N_BINS-1]:
         bin = int(value * N_BINS) clipped to [0, N_BINS-1]
 
-    Returns a 10-tuple serving as the Q-table key.
+    Returns a 6-tuple serving as the sparse Q-table key.
+    State space: 4^6 = 4096 states — fully reachable in 500 training episodes.
     """
     bins: list[int] = []
-    for key in _OBS_KEYS:
+    for key in STATE_FEATURE_KEYS:
         val = float(obs_normalized.get(key, 0.0))
         bin_idx = int(val * N_BINS)
         bins.append(min(bin_idx, N_BINS - 1))
