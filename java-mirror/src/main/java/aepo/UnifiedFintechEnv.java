@@ -615,19 +615,52 @@ public class UnifiedFintechEnv {
         rewardBreakdown.put("bonus", bonus);
         rewardBreakdown.put("final", finalReward);
 
-        // ⑦ Build info dict
+        // ⑦ Build info dict — mirrors CLAUDE.md contract exactly
+        // [MIRROR]: This is a direct port of the Python info dict from unified_gateway.py step()
         Map<String, Object> info = new LinkedHashMap<>();
+
+        // ── CLAUDE.md Phase 4 contract ────────────────────────────────────
         info.put("phase", currentPhase);
         info.put("curriculum_level", curriculumLevel);
-        info.put("step_in_episode", currentStep);
+        info.put("step_in_episode", currentStep);   // 1-indexed (after increment)
+
+        // raw_obs: all 10 unclipped raw values at step start — mirrors Python info["raw_obs"]
+        Map<String, Double> rawObs = new LinkedHashMap<>();
+        rawObs.put("transaction_type",       currentObs.channel());          // channel renamed in spec
+        rawObs.put("risk_score",             riskScore);
+        rawObs.put("adversary_threat_level", currentObs.adversaryThreatLevel());
+        rawObs.put("system_entropy",         currentObs.systemEntropy());
+        rawObs.put("kafka_lag",              obsKafkaLag);
+        rawObs.put("api_latency",            currentObs.apiLatency());
+        rawObs.put("rolling_p99",            effectiveP99);
+        rawObs.put("db_connection_pool",     obsDbPool);
+        rawObs.put("bank_api_status",        obsBankStatus);
+        rawObs.put("merchant_tier",          obsMerchantTier);
+        info.put("raw_obs", rawObs);
+
         info.put("reward_breakdown", rewardBreakdown);
         info.put("termination_reason", terminationReason);
         info.put("adversary_threat_level_raw", adversaryThreatLevel);
         info.put("blind_spot_triggered", blindSpotTriggered);
         info.put("cumulative_settlement_backlog", cumulativeSettlementBacklog);
+
+        // ── Backward-compat keys required by graders ─────────────────────
+        info.put("step", currentStep);
+        info.put("task", currentTask);
         info.put("event_type", lastEventType);
+        info.put("obs_risk_score", riskScore);
+        info.put("obs_kafka_lag", obsKafkaLag);
+        info.put("obs_rolling_p99", effectiveP99);
+        info.put("action_risk_decision", action.riskDecision());
+        info.put("action_infra_routing", action.infraRouting());
+        info.put("action_crypto_verify", action.cryptoVerify());
+        info.put("reward_raw", rawReward);
+        info.put("reward_final", finalReward);
+        info.put("circuit_breaker_tripped", circuitBreakerTripped);
         info.put("crashed", crashed);
         info.put("done", done);
+        info.put("internal_rolling_lag", kafkaLag);
+        info.put("internal_rolling_latency", apiLatency);
 
         // Phase 6: collect per-step reward for end-of-episode averaging
         episodeStepRewards.add(finalReward);

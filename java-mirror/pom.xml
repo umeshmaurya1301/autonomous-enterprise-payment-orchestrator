@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      AEPO Java Mirror — Maven Build
+      ================================
+      Purpose  : Build the Java mirror of the Python AEPO codebase.
+      Java     : 17+ required (Java records used throughout).
+      Main class: aepo.OllamaClient (debug runner)
+      DELETE   : This entire java-mirror/ directory before final submission.
+    -->
+
+    <groupId>aepo</groupId>
+    <artifactId>aepo-mirror</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>AEPO Java Mirror</name>
+    <description>
+        Readable Java translation of the Autonomous Enterprise Payment Orchestrator (AEPO).
+        Not a production artifact — for enterprise compliance review and onsite demo only.
+    </description>
+
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Dependency versions -->
+        <jackson.version>2.17.1</jackson.version>
+        <junit.version>5.10.3</junit.version>
+    </properties>
+
+    <dependencies>
+
+        <!--
+          Jackson Databind — JSON serialization/deserialization
+          PYTHON EQUIVALENT: pydantic / json.dumps / json.loads
+          Used by: OllamaClient (request/response JSON), AEPOController (REST layer)
+        -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!--
+          Jackson Annotations — @JsonProperty for snake_case ↔ camelCase field mapping
+          Maps Python dict keys (risk_score) to Java record fields (riskScore)
+        -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!--
+          JUnit 5 — unit tests mirroring Python pytest suite
+          PYTHON EQUIVALENT: pytest + the tests/ directory
+          Scope: test only — not included in the production JAR
+        -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+
+            <!--
+              Compiler plugin — enforce Java 17 (required for records).
+              Java records mirror Python dataclasses and Pydantic BaseModels.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                </configuration>
+            </plugin>
+
+            <!--
+              Surefire — runs JUnit 5 tests via: mvn test
+              PYTHON EQUIVALENT: pytest tests/ -v
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.3.0</version>
+            </plugin>
+
+            <!--
+              Shade plugin — builds a fat JAR containing all dependencies.
+              Enables: java -jar target/aepo-mirror.jar aepo.OllamaClient hard
+              PYTHON EQUIVALENT: python inference.py hard
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <archive>
+                                <manifest>
+                                    <!-- Default main class for standalone debug runs -->
+                                    <mainClass>aepo.OllamaClient</mainClass>
+                                </manifest>
+                            </archive>
+                            <filters>
+                                <filter>
+                                    <!-- Suppress JAR signature conflicts -->
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
