@@ -1,8 +1,8 @@
-# Bulletproof Technical Manual — Unified Fintech Risk Gateway
+# Bulletproof Technical Manual — Autonomous Enterprise Payment Orchestrator (AEPO)
 ## Pre-Flight · Deployment · Agent Testing · Judge Compatibility
 
-> **Based on:** Actual project inspection as of 2026-04-07
-> **Confirmed fixes in scope:** C1 (HTTP architecture), C2 (score format), C3 (requirements), H1–H5, M1–M5
+> **Based on:** Actual project inspection as of 2026-04-22
+> **Covers:** AEPO Phase 10 — 10-field observation, 6-field action, 182 tests, Q-table training, LagPredictor
 > **Author role:** Senior DevOps + RL Engineer — OpenEnv Framework
 
 ---
@@ -22,164 +22,179 @@
 ### Step 1.1 — Environment Setup
 
 ```bash
-cd /path/to/unified-fintech-risk-gateway
+cd /path/to/autonomous-enterprise-payment-orchestrator
 
-# Create a clean virtualenv (do NOT use the system Python)
+# Create a clean virtualenv
 python3.10 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate   # Linux/Mac
+# .venv\Scripts\activate    # Windows PowerShell
 
-# Install all production deps (requirements.txt is now complete)
+# Install all production deps
 pip install -r requirements.txt
 
 # Verify critical imports
-python -c "import gymnasium, pydantic, fastapi, openai, httpx, openenv; print('All imports OK')"
+python -c "import gymnasium, pydantic, fastapi, openai, httpx, openenv, torch; print('All imports OK')"
 ```
 
-> ⚠️ **WARNING:** Do NOT run `pip install -e .` and `pip install -r requirements.txt` in the same environment without checking for version conflicts. `pyproject.toml` pins `gymnasium>=0.29.1` but `requirements.txt` pins `gymnasium==0.29.1` — the `==` wins in requirements.txt and that is what the Docker image uses. Keep them in sync.
+> ⚠️ **WARNING:** PyTorch is a required dependency (`dynamics_model.py` — LagPredictor). If `import torch` fails, install it:
+> ```
+> pip install torch==2.2.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+> ```
 
 ---
 
-### Step 1.2 — Run `verify_foundation.py` (Pydantic Models + Reset + State)
+### Step 1.2 — Smoke Test the Environment
 
 ```bash
-python verify_foundation.py
+python -c "
+from unified_gateway import UnifiedFintechEnv, AEPOAction, AEPOObservation
+env = UnifiedFintechEnv()
+obs, info = env.reset(seed=42, options={'task': 'hard'})
+assert isinstance(obs, AEPOObservation), 'reset must return AEPOObservation'
+norm = obs.normalized()
+assert all(0.0 <= v <= 1.0 for v in norm.values()), 'all normalized values must be in [0,1]'
+action = AEPOAction(risk_decision=1, crypto_verify=1, infra_routing=0,
+                    db_retry_policy=0, settlement_policy=0, app_priority=1)
+obs2, reward, done, info2 = env.step(action)
+assert isinstance(reward, float) and 0.0 <= reward <= 1.0, f'bad reward: {reward}'
+assert 'phase' in info2 and 'reward_breakdown' in info2, 'incomplete info dict'
+print('Smoke test PASS — 10-field obs, 6-field action, 4-tuple step OK')
+"
 ```
-
-**What it tests:**
-- `UFRGAction` field validation (rejects out-of-range integers)
-- `reset(options={"task": ...})` returns a `(UFRGObservation, dict)` 2-tuple
-- `seed=42` reproducibility — two resets with the same seed must produce identical first observations
-- `state()` matches the observation returned by `reset()`
-- Task distribution: easy risk ∈ [5,30], hard risk ∈ [85,100], medium 80/20 split
 
 **Expected output:**
 ```
-── Phase 2: Pydantic Models ──
-  [PASS] UFRGAction valid construction
-  [PASS] Reject risk_decision=3
-  ...
-── Phase 3: reset() ──
-  [PASS] reset('easy') returns 2-tuple
-  ...
-══════════════════════════════════════
-  Results: 28 passed, 0 failed
-══════════════════════════════════════
-  ✅ ALL PHASE 2 + 3 CHECKS PASSED
+Smoke test PASS — 10-field obs, 6-field action, 4-tuple step OK
 ```
 
-> ⚠️ **WARNING:** Any `[FAIL]` here means the Gymnasium `reset()` signature is broken. The automated judge calls `env.reset(seed=X, options={"task": "easy"})` — a non-standard signature will raise `TypeError` and **disqualify the run immediately**.
+> ⚠️ **WARNING:** Any `AssertionError` here means the core environment contract is broken. The judge calls `reset(seed=X, options={"task": "hard"})` — a non-standard signature will raise `TypeError` and **disqualify the run immediately**.
 
 ---
 
-### Step 1.3 — Run `verify_step.py` (Reward Logic + Crash + Done)
+### Step 1.3 — Run the Full pytest Suite (182 Tests)
 
 ```bash
-python verify_step.py
-```
-
-**What it tests:**
-
-| Check | Expected Behaviour |
-|-------|-------------------|
-| Return type | 4-tuple with `UFRGReward` as element 1 |
-| Throttle penalty | `−0.2` on normal traffic, `−0.1` on flash-sale |
-| SLA breach | `−0.3` when `rolling_p99 > 800` |
-| Circuit-breaker | `−0.5`, resets lag to `0` |
-| Fraud gate | Clamps to `0.0` when `SkipVerify + Approve + risk_score > 80` |
-| Challenge bonus | `+0.05` over Reject on high-risk |
-| Lag proximity warning | Present in `UFRGReward.breakdown` when lag ∈ (3000, 4000] |
-| Crash | `reward=0.0` and `done=True` when lag > 4000 |
-| Episode end | `done=True` at `max_steps=100` |
-
-**Expected output:**
-```
-── Return type contract ──
-  [PASS] step returns 4-tuple
-  [PASS] typed_reward is UFRGReward
-  ...
-  ✅ ALL PHASE 4 CHECKS PASSED
-```
-
-> ⚠️ **WARNING:** If `verify_step.py` shows `[FAIL] typed_reward is UFRGReward`, it means `step()` is still returning a bare `float`. The judge expects the typed model — this will break the server's `/step` response serialisation.
-
----
-
-### Step 1.4 — Run the Full pytest Suite
-
-```bash
-pip install pytest
+pip install pytest pytest-cov
 pytest tests/ -v --tb=short
 ```
 
 **Expected:**
 ```
-tests/test_foundation.py::test_action_valid_construction PASSED
-tests/test_foundation.py::test_reset_seed_reproducibility PASSED
-tests/test_step.py::test_challenge_bonus_beats_reject_on_high_risk PASSED
-tests/test_step.py::test_lag_proximity_warning_in_breakdown PASSED
-tests/test_graders.py::... PASSED
+tests/test_observation.py::test_...   PASSED
+tests/test_action.py::test_...        PASSED
+tests/test_reset.py::test_...         PASSED
+tests/test_step.py::test_...          PASSED
+tests/test_causal.py::test_...        PASSED
+tests/test_phases.py::test_...        PASSED
+tests/test_reward.py::test_...        PASSED
+tests/test_curriculum.py::test_...    PASSED
+tests/test_graders.py::test_...       PASSED
+tests/test_server.py::test_...        PASSED
+tests/test_dual_mode.py::test_...     PASSED
+tests/test_heuristic.py::test_...     PASSED
 ...
-XX passed in X.XXs
+182 passed in X.XXs
 ```
 
-> ⚠️ **WARNING:** `dummy_test.py` has been removed. Do NOT recreate it — it used the old 5-tuple Gymnasium API and will crash against the current 4-tuple `step()`.
+**Run with coverage:**
+```bash
+pytest tests/ --cov=unified_gateway --cov-report=term-missing
+# Target: unified_gateway.py 97%
+```
+
+> ⚠️ **WARNING:** If fewer than 182 tests pass, do not proceed to deployment. The test suite covers all 8 causal transitions, all 14 reward conditions, all 4 phase boundaries, and the full info dict contract. Partial failures indicate a broken reward function or phase machine that will produce wrong scores at the judge.
+
+---
+
+### Step 1.4 — Verify Reward Logic Directly
+
+```bash
+python -c "
+from unified_gateway import UnifiedFintechEnv, AEPOAction
+
+env = UnifiedFintechEnv()
+
+# Test 1: Baseline reward on clean normal step
+env.reset(seed=0, options={'task': 'easy'})
+_, r, _, info = env.step(AEPOAction(
+    risk_decision=0, crypto_verify=1, infra_routing=0,
+    db_retry_policy=0, settlement_policy=0, app_priority=2))
+assert abs(info['reward_breakdown']['base'] - 0.8) < 0.01, f'base should be 0.8, got {info[\"reward_breakdown\"]}'
+
+# Test 2: CircuitBreaker applies -0.50 penalty
+env.reset(seed=0, options={'task': 'easy'})
+_, r2, _, info2 = env.step(AEPOAction(
+    risk_decision=0, crypto_verify=1, infra_routing=2,
+    db_retry_policy=0, settlement_policy=0, app_priority=2))
+assert info2['reward_breakdown']['infra_penalty'] <= -0.49, f'CB penalty wrong: {info2[\"reward_breakdown\"]}'
+
+# Test 3: Blind spot — Reject+SkipVerify on high risk
+from unified_gateway import UnifiedFintechEnv
+import unittest.mock as mock
+env2 = UnifiedFintechEnv()
+env2.reset(seed=0, options={'task': 'hard'})
+env2._current_obs.risk_score = 90.0  # force high risk
+_, r3, _, info3 = env2.step(AEPOAction(
+    risk_decision=1, crypto_verify=1, infra_routing=0,
+    db_retry_policy=0, settlement_policy=0, app_priority=2))
+assert info3.get('blind_spot_triggered', False), 'blind_spot_triggered must be True on Reject+SkipVerify+high_risk'
+print('Reward logic PASS — baseline, CircuitBreaker, blind_spot all correct')
+"
+```
 
 ---
 
 ### Step 1.5 — 10,000-Step Stress Test
 
-Since `dummy_test.py` was removed (it was incompatible with the current 4-tuple `step()` API), run this inline stress test instead:
-
 ```bash
-python - << 'EOF'
+python -c "
 import time
-from unified_gateway import UFRGAction, UnifiedFintechEnv
+from unified_gateway import AEPOAction, UnifiedFintechEnv
 
 env = UnifiedFintechEnv()
-total_steps = 0
-total_resets = 0
-total_crashes = 0
+total_steps, resets, crashes = 0, 0, 0
 TARGET = 10_000
 
 start = time.time()
-obs, _ = env.reset(seed=0, options={"task": "easy"})
+obs, _ = env.reset(seed=0, options={'task': 'easy'})
 
 while total_steps < TARGET:
-    action = UFRGAction(
-        risk_decision=int(env.action_space.sample()[0]),
-        infra_routing=int(env.action_space.sample()[1]),
-        crypto_verify=int(env.action_space.sample()[2]),
+    action = AEPOAction(
+        risk_decision=env.action_space.sample()[0],
+        crypto_verify=env.action_space.sample()[1],
+        infra_routing=env.action_space.sample()[2],
+        db_retry_policy=env.action_space.sample()[3],
+        settlement_policy=env.action_space.sample()[4],
+        app_priority=env.action_space.sample()[5],
     )
-    obs, typed_reward, done, info = env.step(action)
+    obs, reward, done, info = env.step(action)
     total_steps += 1
-
-    if typed_reward.crashed:
-        total_crashes += 1
-
+    if info.get('termination_reason') in ('crash', 'fraud'):
+        crashes += 1
     if done:
-        task = ["easy", "medium", "hard"][total_resets % 3]
-        obs, _ = env.reset(options={"task": task})
-        total_resets += 1
+        task = ['easy', 'medium', 'hard'][resets % 3]
+        obs, _ = env.reset(options={'task': task})
+        resets += 1
 
 elapsed = time.time() - start
-print(f"Steps:   {total_steps:,}")
-print(f"Resets:  {total_resets:,}")
-print(f"Crashes: {total_crashes:,}")
-print(f"Time:    {elapsed:.2f}s  ({total_steps/elapsed:.0f} steps/sec)")
-print("✅ Stress test complete — no exception means no memory leak")
-EOF
+print(f'Steps:   {total_steps:,}')
+print(f'Resets:  {resets:,}')
+print(f'Crashes: {crashes:,}')
+print(f'Time:    {elapsed:.2f}s  ({total_steps/elapsed:.0f} steps/sec)')
+print('Stress test PASS — no exception raised')
+"
 ```
 
 **Healthy benchmark:**
 
 | Metric | Expected Range |
-|--------|---------------|
-| Steps/sec | > 3,000 |
-| Elapsed time | < 5s |
-| Crashes | 30–150 (random actions on hard task — expected) |
+|:---|:---|
+| Steps/sec | > 1,000 |
+| Elapsed time | < 30s |
+| Crashes | 50–300 (random actions on hard task — expected) |
 | Exception | None |
 
-> ⚠️ **WARNING:** If elapsed time is > 30 seconds for 10,000 steps, the environment has a performance issue. At the judge's 2 vCPU speed, a slow environment will eat into the 20-minute inference budget.
+> ⚠️ **WARNING:** `env.action_space.sample()` returns an array for MultiDiscrete. Index each dimension separately as shown above. Passing the raw array to `AEPOAction` will raise a ValidationError.
 
 ---
 
@@ -193,11 +208,11 @@ openenv validate .
 **What it checks against `openenv.yaml`:**
 
 | Field | Value | Status |
-|-------|-------|--------|
+|:---|:---|:---|
 | `tags: [openenv]` | present | ✅ |
 | `entry_point` | `unified_gateway:UnifiedFintechEnv` | ✅ |
 | `tasks[].max_steps` | `100` for all three | ✅ |
-| `tasks[].reward_threshold` | `0.75 / 0.50 / 0.30` | ✅ |
+| `tasks[].reward_threshold` | `0.75 / 0.45 / 0.30` | ✅ |
 | `reward_range` | `[0.0, 1.0]` | ✅ |
 
 **Expected:**
@@ -209,7 +224,25 @@ openenv validate .
 ✅ Environment passed all checks
 ```
 
-> ⚠️ **WARNING:** `openenv validate` calls `env.reset()` using the Gymnasium standard — no `task_name` kwarg. If the reset signature is not `(seed, options)`, this check will fail and the submission will be rejected at the validation gate **before any scoring happens**.
+---
+
+### Step 1.7 — Run Training (verify hard task PASS)
+
+```bash
+python train.py
+```
+
+This runs 500 Q-table episodes on the hard task and prints the comparison table. Takes ~3–4 seconds on 2 vCPU.
+
+**Expected key output:**
+```
+[BLIND SPOT #1 DISCOVERED] episode=3 step=42 reward=0.8800 | ...
+hard  0.2507  0.2955  0.6650  0.30  PASS
+```
+
+And generates `results/reward_curve.png` showing the staircase improvement curve.
+
+> ⚠️ **WARNING:** If `train.py` fails with `ModuleNotFoundError: No module named 'matplotlib'`, run `pip install matplotlib`. If it fails with `ModuleNotFoundError: No module named 'torch'`, run `pip install torch==2.2.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu`.
 
 ---
 
@@ -219,13 +252,13 @@ openenv validate .
 
 ```bash
 # Build from repo root
-docker build -t ufrg:local .
+docker build -t aepo:local .
 
-# Verify image size (target: < 2 GB for fast HF deployment)
-docker images ufrg:local
+# Verify image size (target: < 3 GB — PyTorch adds ~1 GB over UFRG)
+docker images aepo:local
 
 # Start the server on port 7860
-docker run --rm -p 7860:7860 --name ufrg-test ufrg:local
+docker run --rm -p 7860:7860 --name aepo-test aepo:local
 ```
 
 Leave the container running and open a **second terminal** for Step 2.2.
@@ -248,25 +281,30 @@ curl -s -X POST http://localhost:7860/reset \
   -H "Content-Type: application/json" \
   -d '{"task": "easy"}' | python3 -m json.tool
 
-# 4. POST /step — send one action
+# 4. POST /step — send one 6-field action
 curl -s -X POST http://localhost:7860/step \
   -H "Content-Type: application/json" \
-  -d '{"action": {"risk_decision": 0, "infra_routing": 0, "crypto_verify": 1}}' \
+  -d '{"action": {"risk_decision": 0, "crypto_verify": 1, "infra_routing": 0, "db_retry_policy": 0, "settlement_policy": 0, "app_priority": 2}}' \
   | python3 -m json.tool
 
 # 5. GET /state — inspect current observation
 curl -s http://localhost:7860/state | python3 -m json.tool
 ```
 
-**Healthy `/reset` response:**
+**Healthy `/reset` response (10-field AEPOObservation):**
 ```json
 {
   "observation": {
-    "channel": 1.0,
+    "transaction_type": 0.0,
     "risk_score": 17.3,
-    "kafka_lag": 12.4,
-    "api_latency": 48.2,
-    "rolling_p99": 49.1
+    "adversary_threat_level": 0.0,
+    "system_entropy": 43.2,
+    "kafka_lag": 124.7,
+    "api_latency": 82.1,
+    "rolling_p99": 71.4,
+    "db_connection_pool": 58.3,
+    "bank_api_status": 0.0,
+    "merchant_tier": 1.0
   },
   "info": {"task": "easy"}
 }
@@ -275,15 +313,44 @@ curl -s http://localhost:7860/state | python3 -m json.tool
 **Healthy `/step` response:**
 ```json
 {
-  "observation": { "..." : "..." },
-  "reward": 0.8,
-  "reward_breakdown": {"baseline": 0.8},
+  "observation": {
+    "transaction_type": 0.0,
+    "risk_score": 22.1,
+    "adversary_threat_level": 0.0,
+    "system_entropy": 38.7,
+    "kafka_lag": 248.3,
+    "api_latency": 89.5,
+    "rolling_p99": 73.2,
+    "db_connection_pool": 59.1,
+    "bank_api_status": 0.0,
+    "merchant_tier": 1.0
+  },
+  "reward": 0.82,
   "done": false,
-  "info": { "..." : "..." }
+  "info": {
+    "phase": "normal",
+    "curriculum_level": 0,
+    "step_in_episode": 1,
+    "reward_breakdown": {
+      "base": 0.8,
+      "fraud_penalty": 0.0,
+      "sla_penalty": 0.0,
+      "infra_penalty": 0.0,
+      "db_penalty": 0.0,
+      "settlement_penalty": 0.0,
+      "bonus": 0.02,
+      "final": 0.82
+    },
+    "termination_reason": null,
+    "blind_spot_triggered": false,
+    "consecutive_deferred_async": 0
+  }
 }
 ```
 
-> ⚠️ **WARNING:** If `/step` returns `"reward": null` or the field is missing, `server/app.py` is returning the `UFRGReward` object without extracting `.value`. The judge reads `data["reward"]` as a float — a `null` here is a **silent scoring failure** (all rewards become 0).
+> ⚠️ **WARNING:** If the `/step` response is missing any key from the `info` dict shown above (especially `reward_breakdown`, `phase`, `blind_spot_triggered`), the server is returning an incomplete info dict. This will cause the grader to fail silently. Verify `server/app.py` returns the full `info` from `env.step()` without filtering.
+
+> ⚠️ **WARNING:** The action body must include all 6 fields: `risk_decision`, `crypto_verify`, `infra_routing`, `db_retry_policy`, `settlement_policy`, `app_priority`. Sending only the old 3-field UFRGAction format will return HTTP 422 — Pydantic will reject it.
 
 ---
 
@@ -291,10 +358,10 @@ curl -s http://localhost:7860/state | python3 -m json.tool
 
 ```bash
 # Terminal 1 — start the server
-docker run --rm -p 7860:7860 --name ufrg-server ufrg:local &
+docker run --rm -p 7860:7860 --name aepo-server aepo:local &
 
 # Wait for readiness
-sleep 3 && curl -s http://localhost:7860/ | python3 -m json.tool
+sleep 5 && curl -s http://localhost:7860/ | python3 -m json.tool
 
 # Terminal 2 — run inference against local container (dry-run)
 SPACE_URL=http://localhost:7860 DRY_RUN=true python inference.py
@@ -302,16 +369,21 @@ SPACE_URL=http://localhost:7860 DRY_RUN=true python inference.py
 
 **Expected output:**
 ```
-[START] task=easy env=ufrg model=Qwen/Qwen2.5-72B-Instruct
-[STEP] step=1 action={"risk_decision":0,"infra_routing":0,"crypto_verify":1} reward=0.80 done=false error=null
-[STEP] step=2 action={"risk_decision":0,"infra_routing":0,"crypto_verify":1} reward=0.80 done=false error=null
+[START] task=easy env=ufrg model=mistral-nemo:latest
+[STEP] step=1 action={"risk_decision":0,"crypto_verify":1,"infra_routing":0,"db_retry_policy":0,"settlement_policy":0,"app_priority":2} reward=0.80 done=false error=null
 ...
-[END] success=true steps=100 score=0.97 rewards=0.80,0.80,...
-[START] task=medium ...
-[END] success=true steps=100 score=0.74 rewards=...
-[START] task=hard ...
-[END] success=true steps=XX score=0.XX rewards=...
+[END] success=true steps=100 score=0.76 rewards=0.80,0.80,...
+
+[START] task=medium env=ufrg model=mistral-nemo:latest
+...
+[END] success=false steps=100 score=0.41 rewards=...
+
+[START] task=hard env=ufrg model=mistral-nemo:latest
+...
+[END] success=false steps=100 score=0.30 rewards=...
 ```
+
+The dry-run uses the heuristic agent (deliberately missing blind spots #1, #2, #3). Expected scores match the heuristic baseline, not the trained Q-table scores.
 
 ---
 
@@ -321,92 +393,78 @@ SPACE_URL=http://localhost:7860 DRY_RUN=true python inference.py
 # 1. Confirm you are on main
 git branch
 
-# 2. Stage source files
-git add unified_gateway.py graders.py inference.py server/app.py
-git add openenv.yaml requirements.txt pyproject.toml Dockerfile
-git add README.md validate-submission.sh
-git add tests/ verify_foundation.py verify_step.py
+# 2. Stage all submission files (no /java-mirror !)
+git add unified_gateway.py dynamics_model.py graders.py
+git add inference.py train.py server/app.py
+git add openenv.yaml requirements.txt Dockerfile
+git add README.md LOCAL_TESTING.md
+git add tests/
+git add results/reward_curve.png
 
 # 3. Commit
-git commit -m "fix: apply all C/H/M/L gap fixes — judge-ready submission"
+git commit -m "feat: AEPO Phase 10 final — 182 tests, hard task PASS 0.67"
 
-# 4. Push to HF Space remote
+# 4. Push
 git push origin main
-# If your HF Space remote has a different name:
-# git remote -v       ← check remote names
-# git push huggingface main
 ```
 
 **Monitor the rebuild:**
 ```bash
 # Poll until the Space returns 200
 watch -n 10 "curl -s -o /dev/null -w '%{http_code}' \
-  https://unknown1321-unified-fintech-risk-gateway.hf.space/"
+  https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space/"
 ```
 
-Wait until the response changes from `503` (rebuilding) → `200` (live).
-
-**Verify the live Space after deploy:**
-```bash
-HF_SPACE=https://unknown1321-unified-fintech-risk-gateway.hf.space
-
-curl -s "$HF_SPACE/"
-curl -s -X POST "$HF_SPACE/reset" \
-  -H "Content-Type: application/json" \
-  -d '{"task": "hard"}' | python3 -m json.tool
-```
-
-> ⚠️ **WARNING:** HF Spaces go to **sleep after 48 hours** of inactivity. If the judge pings a sleeping Space it receives `503`. The pre-flight check will fail and your run won't be scored. Ping your Space at least once every 24 hours before the judging window, or upgrade to a paid always-on Space.
+> ⚠️ **WARNING:** HF Spaces go to **sleep after 48 hours** of inactivity. Ping your Space at least once every 24 hours before the judging window.
 
 ---
 
 ## Part 3 — Local Model Integration (Live Agent Testing)
 
-### Step 3.1 — Export Environment Variables
+### Step 3.1 — Using Ollama (mistral-nemo, local)
 
 ```bash
-# LLM endpoint — HuggingFace inference router (OpenAI-compatible)
-export API_BASE_URL="https://router.huggingface.co/v1"
-export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
-export HF_TOKEN="hf_YOUR_TOKEN_HERE"    # huggingface.co/settings/tokens
+# Pull the model
+ollama pull mistral-nemo
 
-# Point inference at local Docker for faster iteration (no HF cold start)
-export SPACE_URL="http://localhost:7860"
+# Start Ollama server (leave this terminal open)
+ollama serve
 
-# Leave DRY_RUN unset (defaults to false) for live LLM calls
+# In a second terminal — start AEPO server
+uvicorn server.app:app --host 0.0.0.0 --port 7860
+
+# In a third terminal — run inference
+SPACE_URL="http://localhost:7860" \
+API_BASE_URL="http://localhost:11434/v1" \
+MODEL_NAME="mistral-nemo:latest" \
+HF_TOKEN="ollama" \
+DRY_RUN="false" \
+python inference.py
 ```
 
-> ⚠️ **WARNING:** Never hardcode `HF_TOKEN` in any committed file. The token gives write access to your HF account. Use `export` in the terminal session only — it will not persist across sessions.
+See `LOCAL_TESTING.md` for the complete step-by-step Ollama testing guide.
 
 ---
 
-### Step 3.2 — Start Local Server and Run Live Inference
+### Step 3.2 — Using HuggingFace Inference API (cloud)
 
 ```bash
-# Terminal 1 — start the local Docker server
-docker run --rm -p 7860:7860 ufrg:local
-
-# Terminal 2 — confirm readiness, then run
-sleep 5
-curl -s http://localhost:7860/ | python3 -m json.tool
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+export HF_TOKEN="hf_YOUR_TOKEN_HERE"
+export SPACE_URL="http://localhost:7860"
 
 python inference.py
 ```
 
-The script will:
-1. Call `POST http://localhost:7860/reset` for each task (fast — local network)
-2. Send each observation to `Qwen/Qwen2.5-72B-Instruct` via `router.huggingface.co`
-3. Call `POST http://localhost:7860/step` with the LLM's parsed action
-4. Print strict `[START]`/`[STEP]`/`[END]` markers
-
-This catches server serialisation bugs locally before they reach the live Space.
+> ⚠️ **WARNING:** Never hardcode `HF_TOKEN` in any committed file. Use `export` in the terminal session only.
 
 ---
 
 ### Step 3.3 — Switch to the Live HF Space for Final Validation
 
 ```bash
-export SPACE_URL="https://unknown1321-unified-fintech-risk-gateway.hf.space"
+export SPACE_URL="https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space"
 python inference.py
 ```
 
@@ -419,13 +477,6 @@ Use `DRY_RUN=true` for exact score reproducibility (heuristic agent is determini
 
 ### Step 4.1 — Simulate 2 vCPU / 8 GB Memory Constraint
 
-**macOS — Docker Desktop:**
-```
-Docker Desktop → Settings → Resources
-Set:  CPUs = 2 · Memory = 8 GB
-Click: Apply & Restart
-```
-
 **Linux — cgroups (command line):**
 ```bash
 docker run --rm \
@@ -433,16 +484,15 @@ docker run --rm \
   --memory="8g" \
   --memory-swap="8g" \
   -p 7860:7860 \
-  --name ufrg-constrained \
-  ufrg:local
+  --name aepo-constrained \
+  aepo:local
 ```
 
 **Verify the constraint is active:**
 ```bash
-# In a second terminal
-docker stats ufrg-constrained
-# CPU %     → should be capped around 200% (2 cores)
-# MEM LIMIT → should show ~8GiB
+docker stats aepo-constrained
+# CPU %     → capped around 200% (2 cores)
+# MEM LIMIT → ~8GiB
 ```
 
 **Run the full dry-run against the constrained container:**
@@ -450,7 +500,10 @@ docker stats ufrg-constrained
 SPACE_URL=http://localhost:7860 DRY_RUN=true python inference.py
 ```
 
-> ⚠️ **WARNING:** If you see `OOMKilled` in `docker stats` or the container restarts unexpectedly, your server has a memory leak. The most common cause is the `env` global in `server/app.py` accumulating state across episodes. Confirm that `POST /reset` does `env = UnifiedFintechEnv()` (full re-instantiation) — not just `env.reset()` on the existing instance.
+> ⚠️ **WARNING:** PyTorch adds ~1 GB to the memory footprint. If you see `OOMKilled` in `docker stats`, verify that:
+> (1) PyTorch is CPU-only (`torch==2.2.0+cpu`) — CUDA drivers double memory usage.
+> (2) `dynamics_model.py` is not loading a GPU-sized model.
+> (3) The `env` global in `server/app.py` is a single instance, not re-created per request.
 
 ---
 
@@ -466,10 +519,15 @@ DRY_RUN=true SPACE_URL=http://localhost:7860 python inference.py 2>/dev/null | \
 **Required format per OpenEnv spec:**
 
 | Marker | Required Format |
-|--------|----------------|
+|:---|:---|
 | `[START]` | `[START] task=easy env=ufrg model=<name>` |
 | `[STEP]` | `[STEP] step=N action={...} reward=X.XX done=true\|false error=null` |
 | `[END]` | `[END] success=true\|false steps=N score=X.XX rewards=X.XX,...` |
+
+**Action dict in [STEP] must contain all 6 fields:**
+```
+action={"risk_decision":0,"crypto_verify":1,"infra_routing":0,"db_retry_policy":0,"settlement_policy":0,"app_priority":2}
+```
 
 **Programmatic format validation:**
 ```bash
@@ -489,6 +547,11 @@ for line in lines:
             errors.append(f"BAD reward format (need 2dp): {line}")
         if not re.search(r"error=null", line):
             errors.append(f"MISSING error=null: {line}")
+        # Verify all 6 action fields present
+        for field in ["risk_decision", "crypto_verify", "infra_routing",
+                      "db_retry_policy", "settlement_policy", "app_priority"]:
+            if field not in line:
+                errors.append(f"MISSING action field {field}: {line}")
 if errors:
     print("❌ FORMAT ERRORS FOUND:")
     for e in errors:
@@ -498,7 +561,7 @@ else:
 EOF
 ```
 
-> ⚠️ **WARNING:** `score=0.800` (3 decimal places) will fail the judge's parser. Your `inference.py` uses `:.2f` — confirm this line has not been accidentally reverted. One character difference here silently zeros your score for that task.
+> ⚠️ **WARNING:** `score=0.800` (3 decimal places) fails the judge's parser. Your `inference.py` uses `:.2f` — confirm it has not been reverted.
 
 ---
 
@@ -508,57 +571,42 @@ EOF
 ```bash
 time (SPACE_URL=http://localhost:7860 DRY_RUN=true python inference.py > /dev/null)
 ```
-Expected: **< 15 seconds** for all 3 tasks (300 steps via HTTP to local Docker).
+Expected: **< 30 seconds** for all 3 tasks (300 steps via HTTP to local Docker).
 
 **Live LLM budget estimate:**
 
 | Variable | Value |
-|----------|-------|
+|:---|:---|
 | Total steps | 300 (3 tasks × 100 steps) |
 | LLM latency per step | 0.5–3.0 seconds |
 | Worst-case total | 300 × 3s = **900s = 15 min** |
 | Judge hard limit | 20 min |
-| Recommended headroom | Leave 3 min buffer → target **≤ 17 min** |
+| Recommended target | ≤ 17 min |
 
-**Measure actual live LLM time:**
-```bash
-time (python inference.py > /tmp/inference_output.txt 2>&1)
-cat /tmp/inference_output.txt | grep "\[END\]"
-```
-
-**If approaching 17 minutes, apply one of these fixes:**
-
-Option A — Use a faster model (3–5× speed gain):
-```bash
-export MODEL_NAME="Qwen/Qwen2.5-7B-Instruct"
-```
-
-Option B — Add per-step timeout in `inference.py` to prevent LLM hangs:
+**If approaching 17 minutes, add per-step timeout:**
 ```python
-# In get_action(), add timeout= to the API call
+# In get_action() inside inference.py:
 response = llm_client.chat.completions.create(
     model=MODEL_NAME,
     messages=[...],
     max_tokens=20,
     temperature=0.0,
-    timeout=5.0,   # fall back to safe action (Reject+Normal+FullVerify) if slow
+    timeout=5.0,   # fallback to safe action if LLM hangs
 )
 ```
 
-> ⚠️ **WARNING:** If the judge process is killed mid-run (timeout), the `[END]` line for the in-progress task is never emitted. A missing `[END]` is treated as `score=0.00` for that task. Budget at most 17 minutes and leave 3 minutes of headroom.
-
 ---
 
-### Step 4.4 — Final Pre-Submission Gate (`validate-submission.sh`)
+### Step 4.4 — Final Pre-Submission Gate
 
 ```bash
 chmod +x validate-submission.sh
 
-# Stage 1 — against local Docker (catches build + inference issues)
+# Stage 1 — against local Docker
 HF_SPACE_URL=http://localhost:7860 ./validate-submission.sh
 
-# Stage 2 — against live HF Space (final gate before submission)
-HF_SPACE_URL=https://unknown1321-unified-fintech-risk-gateway.hf.space \
+# Stage 2 — against live HF Space
+HF_SPACE_URL=https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space \
   ./validate-submission.sh
 ```
 
@@ -583,41 +631,45 @@ Passed: 4  Failed: 0
 ✅  All checks passed. Safe to submit.
 ```
 
-> ⚠️ **WARNING:** If Check 1 returns HTTP `000` (connection refused), your HF Space is sleeping. Open the Space URL in a browser to wake it, wait 60 seconds, then re-run. If it returns `503`, the Space build is still in progress — wait for the HF build log to show "Running".
-
 ---
 
 ## Quick Reference — Critical Commands
 
 ```bash
-# ── Pre-flight (run in this order) ───────────────────────────────────────────
-python verify_foundation.py
-python verify_step.py
-pytest tests/ -v
+# ── Pre-flight (run in this order) ────────────────────────────────────────────
+python -c "import torch; print(torch.__version__)"     # Verify PyTorch
+pytest tests/ -v --tb=short                             # 182 tests
+pytest tests/ --cov=unified_gateway --cov-report=term-missing  # 97% coverage
+python train.py                                          # hard task PASS
 openenv validate .
 
 # ── 10,000-step stress test ───────────────────────────────────────────────────
 python -c "
-from unified_gateway import UFRGAction, UnifiedFintechEnv
+from unified_gateway import AEPOAction, UnifiedFintechEnv
 import time
 env = UnifiedFintechEnv()
 obs, _ = env.reset(seed=0, options={'task': 'easy'})
 t = time.time()
 for i in range(10_000):
-    a = UFRGAction(risk_decision=0, infra_routing=0, crypto_verify=1)
+    a = AEPOAction(risk_decision=0, crypto_verify=1, infra_routing=0,
+                   db_retry_policy=0, settlement_policy=0, app_priority=2)
     obs, r, done, info = env.step(a)
     if done: obs, _ = env.reset(options={'task': 'easy'})
 print(f'10k steps in {time.time()-t:.2f}s — OK')
 "
 
-# ── Docker local build + constrained run ─────────────────────────────────────
-docker build -t ufrg:local .
-docker run --rm --cpus="2.0" --memory="8g" -p 7860:7860 ufrg:local
+# ── Docker local build + constrained run ──────────────────────────────────────
+docker build -t aepo:local .
+docker run --rm --cpus="2.0" --memory="8g" -p 7860:7860 aepo:local
 
-# ── curl health checks ────────────────────────────────────────────────────────
+# ── curl health checks (10-field obs) ─────────────────────────────────────────
 curl -s http://localhost:7860/
 curl -s -X POST http://localhost:7860/reset \
   -H "Content-Type: application/json" -d '{"task": "easy"}' | python3 -m json.tool
+curl -s -X POST http://localhost:7860/step \
+  -H "Content-Type: application/json" \
+  -d '{"action": {"risk_decision":1,"crypto_verify":1,"infra_routing":0,"db_retry_policy":0,"settlement_policy":0,"app_priority":1}}' \
+  | python3 -m json.tool
 
 # ── Log format check ──────────────────────────────────────────────────────────
 DRY_RUN=true SPACE_URL=http://localhost:7860 python inference.py | grep "^\[END\]"
@@ -625,16 +677,24 @@ DRY_RUN=true SPACE_URL=http://localhost:7860 python inference.py | grep "^\[END\
 
 # ── Runtime measurement ───────────────────────────────────────────────────────
 time (SPACE_URL=http://localhost:7860 DRY_RUN=true python inference.py > /dev/null)
-# Must be: < 15s dry-run / < 17min live LLM
+# Must be: < 30s dry-run / < 17min live LLM
+
+# ── Local Ollama testing ──────────────────────────────────────────────────────
+SPACE_URL="http://localhost:7860" API_BASE_URL="http://localhost:11434/v1" \
+MODEL_NAME="mistral-nemo:latest" HF_TOKEN="ollama" DRY_RUN="false" \
+python inference.py
 
 # ── Deploy ────────────────────────────────────────────────────────────────────
-git add -A && git commit -m "fix: judge-ready submission"
+git add unified_gateway.py dynamics_model.py graders.py inference.py train.py
+git add server/app.py openenv.yaml requirements.txt Dockerfile
+git add README.md LOCAL_TESTING.md tests/ results/reward_curve.png
+git commit -m "feat: AEPO Phase 10 final"
 git push origin main
 sleep 60
-curl -s https://unknown1321-unified-fintech-risk-gateway.hf.space/
+curl -s https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space/
 
-# ── Full pre-submission validation ───────────────────────────────────────────
-HF_SPACE_URL=https://unknown1321-unified-fintech-risk-gateway.hf.space \
+# ── Full pre-submission validation ────────────────────────────────────────────
+HF_SPACE_URL=https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space \
   ./validate-submission.sh
 ```
 
@@ -643,12 +703,15 @@ HF_SPACE_URL=https://unknown1321-unified-fintech-risk-gateway.hf.space \
 ## Disqualification Risk Register
 
 | Risk | Trigger | Prevention |
-|------|---------|-----------|
+|:---|:---|:---|
 | Wrong `reset()` signature | `env.reset(task_name=...)` still present | Run `openenv validate .` — fails immediately |
 | Score format mismatch | `score=0.800` instead of `score=0.80` | Run format validator in Step 4.2 |
-| `reward: null` in `/step` | `UFRGReward` object not unwrapped to `.value` | Run Step 2.2 curl check on `/step` |
+| Missing action fields in log | Old 3-field action in `[STEP]` line | Run format validator — checks all 6 fields |
+| `reward: null` in `/step` | Serialisation bug in `server/app.py` | Run Step 2.2 curl check on `/step` |
 | Space sleeping at judging | No traffic for 48+ hours | Ping Space daily before judging window |
-| OOM crash at 2vCPU/8GB | Memory leak in `env` global | Run Step 4.1 with `--memory=8g` constraint |
-| Timeout — missing `[END]` | LLM calls > 3s/step on 72B model | Switch to 7B model or add `timeout=5.0` |
-| `openenv validate` fails | Missing `tags`, `max_steps`, or `reward_threshold` | Check `openenv.yaml` has all fields |
-| HF Space `500` error | Import fails inside Docker (missing dep) | Confirm `requirements.txt` matches `pyproject.toml` |
+| OOM crash at 2vCPU/8GB | PyTorch CUDA build instead of CPU-only | Verify `torch==2.2.0+cpu` in requirements.txt |
+| Timeout — missing `[END]` | LLM calls > 3s/step on 72B model | Add `timeout=5.0` to LLM client call |
+| `openenv validate` fails | Missing fields in `openenv.yaml` | Check `openenv.yaml` has `tags`, `max_steps`, `reward_threshold` |
+| HF Space `500` error | Import fails inside Docker | Confirm `requirements.txt` includes all deps including `torch` |
+| 182 tests not passing | Broken reward function or phase machine | Fix all pytest failures before deploying |
+| train.py hard task FAIL | State space too large (regression to 8^10) | Verify N_BINS=4, STATE_FEATURE_KEYS has 6 features |
