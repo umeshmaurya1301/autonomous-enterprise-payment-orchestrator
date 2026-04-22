@@ -57,9 +57,9 @@ from graders import get_grader
 # ──────────────────────────────────────────────────────────────────────────────
 
 SPACE_URL: str = os.environ.get("SPACE_URL", "https://unknown1321-unified-fintech-risk-gateway.hf.space").rstrip("/")
-API_BASE_URL: str = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME: str = os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-HF_TOKEN: str | None = os.environ.get("HF_TOKEN")
+API_BASE_URL: str = os.environ.get("API_BASE_URL", "http://localhost:11434/v1")
+MODEL_NAME: str = os.environ.get("MODEL_NAME", "qwen2.5-coder:32b")
+HF_TOKEN: str | None = os.environ.get("HF_TOKEN", "ollama")
 DRY_RUN: bool = os.environ.get("DRY_RUN", "false").strip().lower() == "true"
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ Every turn you receive ten real-time signals (all normalized to [0.0, 1.0]):
   merchant_tier           — merchant tier (0=Small, 1=Enterprise)
 
 You must output EXACTLY six integers separated by spaces on a single line:
-  risk_decision  crypto_verify  infra_routing  db_retry_policy  settlement_policy  app_priority
+  risk_decision crypto_verify infra_routing db_retry_policy settlement_policy app_priority
 
 Allowed values:
   risk_decision     : 0=Approve   1=Reject       2=Challenge
@@ -99,7 +99,7 @@ Decision guidelines:
   - db_pool > 0.8 → ExponentialBackoff (1). db_pool < 0.2 → FailFast (0).
   - merchant_tier = 0 (Small) → app_priority=UPI (0). merchant_tier = 1 (Enterprise) → Credit (1).
 
-Output ONLY the six integers. No explanation. Example: 1 1 0 0 0 0
+Output ONLY the six integers. No explanation. Example: 0 1 0 1 0 2
 """
 
 
@@ -181,10 +181,10 @@ def parse_llm_action(text: str) -> AEPOAction:
     FailFast + StandardSync + Balanced) if the text is malformed or out of range.
     """
     SAFE_FALLBACK = AEPOAction(
-        risk_decision=1,    # Reject
-        crypto_verify=0,    # FullVerify
+        risk_decision=0,    # Approve
+        crypto_verify=1,    # SkipVerify
         infra_routing=0,    # Normal
-        db_retry_policy=0,  # FailFast
+        db_retry_policy=1,  # ExponentialBackoff
         settlement_policy=0,# StandardSync
         app_priority=2,     # Balanced
     )
@@ -337,7 +337,7 @@ _REQUIRED_INFO_KEYS = frozenset([
     "termination_reason",
     "adversary_threat_level_raw",
     "blind_spot_triggered",
-    "consecutive_deferred_async",
+    "cumulative_settlement_backlog",
     # Backward-compat keys used by the trajectory grader
     "reward_final",
     "crashed",

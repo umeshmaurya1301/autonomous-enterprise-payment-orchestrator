@@ -82,7 +82,7 @@ public class UnifiedFintechEnv {
     private double lagLatencyCarry = 0.0;
 
     // ── Episode counters (cleared each reset) ─────────────────────────
-    private int consecutiveDeferredAsync = 0;
+    private int cumulativeSettlementBacklog = 0;
     private boolean isBurstStep = false;
     private String lastEventType = "normal";
 
@@ -255,7 +255,7 @@ public class UnifiedFintechEnv {
         // BOUNDARY RULE: throttleReliefQueue.clear() MUST be called in reset()
         this.throttleReliefQueue.clear();
         this.lagLatencyCarry = 0.0;
-        this.consecutiveDeferredAsync = 0;
+        this.cumulativeSettlementBacklog = 0;
 
         // Generate initial observation
         this.currentObs = generatePhaseObservation();
@@ -390,13 +390,23 @@ public class UnifiedFintechEnv {
                 lastEventType = "normal";
         }
 
+        // POMDP: Apply bounded Gaussian noise to infra metrics
+        double noisyKafkaLag = clamp(
+            rng.nextGaussian() * (0.05 * Math.max(1.0, kafkaLag)) + kafkaLag,
+            0.0, LAG_MAX
+        );
+        double noisyApiLatency = clamp(
+            rng.nextGaussian() * (0.02 * Math.max(1.0, apiLatency)) + apiLatency,
+            0.0, LATENCY_MAX
+        );
+
         return new AEPOObservation(
             clamp(channel, 0.0, CHANNEL_MAX),
             clamp(riskScore, 0.0, RISK_MAX),
             clamp(adversaryThreatLevel, 0.0, ADV_THREAT_MAX),
             clamp(systemEntropy, 0.0, ENTROPY_MAX),
-            clamp(kafkaLag, 0.0, LAG_MAX),
-            clamp(apiLatency, 0.0, LATENCY_MAX),
+            noisyKafkaLag,
+            noisyApiLatency,
             clamp(rollingP99, 0.0, P99_MAX),
             clamp(dbPool, 0.0, DB_POOL_MAX),
             clamp(bankStatus, 0.0, BANK_STATUS_MAX),
@@ -520,17 +530,17 @@ public class UnifiedFintechEnv {
 
         // Settlement policy
         if (action.settlementPolicy() == 1) {       // DeferredAsyncFallback
-            consecutiveDeferredAsync++;
+            cumulativeSettlementBacklog++;
             if (obsBankStatus == 1.0) {
                 settlementPenalty += 0.04;
             } else if ("normal".equals(currentPhase)) {
                 settlementPenalty += -0.15;
             }
-            if (consecutiveDeferredAsync >= 5) {
+            if (cumulativeSettlementBacklog > 10) {
                 settlementPenalty += -0.20;
             }
         } else {
-            consecutiveDeferredAsync = 0;
+            cumulativeSettlementBacklog = Math.max(0, cumulativeSettlementBacklog - 2);
         }
 
         // Risk/crypto bonuses
@@ -614,7 +624,7 @@ public class UnifiedFintechEnv {
         info.put("termination_reason", terminationReason);
         info.put("adversary_threat_level_raw", adversaryThreatLevel);
         info.put("blind_spot_triggered", blindSpotTriggered);
-        info.put("consecutive_deferred_async", consecutiveDeferredAsync);
+        info.put("cumulative_settlement_backlog", cumulativeSettlementBacklog);
         info.put("event_type", lastEventType);
         info.put("crashed", crashed);
         info.put("done", done);

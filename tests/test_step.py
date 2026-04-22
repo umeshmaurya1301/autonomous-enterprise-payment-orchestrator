@@ -203,18 +203,18 @@ def test_deferred_async_normal_phase_penalty(env: UnifiedFintechEnv) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 14 — DeferredAsync for 5 consecutive steps applies extra -0.20
+# Test 14 — DeferredAsync cumulative > 10 applies extra -0.20
 # ---------------------------------------------------------------------------
 
-def test_deferred_async_5_consecutive_penalty(env: UnifiedFintechEnv) -> None:
-    """5+ consecutive DeferredAsync steps triggers -0.20 additional penalty."""
-    env._consecutive_deferred_async = 4   # already at 4; next step makes it 5
+def test_deferred_async_cumulative_penalty(env: UnifiedFintechEnv) -> None:
+    """Cumulative settlement backlog > 10 triggers -0.20 additional penalty."""
+    env._cumulative_settlement_backlog = 10   # already at 10; next step makes it 11
     _force_obs(env, kafka_lag=0.0, rolling_p99=0.0, risk_score=10.0, bank_api_status=0.0)
     env._rolling_lag = 0.0
     env._last_event_type = "normal"
     _, _, _, info = env.step(make_action(settlement_policy=1))
-    assert info["consecutive_deferred_async"] == 5
-    # Both -0.15 (normal phase) and -0.20 (5+ consecutive) should be applied
+    assert info["cumulative_settlement_backlog"] == 11
+    # Both -0.15 (normal phase) and -0.20 (> 10 cumulative) should be applied
     assert info["reward_breakdown"]["settlement_penalty"] <= -0.35
 
 
@@ -280,7 +280,7 @@ def test_info_dict_contains_all_required_keys(env: UnifiedFintechEnv) -> None:
     required_keys = {
         "phase", "curriculum_level", "step_in_episode", "raw_obs",
         "reward_breakdown", "termination_reason", "adversary_threat_level_raw",
-        "blind_spot_triggered", "consecutive_deferred_async",
+        "blind_spot_triggered", "cumulative_settlement_backlog",
         # backward-compat keys
         "step", "task", "event_type", "obs_risk_score", "obs_kafka_lag",
         "obs_rolling_p99", "action_risk_decision", "action_infra_routing",

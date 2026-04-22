@@ -353,7 +353,7 @@ class UnifiedFintechEnv(gym.Env):
 
         # ── Episode-level counters (cleared each reset) ────────────────────
         self.current_step: int = 0
-        self._consecutive_deferred_async: int = 0
+        self._cumulative_settlement_backlog: int = 0
 
         # ── Cross-episode curriculum state (NEVER reset between episodes) ──
         # curriculum_level: 0=easy, 1=medium, 2=hard — advances, never regresses.
@@ -586,7 +586,7 @@ class UnifiedFintechEnv(gym.Env):
 
         # Clear settlement backlog counter — must happen here or previous-episode
         # deferred-async count bleeds into the first steps of the new episode.
-        self._consecutive_deferred_async = 0
+        self._cumulative_settlement_backlog = 0
 
         # Clear per-episode step-reward collector for the new episode
         self._episode_step_rewards = []
@@ -728,14 +728,24 @@ class UnifiedFintechEnv(gym.Env):
         self._rolling_lag = self._kafka_lag
         self._rolling_latency = self._api_latency
 
+        # ── POMDP: Apply bounded Gaussian noise to infra metrics ─────────
+        noisy_kafka_lag = np.clip(
+            rng.normal(self._kafka_lag, 0.05 * max(1.0, self._kafka_lag)),
+            0.0, LAG_MAX
+        )
+        noisy_api_latency = np.clip(
+            rng.normal(self._api_latency, 0.02 * max(1.0, self._api_latency)),
+            0.0, LATENCY_MAX
+        )
+
         # ── Clip and build observation ───────────────────────────────────
         return AEPOObservation(
             channel=float(np.clip(channel, 0.0, CHANNEL_MAX)),
             risk_score=float(np.clip(risk_score, 0.0, RISK_MAX)),
             adversary_threat_level=float(np.clip(self._adversary_threat_level, 0.0, ADV_THREAT_MAX)),
             system_entropy=float(np.clip(self._system_entropy, 0.0, ENTROPY_MAX)),
-            kafka_lag=float(np.clip(self._kafka_lag, 0.0, LAG_MAX)),
-            api_latency=float(np.clip(self._api_latency, 0.0, LATENCY_MAX)),
+            kafka_lag=float(noisy_kafka_lag),
+            api_latency=float(noisy_api_latency),
             rolling_p99=float(np.clip(self._rolling_p99, 0.0, P99_MAX)),
             db_connection_pool=float(np.clip(self._db_pool, 0.0, DB_POOL_MAX)),
             bank_api_status=float(np.clip(self._bank_status, 0.0, BANK_STATUS_MAX)),
@@ -907,15 +917,15 @@ class UnifiedFintechEnv(gym.Env):
 
         # ── Settlement policy ──────────────────────────────────────────────
         if action.settlement_policy == 1:   # DeferredAsyncFallback
-            self._consecutive_deferred_async += 1
+            self._cumulative_settlement_backlog += 1
             if bank_status == 1.0:          # Degraded — correct use of async fallback
                 settlement_penalty += 0.04
             elif current_phase == "normal": # unnecessary in healthy normal phase
                 settlement_penalty += -0.15
-            if self._consecutive_deferred_async >= 5:  # over-reliance penalty
+            if self._cumulative_settlement_backlog > 10:  # over-reliance penalty
                 settlement_penalty += -0.20
         else:
-            self._consecutive_deferred_async = 0
+            self._cumulative_settlement_backlog = max(0, self._cumulative_settlement_backlog - 2)
 
         # ── Risk / crypto bonuses ──────────────────────────────────────────
         if risk_score > HIGH_RISK_THRESHOLD:
@@ -1020,7 +1030,7 @@ class UnifiedFintechEnv(gym.Env):
             "termination_reason":           termination_reason,
             "adversary_threat_level_raw":   self._current_obs.adversary_threat_level,
             "blind_spot_triggered":         blind_spot_triggered,
-            "consecutive_deferred_async":   self._consecutive_deferred_async,
+            "cumulative_settlement_backlog":   self._cumulative_settlement_backlog,
             # ── Backward-compat keys required by graders.py ───────────────
             "step":                         self.current_step,
             "task":                         self.current_task,

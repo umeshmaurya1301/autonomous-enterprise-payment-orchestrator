@@ -85,7 +85,7 @@ public final class RewardCalculator {
      * @param merchantTier        obs.merchant_tier    (0=Small, 1=Enterprise)
      * @param currentPhase        "normal" | "spike" | "attack" | "recovery"
      * @param action              validated AEPOAction
-     * @param consecutiveDeferred session counter for consecutive DeferredAsync steps
+     * @param cumulativeBacklog   session counter for cumulative settlement backlog
      * @param circuitBreakerTripped whether CB fired this step (accumulator already reset)
      */
     public static RewardBreakdown calculate(
@@ -97,7 +97,7 @@ public final class RewardCalculator {
             double merchantTier,
             String currentPhase,
             AEPOAction action,
-            int consecutiveDeferred,
+            int cumulativeBacklog,
             boolean circuitBreakerTripped
     ) {
         double base               = 0.8;
@@ -154,13 +154,13 @@ public final class RewardCalculator {
 
         // ── Settlement policy ──────────────────────────────────────────────
         if (action.settlementPolicy() == SETTLE_DEFERRED) {
-            // consecutiveDeferred has already been incremented by the caller
+            // cumulativeBacklog has already been updated by the caller
             if (bankStatus == 1.0) {
                 settlementPenalty += 0.04;          // correct use when Degraded
             } else if ("normal".equals(currentPhase)) {
                 settlementPenalty += -0.15;         // wasteful in normal phase
             }
-            if (consecutiveDeferred >= 5) {
+            if (cumulativeBacklog > 10) {
                 settlementPenalty += -0.20;         // over-reliance penalty
             }
         }

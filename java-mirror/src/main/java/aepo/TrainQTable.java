@@ -216,9 +216,11 @@ public class TrainQTable {
             int epSeed = baseSeed + ep;
 
             // PYTHON EQUIVALENT: obs, _ = env.reset(seed=ep_seed, options={"task": TRAIN_TASK})
-            Map<String, Object> resetResult = env.reset(epSeed, TRAIN_TASK);
-            @SuppressWarnings("unchecked")
-            Map<String, Double> obsNorm = (Map<String, Double>) resetResult.get("observation_normalized");
+            // reset() returns Map.Entry<AEPOObservation, Map<String, Object>>
+            // getKey() → raw AEPOObservation; getValue() → info dict
+            Map.Entry<AEPOObservation, Map<String, Object>> resetResult =
+                env.reset((long) epSeed, TRAIN_TASK);
+            Map<String, Double> obsNorm = resetResult.getKey().normalized();
             int[] state = obsToState(obsNorm);
 
             List<Double> stepRewards = new ArrayList<>();
@@ -237,16 +239,16 @@ public class TrainQTable {
 
                 // PYTHON EQUIVALENT: lag_input = build_input_vector(obs_norm, action)
                 // Java stub — no PyTorch tensor; represented as double[]
-                double[] lagInput = lagModel.buildInputVector(obsNorm, action);
+                double[] lagInput = DynamicsModel.buildInputVector(obsNorm, action);
 
                 // PYTHON EQUIVALENT: next_obs, typed_reward, done, info = env.step(action)
-                Map<String, Object> stepResult = env.step(action);
-                double reward = (Double) stepResult.get("reward");
-                done = (Boolean) stepResult.get("done");
-                @SuppressWarnings("unchecked")
-                Map<String, Object> info = (Map<String, Object>) stepResult.get("info");
-                @SuppressWarnings("unchecked")
-                Map<String, Double> nextObsNorm = (Map<String, Double>) stepResult.get("observation_normalized");
+                // step() returns UnifiedFintechEnv.StepResult (typed record, not raw Map)
+                UnifiedFintechEnv.StepResult stepResult = env.step(action);
+                double reward           = stepResult.reward();
+                done                    = stepResult.done();
+                Map<String, Object> info = stepResult.info();
+                // next observation — call .normalized() on the typed AEPOObservation
+                Map<String, Double> nextObsNorm = stepResult.observation().normalized();
 
                 // Log first blind spot #1 discovery
                 if (!blindSpotLogged && Boolean.TRUE.equals(info.get("blind_spot_triggered"))) {
