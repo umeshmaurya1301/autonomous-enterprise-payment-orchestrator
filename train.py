@@ -40,13 +40,14 @@ Target: hard score ≥ 0.30, demonstrating improvement over heuristic baseline.
 
 from __future__ import annotations
 
+import argparse
 import logging
 import os
 import random
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -200,7 +201,7 @@ def make_trained_policy(q_table: defaultdict) -> Any:
 # Q-table training loop
 # ---------------------------------------------------------------------------
 
-def train_q_table(seed: int = 44) -> tuple[defaultdict, LagPredictor, list[float]]:
+def train_q_table(seed: int = 44) -> Tuple[defaultdict, LagPredictor, List[float], List[int]]:
     """
     Train a sparse Q-table on the hard task for N_EPISODES episodes.
 
@@ -219,6 +220,9 @@ def train_q_table(seed: int = 44) -> tuple[defaultdict, LagPredictor, list[float
         LagPredictor dynamics model trained on collected transitions.
     episode_means : list[float]
         Per-episode mean reward (length=N_EPISODES), used to plot the curve.
+    curriculum_levels : list[int]
+        Curriculum level at the START of each episode (0=easy, 1=medium, 2=hard).
+        Used to colour-code the staircase chart background.
     """
     env = UnifiedFintechEnv()
     lag_model = LagPredictor()
@@ -229,7 +233,8 @@ def train_q_table(seed: int = 44) -> tuple[defaultdict, LagPredictor, list[float
     epsilon = EPSILON_START
     epsilon_decay = (EPSILON_START - EPSILON_END) / N_EPISODES
 
-    episode_means: list[float] = []
+    episode_means: List[float] = []
+    curriculum_levels: List[int] = []  # curriculum level at start of each episode
     blind_spot_logged = False   # log first occurrence of blind_spot_triggered
     lag_loss_accum: float = 0.0
     lag_loss_count: int = 0
@@ -239,10 +244,11 @@ def train_q_table(seed: int = 44) -> tuple[defaultdict, LagPredictor, list[float
     for ep in range(N_EPISODES):
         ep_seed = seed + ep
         obs_obj, _ = env.reset(seed=ep_seed, options={"task": TRAIN_TASK})
+        ep_curriculum: int = env._curriculum_level  # snapshot level at episode start
         obs_norm = obs_obj.normalized()
         state = obs_to_state(obs_norm)
 
-        step_rewards: list[float] = []
+        step_rewards: List[float] = []
         done = False
 
         while not done:
@@ -297,6 +303,7 @@ def train_q_table(seed: int = 44) -> tuple[defaultdict, LagPredictor, list[float
         padded = step_rewards + [0.0] * max(0, env.max_steps - len(step_rewards))
         ep_mean = float(np.mean(padded))
         episode_means.append(ep_mean)
+        curriculum_levels.append(ep_curriculum)  # record level at start of this episode
 
         # Decay ε after each episode
         epsilon = max(EPSILON_END, epsilon - epsilon_decay)
@@ -319,7 +326,7 @@ def train_q_table(seed: int = 44) -> tuple[defaultdict, LagPredictor, list[float
         "Training complete — %d episodes in %.1fs (%.2f eps/s) | Q-table states=%d",
         N_EPISODES, total_time, N_EPISODES / total_time, len(q_table),
     )
-    return q_table, lag_model, episode_means
+    return q_table, lag_model, episode_means, curriculum_levels
 
 
 # ---------------------------------------------------------------------------
@@ -429,48 +436,248 @@ def plot_reward_curve(episode_means: list[float], output_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Staircase chart — phase-coloured background + rolling mean
+# ---------------------------------------------------------------------------
+
+def plot_reward_staircase(
+    episode_means: List[float],
+    curriculum_levels: List[int],
+    output_path: Path,
+) -> None:
+    """
+    Plot reward staircase with curriculum phase backgrounds and save to output_path.
+
+    Background regions are colour-coded by curriculum level at episode start:
+        Level 0 (Easy)   → light green
+        Level 1 (Medium) → light orange
+        Level 2 (Hard)   → light red
+
+    The staircase pattern — agent improves, adversary escalates, agent adapts —
+    is the primary visual proof of recursive self-improvement for the pitch.
+    """
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        logger.warning("matplotlib not available — skipping staircase chart")
+        return
+
+    try:
+        import seaborn as sns
+        sns.set_theme(style="darkgrid")
+    except ImportError:
+        logger.warning("seaborn not available — using default matplotlib style")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    n = len(episode_means)
+    episodes = list(range(1, n + 1))
+
+    # 10-episode rolling mean
+    rolling: List[float] = []
+    for i in range(n):
+        start = max(0, i - 9)
+        rolling.append(float(np.mean(episode_means[start : i + 1])))
+
+    # Curriculum phase styling
+    _phase_colors: Dict[int, str] = {0: "#a8d5a2", 1: "#f5c97a", 2: "#f5a0a0"}
+    _phase_labels: Dict[int, str] = {
+        0: "Easy (curriculum=0)",
+        1: "Medium (curriculum=1)",
+        2: "Hard (curriculum=2)",
+    }
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+
+    # Draw coloured background spans per contiguous curriculum region
+    if curriculum_levels:
+        drawn_labels: List[int] = []
+        region_start = 0
+        current_lvl = curriculum_levels[0]
+
+        def _span(lvl: int, ep_start: int, ep_end: int) -> None:
+            lbl: Optional[str] = _phase_labels[lvl] if lvl not in drawn_labels else None
+            ax.axvspan(
+                ep_start, ep_end,
+                alpha=0.22,
+                color=_phase_colors.get(lvl, "#cccccc"),
+                label=lbl,
+            )
+            if lvl not in drawn_labels:
+                drawn_labels.append(lvl)
+
+        for i in range(1, n):
+            if curriculum_levels[i] != current_lvl:
+                _span(current_lvl, region_start + 1, i + 1)
+                region_start = i
+                current_lvl = curriculum_levels[i]
+        _span(current_lvl, region_start + 1, n + 1)
+
+    # Raw episode reward (faint) + rolling mean (bold)
+    ax.plot(
+        episodes, episode_means,
+        alpha=0.20, color="#4a90d9", linewidth=0.7, label="Raw episode reward",
+    )
+    ax.plot(
+        episodes, rolling,
+        color="#1a5fa8", linewidth=2.0, label="10-ep rolling mean",
+    )
+
+    # Threshold reference lines
+    ax.axhline(y=0.75, color="#5cb85c", linestyle="--", linewidth=1.0, label="Easy threshold (0.75)")
+    ax.axhline(y=0.45, color="#f0ad4e", linestyle="--", linewidth=1.0, label="Medium threshold (0.45)")
+    ax.axhline(y=0.30, color="#d9534f", linestyle="--", linewidth=1.2, label="Hard threshold (0.30)")
+
+    ax.set_xlabel("Episode", fontsize=12)
+    ax.set_ylabel("Mean step reward (padded to 100 steps)", fontsize=12)
+    ax.set_title(
+        "AEPO Q-Table Training — Reward Staircase\n"
+        "Phase backgrounds show curriculum advancement; curve shows adaptive escalation",
+        fontsize=13,
+    )
+    ax.legend(loc="lower right", fontsize=9, ncol=2)
+    ax.set_ylim(0.0, 1.0)
+    ax.set_xlim(1, n)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150)
+    plt.close(fig)
+    logger.info("Reward staircase chart saved to %s", output_path)
+
+
+# ---------------------------------------------------------------------------
+# A/B comparison table — rich output or plain ASCII fallback
+# ---------------------------------------------------------------------------
+
+def print_comparison_rich(results: Dict[str, Dict[str, float]]) -> None:
+    """
+    Print an A/B comparison table: Heuristic (LLM baseline) vs Trained agent.
+
+    Uses ``rich.table`` when available; falls back to plain ASCII if rich is
+    not installed so the script always works on minimal contest environments.
+    """
+    try:
+        from rich.console import Console
+        from rich.table import Table
+        from rich.text import Text
+        _has_rich = True
+    except ImportError:
+        logger.warning("rich not installed — using plain ASCII table (pip install rich)")
+        _has_rich = False
+
+    if not _has_rich:
+        print("\n" + "=" * 72)
+        print(f"{'Task':<10} {'Random':>10} {'Heuristic':>12} {'Trained':>10} {'Threshold':>11} {'Pass?':>7}")
+        print("-" * 72)
+        for task, scores in results.items():
+            passed = scores["trained"] >= scores["threshold"]
+            print(
+                f"{task:<10} {scores['random']:>10.4f} {scores['heuristic']:>12.4f} "
+                f"{scores['trained']:>10.4f} {scores['threshold']:>11.2f} "
+                f"{'PASS' if passed else 'FAIL':>7}"
+            )
+        print("=" * 72)
+        return
+
+    console = Console()
+    table = Table(
+        title="AEPO — A/B Comparison: Heuristic (LLM Baseline) vs Trained Agent",
+        show_header=True,
+        header_style="bold cyan",
+        border_style="bright_blue",
+        show_lines=True,
+    )
+    table.add_column("Task", style="bold white", width=10)
+    table.add_column("Random", justify="right", width=10)
+    table.add_column("Heuristic (LLM Baseline)", justify="right", width=26)
+    table.add_column("Trained (AEPO)", justify="right", width=16)
+    table.add_column("Threshold", justify="right", width=11)
+    table.add_column("Pass?", justify="center", width=8)
+
+    for task, scores in results.items():
+        passed = scores["trained"] >= scores["threshold"]
+        trained_style = "bold green" if passed else "bold red"
+        pass_cell = Text("PASS", style="bold green") if passed else Text("FAIL", style="bold red")
+        table.add_row(
+            task.upper(),
+            f"{scores['random']:.4f}",
+            f"{scores['heuristic']:.4f}",
+            Text(f"{scores['trained']:.4f}", style=trained_style),
+            f"{scores['threshold']:.2f}",
+            pass_cell,
+        )
+
+    console.print(table)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
 def main() -> None:
     """
-    Run Q-table training, evaluate all tasks, and produce results/reward_curve.png.
+    Run Q-table training, evaluate all tasks, and produce results charts.
 
-    Exit codes:
-        0 — trained agent passes all three task thresholds
-        1 — one or more tasks below threshold (check logs)
+    Flags
+    -----
+    --compare
+        After training, render the A/B comparison table using rich.table
+        (Heuristic/LLM-baseline vs Trained agent) with colour-coded Pass/Fail.
+        Without this flag, the table is printed as plain ASCII.
+
+    Output files (always produced):
+        results/reward_curve.png      — raw + rolling mean reward
+        results/reward_staircase.png  — phase-coloured staircase chart
     """
+    parser = argparse.ArgumentParser(
+        description="AEPO Q-Table Training — Phase 10",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--compare",
+        action="store_true",
+        help="Output the A/B comparison table using rich (requires: pip install rich)",
+    )
+    args = parser.parse_args()
+
     logger.info("=== AEPO Phase 10 — Q-Table Training ===")
     logger.info("Task: %s | Episodes: %d | lr=%.2f | gamma=%.2f | bins=%d",
                 TRAIN_TASK, N_EPISODES, LEARNING_RATE, DISCOUNT, N_BINS)
 
     # ── Train ────────────────────────────────────────────────────────────────
-    q_table, lag_model, episode_means = train_q_table(seed=44)
+    q_table, lag_model, episode_means, curriculum_levels = train_q_table(seed=44)
 
-    # ── Plot reward curve ────────────────────────────────────────────────────
+    # ── Plot charts ──────────────────────────────────────────────────────────
     results_dir = Path(__file__).parent / "results"
     plot_reward_curve(episode_means, results_dir / "reward_curve.png")
+    plot_reward_staircase(episode_means, curriculum_levels, results_dir / "reward_staircase.png")
 
     # ── Evaluate ─────────────────────────────────────────────────────────────
     logger.info("--- Evaluation: Random vs Heuristic vs Trained (baseline policy improvement curve) ---")
     trained_fn = make_trained_policy(q_table)
-    results = evaluate_all_tasks(trained_fn)
+    eval_results = evaluate_all_tasks(trained_fn)
 
     # ── Print comparison table ────────────────────────────────────────────────
-    print("\n" + "=" * 72)
-    print(f"{'Task':<10} {'Random':>10} {'Heuristic':>12} {'Trained':>10} {'Threshold':>11} {'Pass?':>7}")
-    print("-" * 72)
-    all_pass = True
-    for task, scores in results.items():
-        passed = scores["trained"] >= scores["threshold"]
-        all_pass = all_pass and passed
-        flag = "PASS" if passed else "FAIL"
-        print(
-            f"{task:<10} {scores['random']:>10.4f} {scores['heuristic']:>12.4f} "
-            f"{scores['trained']:>10.4f} {scores['threshold']:>11.2f} {flag:>7}"
-        )
-    print("=" * 72)
+    if args.compare:
+        print_comparison_rich(eval_results)
+    else:
+        print("\n" + "=" * 72)
+        print(f"{'Task':<10} {'Random':>10} {'Heuristic':>12} {'Trained':>10} {'Threshold':>11} {'Pass?':>7}")
+        print("-" * 72)
+        for task, scores in eval_results.items():
+            passed = scores["trained"] >= scores["threshold"]
+            print(
+                f"{task:<10} {scores['random']:>10.4f} {scores['heuristic']:>12.4f} "
+                f"{scores['trained']:>10.4f} {scores['threshold']:>11.2f} "
+                f"{'PASS' if passed else 'FAIL':>7}"
+            )
+        print("=" * 72)
 
+    all_pass = all(
+        scores["trained"] >= scores["threshold"]
+        for scores in eval_results.values()
+    )
     if all_pass:
         logger.info("All tasks PASSED. Trained agent outperforms baseline policy.")
     else:
@@ -478,7 +685,7 @@ def main() -> None:
 
     # ── LagPredictor buffer info ──────────────────────────────────────────────
     logger.info("LagPredictor replay buffer size: %d transitions", lag_model.buffer_size())
-    logger.info("=== Training complete ===")
+    logger.info("=== Training complete. Charts: results/reward_curve.png | results/reward_staircase.png ===")
 
 
 if __name__ == "__main__":

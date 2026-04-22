@@ -31,10 +31,21 @@ from __future__ import annotations
 import asyncio
 import os
 import re
-from typing import Any
+from typing import Any, Dict, Optional
 
 import httpx
 from openai import OpenAI
+
+# ── Rich terminal dashboard (stderr only — stdout reserved for [STEP] logs) ───
+try:
+    from rich.console import Console as _RichConsole
+    from rich.table import Table as _RichTable
+    from rich.text import Text as _RichText
+    _RICH_AVAILABLE: bool = True
+    _rich: _RichConsole = _RichConsole(stderr=True, highlight=False)
+except ImportError:
+    _RICH_AVAILABLE = False
+    _rich = None  # type: ignore[assignment]
 
 # AEPOAction and AEPOObservation are imported ONLY for type-safe action
 # construction and response parsing — UnifiedFintechEnv is never instantiated.
@@ -338,6 +349,60 @@ _REQUIRED_INFO_KEYS = frozenset([
     "event_type",
 ])
 
+def _render_step_dashboard(
+    step: int,
+    raw_obs: Dict[str, float],
+    action: "AEPOAction",
+    reward: float,
+    phase: str,
+    task: str,
+) -> None:
+    """
+    Render a one-line rich dashboard to stderr after each environment step.
+
+    Displays colour-coded progress bars for Kafka Lag and DB Pool (the two
+    most latency-critical infrastructure signals), plus the action confidence
+    and step reward. Does not affect stdout ([STEP] logs go there separately).
+
+    Only called when the ``rich`` package is available.
+    """
+    if not _RICH_AVAILABLE or _rich is None:
+        return
+
+    # Normalise raw values to [0, 1] for bar width calculation
+    lag_norm: float = min(1.0, raw_obs.get("kafka_lag", 0.0) / 10000.0)
+    pool_norm: float = min(1.0, raw_obs.get("db_connection_pool", 50.0) / 100.0)
+    reward_norm: float = min(1.0, max(0.0, reward))
+
+    bar_width: int = 24
+
+    def _bar(norm: float, width: int, danger_threshold: float = 0.75) -> "_RichText":
+        filled = int(norm * width)
+        empty = width - filled
+        bar_str = "█" * filled + "░" * empty  # █ / ░
+        colour = "red" if norm >= danger_threshold else ("yellow" if norm >= 0.50 else "green")
+        return _RichText(bar_str, style=colour)
+
+    lag_raw: float = raw_obs.get("kafka_lag", 0.0)
+    pool_raw: float = raw_obs.get("db_connection_pool", 50.0)
+
+    # Determine infra_routing label for action confidence display
+    _routing_labels: Dict[int, str] = {0: "Normal", 1: "Throttle", 2: "CB"}
+    routing_label: str = _routing_labels.get(action.infra_routing, "?")
+    risk_label: str = ["Approve", "Reject", "Challenge"][action.risk_decision]
+
+    _rich.print(
+        f"[dim]task={task} step={step:3d} phase=[/dim][cyan]{phase:<8}[/cyan]  "
+        f"[dim]LAG[/dim] ",
+        _bar(lag_norm, bar_width),
+        f" {lag_raw:5.0f}  [dim]POOL[/dim] ",
+        _bar(pool_norm, bar_width),
+        f" {pool_raw:3.0f}%  [dim]rwd[/dim]=[bold]{reward:.3f}[/bold]  "
+        f"[dim]{risk_label}/{routing_label}[/dim]",
+        sep="",
+    )
+
+
 async def main() -> None:
     # ── Build the LLM client (skipped in dry-run mode) ──────────────────────
     llm_client: OpenAI | None = None
@@ -362,7 +427,7 @@ async def main() -> None:
             task_score: float = 0.0
             success = "false"
 
-            print(f"[START] task={task} env=ufrg model={MODEL_NAME}", flush=True)
+            print(f"[START] task={task} env=aepo model={MODEL_NAME}", flush=True)
 
             try:
                 # ── Reset the server-side environment ────────────────────────────
@@ -386,6 +451,7 @@ async def main() -> None:
                     current_step += 1
                     done_str = "true" if done else "false"
 
+                    # ── Spec-required stdout log (OpenEnv grader reads this) ──
                     print(
                         f"[STEP] step={current_step} "
                         f"action={action.model_dump_json()} "
@@ -393,6 +459,16 @@ async def main() -> None:
                         f"done={done_str} "
                         f"error=null",
                         flush=True
+                    )
+
+                    # ── Rich dashboard to stderr (human operator) ─────────────
+                    _render_step_dashboard(
+                        step=current_step,
+                        raw_obs=info.get("raw_obs", {}),
+                        action=action,
+                        reward=reward,
+                        phase=info.get("phase", "unknown"),
+                        task=task,
                     )
 
                 # ── Episode summary — use per-task programmatic grader ────────

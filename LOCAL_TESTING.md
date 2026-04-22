@@ -101,23 +101,42 @@ DRY_RUN="false" \
 python inference.py
 ```
 
-### Expected output
+### Expected stdout output
 
 ```
-[START] task=easy env=ufrg model=mistral-nemo:latest
-[STEP] step=1 action={"risk_decision":0,"crypto_verify":1,"infra_routing":0,...} reward=0.80 done=false error=null
-[STEP] step=2 action={"risk_decision":0,"crypto_verify":1,"infra_routing":0,...} reward=0.80 done=false error=null
+[START] task=easy env=aepo model=mistral-nemo:latest
+[STEP] step=1 action={"risk_decision":0,"crypto_verify":1,"infra_routing":0,"db_retry_policy":0,"settlement_policy":0,"app_priority":2} reward=0.80 done=false error=null
+[STEP] step=2 action={"risk_decision":0,"crypto_verify":1,"infra_routing":0,"db_retry_policy":0,"settlement_policy":0,"app_priority":2} reward=0.80 done=false error=null
 ...
 [END] success=true steps=100 score=0.78 rewards=0.80,0.80,...
 
-[START] task=medium env=ufrg model=mistral-nemo:latest
+[START] task=medium env=aepo model=mistral-nemo:latest
 ...
 [END] success=false steps=100 score=0.42 rewards=...
 
-[START] task=hard env=ufrg model=mistral-nemo:latest
+[START] task=hard env=aepo model=mistral-nemo:latest
 ...
 [END] success=true steps=100 score=0.51 rewards=...
 ```
+
+> **Note on action format**: The action JSON now contains **6 integer fields** (Phase 10 expansion).
+> The three new fields are `db_retry_policy`, `settlement_policy`, and `app_priority`.
+
+### Rich terminal dashboard (stderr)
+
+When `rich` is installed (`pip install rich`), each step also renders a colour-coded
+live status line to **stderr** showing system health signals and the action taken:
+
+```
+task=easy step= 42 phase=normal   LAG ████████░░░░░░░░░░░░░░░░  3800  POOL ███████████████░░░░░░░░░  61%  rwd=0.800  Reject/Normal
+task=easy step= 43 phase=spike    LAG ██████████████░░░░░░░░░░  6100  POOL ████████████████████░░░░  83%  rwd=0.750  Approve/Throttle
+```
+
+- **Red bar** = signal above 75 % of max (danger zone)
+- **Yellow bar** = 50–75 % (warning zone)
+- **Green bar** = below 50 % (healthy)
+
+These lines go to `stderr` only — they do not appear in the `[STEP]` stdout stream and do not affect the OpenEnv grader.
 
 ---
 
@@ -162,19 +181,59 @@ pytest tests/ --cov=unified_gateway --cov-report=term-missing
 
 ## Step 8 — Train the Q-table agent (optional)
 
+### Standard run
+
 ```powershell
 python train.py
 ```
 
 Runs 500 episodes on the hard task in ~3–4 seconds on CPU. Produces:
-- `results/reward_curve.png` — staircase improvement curve
-- Comparison table: random vs heuristic vs trained
+- `results/reward_curve.png` — raw + rolling mean reward curve
+- `results/reward_staircase.png` — phase-coloured staircase chart (new)
+- ASCII comparison table: Random vs Heuristic vs Trained
 
 Expected key output line:
 ```
 [BLIND SPOT #1 DISCOVERED] episode=3 step=42 reward=0.8800 | ...
 hard  0.2507  0.2955  0.6650  0.30  PASS
 ```
+
+### A/B comparison mode (`--compare`)
+
+```powershell
+pip install rich       # one-time
+python train.py --compare
+```
+
+After training, renders a colour-coded rich table comparing the Heuristic (LLM
+baseline) agent against the Trained AEPO agent across all three tasks:
+
+```
+                AEPO — A/B Comparison: Heuristic (LLM Baseline) vs Trained Agent
+┌──────────┬──────────┬──────────────────────────┬────────────────┬───────────┬────────┐
+│ Task     │   Random │ Heuristic (LLM Baseline) │  Trained (AEPO)│ Threshold │  Pass? │
+├──────────┼──────────┼──────────────────────────┼────────────────┼───────────┼────────┤
+│ EASY     │   0.2134 │                   0.7612 │         0.8103 │      0.75 │  PASS  │
+│ MEDIUM   │   0.1987 │                   0.4102 │         0.5240 │      0.45 │  PASS  │
+│ HARD     │   0.1543 │                   0.2955 │         0.6650 │      0.30 │  PASS  │
+└──────────┴──────────┴──────────────────────────┴────────────────┴───────────┴────────┘
+```
+
+### Viewing the generated PNG charts
+
+```powershell
+# Open both charts (Windows)
+start results\reward_curve.png
+start results\reward_staircase.png
+```
+
+The staircase chart (`reward_staircase.png`) colour-codes the background:
+- **Green region** = Easy curriculum (level 0)
+- **Orange region** = Medium curriculum (level 1)
+- **Red region** = Hard curriculum (level 2)
+
+The staircase pattern (agent improves → adversary escalates → agent adapts) is
+the primary visual proof of recursive self-improvement for the pitch demo.
 
 ---
 
@@ -225,7 +284,8 @@ curl http://localhost:11434/v1/models
 □ ollama list shows mistral-nemo:latest
 □ uvicorn server.app:app --port 7860 is running
 □ curl http://localhost:7860/ returns {"status":"healthy"}
-□ DRY_RUN=true python inference.py → [END] lines for all 3 tasks
+□ DRY_RUN=true python inference.py → [END] lines for all 3 tasks (rich dashboard on stderr if rich installed)
 □ pytest tests/ -v → 182 passed
-□ (optional) python train.py → hard task PASS at 0.67
+□ (optional) python train.py → hard task PASS; results/reward_staircase.png generated
+□ (optional) python train.py --compare → coloured rich A/B comparison table
 ```
