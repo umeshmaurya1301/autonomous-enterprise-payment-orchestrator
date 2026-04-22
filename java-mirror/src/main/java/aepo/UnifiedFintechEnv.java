@@ -2,19 +2,22 @@ package aepo;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.logging.Logger;
 
 /**
- * UnifiedFintechEnv — Java mirror of unified_gateway.py (Phase 5)
- * =================================================================
+ * UnifiedFintechEnv — Java mirror of unified_gateway.py (Phase 5 + Phase 6)
+ * ==========================================================================
  * Gymnasium-compatible environment modelling a unified fintech risk gateway.
- * 
+ *
  * This Java mirror preserves class names, method names, and variable names
  * from the Python implementation. It does NOT compile or run — it exists to
  * be readable to a Java developer who thinks in Spring Boot.
- * 
+ *
  * PYTHON EQUIVALENT: gymnasium.Env subclass with Box(10,) obs and MultiDiscrete([3,2,3,2,2,3]) action.
  */
 public class UnifiedFintechEnv {
+
+    private static final Logger log = Logger.getLogger(UnifiedFintechEnv.class.getName());
 
     // ── Named constants — observation bounds ────────────────────────────
     public static final double CHANNEL_MAX = 2.0;
@@ -41,6 +44,15 @@ public class UnifiedFintechEnv {
     public static final double P99_EMA_ALPHA = 0.2;           // α for rolling_p99 EMA
     public static final double LATENCY_MEAN_REVERT_ALPHA = 0.2;
     public static final double LATENCY_BASELINE = 50.0;
+
+    // ── Phase 6 curriculum constants ───────────────────────────────────
+    // PYTHON EQUIVALENT: class-level tuple/int/float constants in UnifiedFintechEnv
+    private static final double[] CURRICULUM_THRESHOLDS = {0.75, 0.45}; // easy→med, med→hard
+    private static final int CURRICULUM_WINDOW = 5;    // consecutive episodes to advance
+    private static final int ADVERSARY_WINDOW = 5;     // episodes before adversary reacts
+    private static final double ADVERSARY_HIGH_THRESHOLD = 0.6; // avg > this → threat +0.5
+    private static final double ADVERSARY_LOW_THRESHOLD = 0.3;  // avg < this → threat -0.5
+    private static final double ADVERSARY_STEP = 0.5;
 
     // ── Episode configuration ──────────────────────────────────────────
     private final int maxSteps = 100;
@@ -69,21 +81,94 @@ public class UnifiedFintechEnv {
     // Transition #1: Lag→Latency carry-over for next step
     private double lagLatencyCarry = 0.0;
 
-    // ── Episode counters ───────────────────────────────────────────────
+    // ── Episode counters (cleared each reset) ─────────────────────────
     private int consecutiveDeferredAsync = 0;
-    private int curriculumLevel = 0;       // Phase 6 activates logic
     private boolean isBurstStep = false;
     private String lastEventType = "normal";
+
+    // ── Cross-episode curriculum state (NEVER reset between episodes) ──
+    // PYTHON EQUIVALENT: self._curriculum_level (int) — 0=easy, 1=medium, 2=hard
+    private int curriculumLevel = 0;
+
+    // Per-step rewards for the current episode; drained in closeEpisode()
+    // PYTHON EQUIVALENT: self._episode_step_rewards (list[float])
+    private final List<Double> episodeStepRewards = new ArrayList<>();
+
+    // 5-episode rolling window for curriculum advancement
+    // PYTHON EQUIVALENT: self._rolling_5ep_avgs (deque[float], maxlen=5)
+    // Note: Java ArrayDeque doesn't have maxlen; we enforce it manually.
+    private final Deque<Double> rolling5epWindow = new ArrayDeque<>();
+    private int consecutiveAboveThreshold = 0;
+
+    // Separate 5-ep window for adversary escalation (Transition #7)
+    // PYTHON EQUIVALENT: self._adversary_ep_window (deque[float], maxlen=5)
+    private final Deque<Double> adversaryEpWindow = new ArrayDeque<>();
 
     // ── Current observation ────────────────────────────────────────────
     // PYTHON EQUIVALENT: AEPOObservation (Pydantic BaseModel)
     private AEPOObservation currentObs;
 
-    // ── Episode reward history (Phase 6 adversary escalation) ──────────
-    private final List<Double> episodeRewardHistory = new ArrayList<>();
-
     // PYTHON EQUIVALENT: numpy RandomState (seeded via gymnasium)
     private Random rng = ThreadLocalRandom.current();
+
+    // =====================================================================
+    // Phase 6 — Adaptive Curriculum + Adversary Escalation
+    // =====================================================================
+
+    /**
+     * Tally the just-finished episode and update curriculum / adversary state.
+     *
+     * Called at the START of reset() before any episode state is cleared.
+     * Safe on first reset (empty episodeStepRewards → early return).
+     *
+     * PYTHON EQUIVALENT: env._close_episode()
+     *
+     * Curriculum Logic:
+     *   easy→medium : 5 consecutive eps with mean > 0.75 → curriculumLevel = 1
+     *   medium→hard  : 5 consecutive eps with mean > 0.45 → curriculumLevel = 2
+     *   NEVER regresses.
+     *
+     * Adversary Logic (Transition #7, 5-episode lag):
+     *   window mean > 0.6 → adversaryThreatLevel += 0.5 (max ADV_THREAT_MAX)
+     *   window mean < 0.3 → adversaryThreatLevel -= 0.5 (min 0.0)
+     */
+    private void closeEpisode() {
+        if (episodeStepRewards.isEmpty()) return;
+
+        // Pad crashed episodes (missing steps count as 0.0)
+        int padCount = Math.max(0, maxSteps - episodeStepRewards.size());
+        double sum = episodeStepRewards.stream().mapToDouble(Double::doubleValue).sum();
+        double epMean = sum / maxSteps;   // divide by full episode length (with 0.0 padding)
+
+        // Curriculum advancement
+        if (curriculumLevel < 2) {
+            double threshold = CURRICULUM_THRESHOLDS[curriculumLevel];
+            if (epMean >= threshold) {
+                consecutiveAboveThreshold++;
+            } else {
+                consecutiveAboveThreshold = 0;
+            }
+            if (consecutiveAboveThreshold >= CURRICULUM_WINDOW) {
+                curriculumLevel++;
+                consecutiveAboveThreshold = 0;
+                log.info(String.format("[CURRICULUM] Advanced to level %d", curriculumLevel));
+            }
+        }
+
+        // Adversary escalation — 5-episode lag
+        // PYTHON EQUIVALENT: deque with maxlen=5; enforce manually here
+        adversaryEpWindow.addLast(epMean);
+        if (adversaryEpWindow.size() > ADVERSARY_WINDOW) adversaryEpWindow.pollFirst();
+
+        if (adversaryEpWindow.size() >= ADVERSARY_WINDOW) {
+            double windowMean = adversaryEpWindow.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            if (windowMean > ADVERSARY_HIGH_THRESHOLD) {
+                adversaryThreatLevel = Math.min(ADV_THREAT_MAX, adversaryThreatLevel + ADVERSARY_STEP);
+            } else if (windowMean < ADVERSARY_LOW_THRESHOLD) {
+                adversaryThreatLevel = Math.max(0.0, adversaryThreatLevel - ADVERSARY_STEP);
+            }
+        }
+    }
 
     // =====================================================================
     // Phase Machine — build schedule fixed at reset
@@ -145,6 +230,10 @@ public class UnifiedFintechEnv {
             );
         }
 
+        // Phase 6: tally the just-finished episode BEFORE clearing state
+        closeEpisode();
+        episodeStepRewards.clear();
+
         this.currentTask = taskName;
         this.currentStep = 0;
 
@@ -164,7 +253,6 @@ public class UnifiedFintechEnv {
         this.merchantTier = "hard".equals(taskName) ? 1.0 : 0.0;
 
         // BOUNDARY RULE: throttleReliefQueue.clear() MUST be called in reset()
-        // to prevent lag relief from the previous episode bleeding into the next
         this.throttleReliefQueue.clear();
         this.lagLatencyCarry = 0.0;
         this.consecutiveDeferredAsync = 0;
@@ -530,6 +618,9 @@ public class UnifiedFintechEnv {
         info.put("event_type", lastEventType);
         info.put("crashed", crashed);
         info.put("done", done);
+
+        // Phase 6: collect per-step reward for end-of-episode averaging
+        episodeStepRewards.add(finalReward);
 
         return new StepResult(currentObs, finalReward, rewardBreakdown, crashed,
                               circuitBreakerTripped, done, info);

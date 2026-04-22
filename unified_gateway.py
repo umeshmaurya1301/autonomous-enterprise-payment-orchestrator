@@ -306,11 +306,20 @@ class UnifiedFintechEnv(gym.Env):
     Episode length is capped at max_steps (100) steps. Early termination on
     system crash (kafka_lag > 4000) or catastrophic fraud.
 
-    Phase 5: Implements the 4-phase state machine (Normal, Spike, Attack,
-    Recovery) and all 8 causal state transitions.
+    Phase 5: 4-phase state machine + all 8 causal state transitions.
+    Phase 6: Adaptive curriculum (curriculum_level never regresses) +
+             adversary escalation with 5-episode lag.
     """
 
     metadata: dict[str, Any] = {"render_modes": []}
+
+    # ── Curriculum advancement thresholds ──────────────────────────────────
+    _CURRICULUM_THRESHOLDS: tuple[float, ...] = (0.75, 0.45)  # easy→med, med→hard
+    _CURRICULUM_WINDOW: int = 5   # consecutive episodes above threshold to advance
+    _ADVERSARY_WINDOW: int = 5    # episodes before adversary reacts
+    _ADVERSARY_HIGH_THRESHOLD: float = 0.6   # avg > this → threat +0.5
+    _ADVERSARY_LOW_THRESHOLD: float = 0.3    # avg < this → threat -0.5
+    _ADVERSARY_STEP: float = 0.5
 
     def __init__(self) -> None:
         super().__init__()
@@ -342,14 +351,32 @@ class UnifiedFintechEnv(gym.Env):
         # Transition #1: Lag→Latency carry-over for next step
         self._lag_latency_carry: float = 0.0
 
-        # ── Episode-level counters ─────────────────────────────────────────
+        # ── Episode-level counters (cleared each reset) ────────────────────
         self.current_step: int = 0
         self._consecutive_deferred_async: int = 0
 
-        # curriculum_level advances in Phase 6; held at 0 here
+        # ── Cross-episode curriculum state (NEVER reset between episodes) ──
+        # curriculum_level: 0=easy, 1=medium, 2=hard — advances, never regresses.
         self._curriculum_level: int = 0
 
-        # Adversary: episode history for 5-ep rolling avg (Phase 6 activates)
+        # Per-step rewards collected during the current episode.
+        # Drained and averaged in _close_episode() at the start of each reset().
+        self._episode_step_rewards: list[float] = []
+
+        # Rolling 5-episode averages used for curriculum gating.
+        # Stored as a deque of per-episode mean-rewards (maxlen=5).
+        self._rolling_5ep_avgs: deque[float] = deque(maxlen=self._CURRICULUM_WINDOW)
+
+        # Consecutive episodes above the current curriculum threshold.
+        # Resets to 0 if ANY episode falls below threshold (or curriculum advances).
+        self._consecutive_above_threshold: int = 0
+
+        # Adversary: separate 5-ep window (Transition #7, causal spec).
+        # Checked after every episode — fires ±0.5 adjustment if the full
+        # window has a mean above 0.6 or below 0.3.
+        self._adversary_ep_window: deque[float] = deque(maxlen=self._ADVERSARY_WINDOW)
+
+        # Backward-compat — tests may still reference this name
         self._episode_reward_history: list[float] = []
 
         # Spike-phase sub-event tracking
@@ -381,6 +408,85 @@ class UnifiedFintechEnv(gym.Env):
         self.action_space = spaces.MultiDiscrete(
             nvec=np.array([3, 2, 3, 2, 2, 3], dtype=np.int64),
         )
+
+    # =====================================================================
+    # Phase 6 — Adaptive Curriculum + Adversary Escalation
+    # =====================================================================
+
+    def _close_episode(self) -> None:
+        """
+        Tally the just-finished episode and update curriculum / adversary state.
+
+        Called at the START of reset() before any episode state is cleared.
+        Safe to call on the very first reset() when no episode has been played
+        yet — guards against empty reward list.
+
+        Curriculum Logic (CLAUDE.md):
+            easy   → medium : 5-episode rolling avg > 0.75 for 5 consecutive eps
+            medium → hard   : 5-episode rolling avg > 0.45 for 5 consecutive eps
+            Curriculum NEVER regresses.
+
+        Adversary Logic (Transition #7, CLAUDE.md):
+            rolling_5ep_avg > 0.6 → adversary_threat_level += 0.5 (max 10)
+            rolling_5ep_avg < 0.3 → adversary_threat_level -= 0.5 (min 0)
+            Applied after the 5th episode in the adversary window.
+        """
+        # Guard: no episode data yet (first-ever reset call)
+        if not self._episode_step_rewards:
+            return
+
+        # Pad crashed episodes — missing steps count as 0.0 per spec
+        # (episode score = mean of ALL 100 steps; early termination → 0.0 padding)
+        padded = self._episode_step_rewards + [0.0] * max(0, self.max_steps - len(self._episode_step_rewards))
+        ep_mean: float = float(sum(padded) / len(padded))
+
+        # Keep backward-compat list updated
+        self._episode_reward_history.append(ep_mean)
+
+        # ── Curriculum advancement ─────────────────────────────────────────
+        # Only advance if not already at max level
+        if self._curriculum_level < 2:
+            threshold = self._CURRICULUM_THRESHOLDS[self._curriculum_level]
+            if ep_mean >= threshold:
+                self._consecutive_above_threshold += 1
+            else:
+                # Any episode below threshold resets the streak
+                self._consecutive_above_threshold = 0
+
+            if self._consecutive_above_threshold >= self._CURRICULUM_WINDOW:
+                self._curriculum_level += 1
+                self._consecutive_above_threshold = 0
+                logger.info(
+                    "[CURRICULUM] Advanced to level %d after 5 episodes above %.2f",
+                    self._curriculum_level,
+                    threshold,
+                )
+
+        # ── Adversary escalation (Transition #7, 5-episode lag) ────────────
+        self._adversary_ep_window.append(ep_mean)
+
+        if len(self._adversary_ep_window) >= self._ADVERSARY_WINDOW:
+            window_mean = sum(self._adversary_ep_window) / len(self._adversary_ep_window)
+            if window_mean > self._ADVERSARY_HIGH_THRESHOLD:
+                self._adversary_threat_level = min(
+                    ADV_THREAT_MAX,
+                    self._adversary_threat_level + self._ADVERSARY_STEP,
+                )
+                logger.debug(
+                    "[ADVERSARY] 5-ep avg=%.3f > %.1f → threat_level=%.1f",
+                    window_mean, self._ADVERSARY_HIGH_THRESHOLD,
+                    self._adversary_threat_level,
+                )
+            elif window_mean < self._ADVERSARY_LOW_THRESHOLD:
+                self._adversary_threat_level = max(
+                    0.0,
+                    self._adversary_threat_level - self._ADVERSARY_STEP,
+                )
+                logger.debug(
+                    "[ADVERSARY] 5-ep avg=%.3f < %.1f → threat_level=%.1f",
+                    window_mean, self._ADVERSARY_LOW_THRESHOLD,
+                    self._adversary_threat_level,
+                )
 
     # =====================================================================
     # Phase Machine — build schedule fixed at reset
@@ -434,6 +540,12 @@ class UnifiedFintechEnv(gym.Env):
         info : dict
             Metadata dict containing ``{"task": task_name}``.
         """
+        # ── Phase 6: Tally the just-finished episode BEFORE clearing state ─
+        # _close_episode() reads _episode_step_rewards which belongs to the
+        # episode that just ended. It must run before current_step is zeroed
+        # and before _episode_step_rewards is cleared.
+        self._close_episode()
+
         super().reset(seed=seed)
 
         task_name: str = (options or {}).get("task", "easy")
@@ -475,6 +587,9 @@ class UnifiedFintechEnv(gym.Env):
         # Clear settlement backlog counter — must happen here or previous-episode
         # deferred-async count bleeds into the first steps of the new episode.
         self._consecutive_deferred_async = 0
+
+        # Clear per-episode step-reward collector for the new episode
+        self._episode_step_rewards = []
 
         # ── Generate initial observation ─────────────────────────────────
         self._current_obs = self._generate_phase_observation()
@@ -925,10 +1040,13 @@ class UnifiedFintechEnv(gym.Env):
             "internal_rolling_latency":     self._rolling_latency,
         }
 
+        # ── Phase 6: Collect per-step reward for end-of-episode averaging ──
+        self._episode_step_rewards.append(final_reward)
+
         logger.debug(
-            "[STEP] task=%s phase=%s step=%d reward=%.4f done=%s blind_spot=%s",
+            "[STEP] task=%s phase=%s step=%d reward=%.4f done=%s blind_spot=%s curriculum=%d",
             self.current_task, current_phase, self.current_step,
-            final_reward, done, blind_spot_triggered,
+            final_reward, done, blind_spot_triggered, self._curriculum_level,
         )
 
         return self._current_obs, typed_reward, done, info
