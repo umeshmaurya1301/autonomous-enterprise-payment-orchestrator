@@ -18,10 +18,13 @@ Observation space  : Box(10,) float32
   ★ Phase 2: observed but inert — not yet influencing reward or transitions.
     Full causal wiring implemented in Phase 5.
 
-Action space       : MultiDiscrete([3, 3, 2])
-  [0] Risk Decision    — 0=APPROVE  1=REJECT           2=CHALLENGE
-  [1] Infra Routing    — 0=ROUTE_NORMAL  1=THROTTLE    2=CIRCUIT_BREAKER
-  [2] Crypto Verify    — 0=FULL_VERIFY  1=SKIP_VERIFY
+Action space       : MultiDiscrete([3, 2, 3, 2, 2, 3])
+  [0] risk_decision    — 0=APPROVE  1=REJECT     2=CHALLENGE
+  [1] crypto_verify    — 0=FULL_VERIFY  1=SKIP_VERIFY
+  [2] infra_routing    — 0=NORMAL  1=THROTTLE   2=CIRCUIT_BREAKER
+  [3] db_retry_policy  — 0=FAIL_FAST  1=EXPONENTIAL_BACKOFF
+  [4] settlement_policy— 0=STANDARD_SYNC  1=DEFERRED_ASYNC_FALLBACK
+  [5] app_priority     — 0=UPI  1=CREDIT  2=BALANCED
 """
 
 from __future__ import annotations
@@ -195,26 +198,49 @@ class AEPOObservation(BaseModel):
 UFRGObservation = AEPOObservation
 
 
-class UFRGAction(BaseModel):
+class AEPOAction(BaseModel):
     """
-    Typed representation of the three simultaneous control decisions.
+    Six-field typed action for the Autonomous Enterprise Payment Orchestrator.
 
-    All fields are validated on construction; out-of-range integers are
-    rejected before they can reach the environment step logic.
+    All fields validated on construction; out-of-range integers rejected before
+    reaching step logic. Fields 4–6 (db_retry_policy, settlement_policy,
+    app_priority) have safe defaults so Round-1 three-field call sites still work.
     """
 
+    # ── Risk layer ────────────────────────────────────────────────────────────
     risk_decision: int = Field(
         ge=0, le=2,
-        description="Risk disposition: 0=Approve, 1=Reject, 2=Challenge (PIN reprompt)",
+        description="Risk disposition: 0=Approve, 1=Reject, 2=Challenge",
     )
+    crypto_verify: int = Field(
+        ge=0, le=1,
+        description="Crypto gate: 0=FullVerify, 1=SkipVerify",
+    )
+
+    # ── Infrastructure layer ──────────────────────────────────────────────────
     infra_routing: int = Field(
         ge=0, le=2,
         description="Infrastructure tier: 0=Normal, 1=Throttle, 2=CircuitBreaker",
     )
-    crypto_verify: int = Field(
-        ge=0, le=1,
-        description="Crypto gate: 0=FullVerify (slow), 1=SkipVerify (fast)",
+    db_retry_policy: int = Field(
+        default=0, ge=0, le=1,
+        description="DB retry: 0=FailFast, 1=ExponentialBackoff — backoff when pool<20 → -0.10 (Phase 4)",
     )
+
+    # ── Business layer ────────────────────────────────────────────────────────
+    settlement_policy: int = Field(
+        default=0, ge=0, le=1,
+        description="Settlement: 0=StandardSync, 1=DeferredAsyncFallback",
+    )
+    app_priority: int = Field(
+        default=2, ge=0, le=2,
+        description="App priority: 0=UPI, 1=Credit, 2=Balanced — match merchant_tier for +0.02 bonus (Phase 4)",
+    )
+
+
+# Backward-compatibility alias — Round-1 code that imports UFRGAction continues
+# to work without modification. Deprecated; migrate to AEPOAction.
+UFRGAction = AEPOAction
 
 
 class UFRGReward(BaseModel):
@@ -273,6 +299,12 @@ class UnifiedFintechEnv(gym.Env):
 
         self.current_step: int = 0
 
+        # Tracks consecutive DeferredAsyncFallback steps — penalty after 5 (Phase 4)
+        self._consecutive_deferred_async: int = 0
+
+        # curriculum_level advances in Phase 6; held at 0 here
+        self._curriculum_level: int = 0
+
         # ------------------------------------------------------------------
         # Observation space — Box(10,) dtype=float32
         #
@@ -306,13 +338,16 @@ class UnifiedFintechEnv(gym.Env):
         )
 
         # ------------------------------------------------------------------
-        # Action space — MultiDiscrete([3, 3, 2])
-        #   0  risk_decision   {0: APPROVE, 1: REJECT, 2: CHALLENGE}
-        #   1  infra_routing   {0: ROUTE_NORMAL, 1: THROTTLE, 2: CIRCUIT_BREAKER}
-        #   2  crypto_verify   {0: FULL_VERIFY, 1: SKIP_VERIFY}
+        # Action space — MultiDiscrete([3, 2, 3, 2, 2, 3])
+        #   0  risk_decision    {0: APPROVE, 1: REJECT, 2: CHALLENGE}
+        #   1  crypto_verify    {0: FULL_VERIFY, 1: SKIP_VERIFY}
+        #   2  infra_routing    {0: ROUTE_NORMAL, 1: THROTTLE, 2: CIRCUIT_BREAKER}
+        #   3  db_retry_policy  {0: FAIL_FAST, 1: EXPONENTIAL_BACKOFF}
+        #   4  settlement_policy{0: STANDARD_SYNC, 1: DEFERRED_ASYNC}
+        #   5  app_priority     {0: UPI, 1: CREDIT, 2: BALANCED}
         # ------------------------------------------------------------------
         self.action_space = spaces.MultiDiscrete(
-            nvec=np.array([3, 3, 2], dtype=np.int64),
+            nvec=np.array([3, 2, 3, 2, 2, 3], dtype=np.int64),
         )
 
     def reset(
@@ -353,6 +388,10 @@ class UnifiedFintechEnv(gym.Env):
         # Reset rolling EMA accumulators to safe baselines
         self._rolling_lag: float = 0.0
         self._rolling_latency: float = 50.0
+
+        # Clear settlement backlog counter — must happen here or previous-episode
+        # deferred-async count bleeds into the first steps of the new episode.
+        self._consecutive_deferred_async: int = 0
 
         self._current_obs: AEPOObservation = self._generate_transaction(self.current_task)
 
@@ -485,22 +524,24 @@ class UnifiedFintechEnv(gym.Env):
             merchant_tier=tier,
         )
 
+    @staticmethod
+    def _phase_from_event(event_type: str) -> str:
+        """Map internal event-type label to CLAUDE.md phase name."""
+        return {"flash_sale": "spike", "botnet_attack": "attack"}.get(event_type, "normal")
+
     def step(
         self,
-        action: UFRGAction,
+        action: AEPOAction,
     ) -> tuple[AEPOObservation, UFRGReward, bool, dict[str, Any]]:
         """
         Run one time-step of the environment's dynamics.
 
-        OpenEnv spec: accepts a typed UFRGAction and returns a 4-tuple
-        (observation, reward, done, info) — no truncated flag.
-
-        Reward is scaled to [0.0, 1.0]. Fields [2]–[9] of the observation are
-        inert in Phase 2 and do not yet influence reward or done logic.
+        OpenEnv spec: 4-tuple (observation, reward, done, info) — no truncated flag.
+        Reward is always in [0.0, 1.0].
 
         Parameters
         ----------
-        action : UFRGAction
+        action : AEPOAction
             Typed Pydantic action validated by the OpenEnv contract.
 
         Returns
@@ -510,27 +551,33 @@ class UnifiedFintechEnv(gym.Env):
         done : bool
         info : dict
         """
-        # ── ① Unpack state from current observation ───────────────────────
-        risk_score:  float = self._current_obs.risk_score
-        kafka_lag:   float = self._current_obs.kafka_lag
-        rolling_p99: float = self._current_obs.rolling_p99
+        # ── ① Snapshot current observation fields ─────────────────────────
+        risk_score:   float = self._current_obs.risk_score
+        kafka_lag:    float = self._current_obs.kafka_lag
+        rolling_p99:  float = self._current_obs.rolling_p99
+        db_pool:      float = self._current_obs.db_connection_pool
+        bank_status:  float = self._current_obs.bank_api_status   # 0=Healthy, 1=Degraded
+        merchant_tier: float = self._current_obs.merchant_tier    # 0=Small, 1=Enterprise
         current_event_type: str = self._last_event_type
+        current_phase: str = self._phase_from_event(current_event_type)
 
         circuit_breaker_tripped: bool = False
         done: bool = False
+        termination_reason: str | None = None
+        blind_spot_triggered: bool = False
 
-        # ── ② Apply action modifiers to internal accumulators ────────────
-        if action.crypto_verify == 0:       # FullVerify — thorough but expensive
+        # ── ② Apply action modifiers to internal accumulators ─────────────
+        if action.crypto_verify == 0:       # FullVerify — thorough but adds lag
             self._rolling_lag     += 150.0
             self._rolling_latency += 200.0
-        else:                               # SkipVerify — fast, sheds queue
+        else:                               # SkipVerify — sheds queue pressure
             self._rolling_lag -= 100.0
 
-        if action.infra_routing == 0:       # Normal routing — standard load
+        if action.infra_routing == 0:       # Normal routing
             self._rolling_lag += 100.0
         elif action.infra_routing == 1:     # Throttle — sheds queue load
             self._rolling_lag -= 300.0
-        else:                               # CircuitBreaker — full reset
+        else:                               # CircuitBreaker — full accumulator reset
             self._rolling_lag     = 0.0
             self._rolling_latency = 50.0
             circuit_breaker_tripped = True
@@ -538,112 +585,170 @@ class UnifiedFintechEnv(gym.Env):
         self._rolling_lag     = max(0.0, self._rolling_lag)
         self._rolling_latency = max(0.0, self._rolling_latency)
 
-        # ── ③ Reward calculation ─────────────────────────────────────────
-        reward: float = 0.8   # baseline: one successful transaction processed
+        # ── ③ Reward calculation — AEPO Reward v2 (CLAUDE.md spec) ──────────
+        # Phase 4 introduced this via AEPO_REWARD_V2 env-var gate; flag was
+        # promoted (removed) after all 24 test_reward.py / test_step.py tests
+        # passed, making v2 the unconditional active reward function.
+        base: float = 0.8
+        fraud_penalty: float = 0.0
+        sla_penalty: float = 0.0
+        infra_penalty: float = 0.0
+        db_penalty: float = 0.0
+        settlement_penalty: float = 0.0
+        bonus: float = 0.0
 
-        # Throttle during flash-sale is correct (partial credit); normal = penalise
-        if action.infra_routing == 1:
-            if current_event_type == "flash_sale":
-                reward -= 0.1
-            else:
-                reward -= 0.2
-
-        # SLA breach
-        if rolling_p99 > SLA_BREACH_THRESHOLD:
-            reward -= 0.3
-        elif SLA_PROXIMITY_LOWER < rolling_p99 <= SLA_BREACH_THRESHOLD:
-            proximity = (rolling_p99 - SLA_PROXIMITY_LOWER) / (SLA_BREACH_THRESHOLD - SLA_PROXIMITY_LOWER)
-            reward -= 0.1 * proximity
-
-        # CircuitBreaker halt
-        if circuit_breaker_tripped:
-            reward -= 0.5
-
-        # Lag proximity warning — graded early signal before the crash cliff
-        if LAG_PROXIMITY_LOWER < self._rolling_lag <= CRASH_THRESHOLD and not circuit_breaker_tripped:
-            proximity = (self._rolling_lag - LAG_PROXIMITY_LOWER) / (CRASH_THRESHOLD - LAG_PROXIMITY_LOWER)
-            reward -= 0.1 * proximity
-
-        # Challenge bonus on high-risk
-        if risk_score > HIGH_RISK_THRESHOLD and action.risk_decision == 2:
-            reward += 0.05
-
-        # FullVerify bonus on high-risk
-        if risk_score > HIGH_RISK_THRESHOLD and action.crypto_verify == 0:
-            reward += 0.03
-
-        # Catastrophic fraud gate — zeroes reward regardless of other actions
-        if (
-            action.crypto_verify  == 1    # SkipVerify
-            and action.risk_decision == 0  # Approve
+        # ── Catastrophic fraud gate (highest priority override) ────────────
+        is_fraud_catastrophe: bool = (
+            action.risk_decision == 0   # Approve
+            and action.crypto_verify == 1  # SkipVerify
             and risk_score > HIGH_RISK_THRESHOLD
-        ):
-            reward -= 1.0
+        )
+        if is_fraud_catastrophe:
+            fraud_penalty = -base       # cancels base so sum = 0.0
+            done = True
+            termination_reason = "fraud"
 
-        # ── ④ Crash condition ─────────────────────────────────────────────
-        if self._rolling_lag > CRASH_THRESHOLD and not circuit_breaker_tripped:
-            reward = 0.0
-            done   = True
+        # ── System crash (kafka_lag in observation at step start) ──────────
+        crashed: bool = kafka_lag > CRASH_THRESHOLD
+        if crashed and not done:
+            done = True
+            termination_reason = "crash"
 
-        # ── ⑤ Advance counter and generate next observation ───────────────
+        # ── SLA penalty (applied unless fraud gate already zeroed reward) ──
+        if rolling_p99 > SLA_BREACH_THRESHOLD:
+            sla_penalty = -0.30
+        elif SLA_PROXIMITY_LOWER < rolling_p99 <= SLA_BREACH_THRESHOLD:
+            prox = (rolling_p99 - SLA_PROXIMITY_LOWER) / (SLA_BREACH_THRESHOLD - SLA_PROXIMITY_LOWER)
+            sla_penalty = round(-0.10 * prox, 4)
+
+        # ── Lag proximity (graded early warning before crash cliff) ────────
+        if LAG_PROXIMITY_LOWER < kafka_lag <= CRASH_THRESHOLD:
+            prox = (kafka_lag - LAG_PROXIMITY_LOWER) / (CRASH_THRESHOLD - LAG_PROXIMITY_LOWER)
+            infra_penalty += round(-0.10 * prox, 4)
+
+        # ── Infra routing penalties ────────────────────────────────────────
+        if action.infra_routing == 1:       # Throttle
+            infra_penalty += -0.10 if current_phase == "spike" else -0.20
+        elif action.infra_routing == 2:     # CircuitBreaker
+            infra_penalty += -0.50
+
+        # ── DB retry policy ────────────────────────────────────────────────
+        if action.db_retry_policy == 1:     # ExponentialBackoff
+            if db_pool > 80:
+                db_penalty = 0.03           # correct use: pool is stressed
+            elif db_pool < 20:
+                db_penalty = -0.10          # waste: pool has spare capacity
+
+        # ── Settlement policy ──────────────────────────────────────────────
+        if action.settlement_policy == 1:   # DeferredAsyncFallback
+            self._consecutive_deferred_async += 1
+            if bank_status == 1.0:          # Degraded — correct use of async fallback
+                settlement_penalty += 0.04
+            elif current_phase == "normal": # unnecessary in healthy normal phase
+                settlement_penalty += -0.15
+            if self._consecutive_deferred_async >= 5:  # over-reliance penalty
+                settlement_penalty += -0.20
+        else:
+            self._consecutive_deferred_async = 0
+
+        # ── Risk / crypto bonuses ──────────────────────────────────────────
+        if risk_score > HIGH_RISK_THRESHOLD:
+            if action.risk_decision == 2:                   # Challenge on high-risk
+                bonus += 0.05
+            if action.crypto_verify == 0:                   # FullVerify on high-risk
+                bonus += 0.03
+            if action.risk_decision == 1 and action.crypto_verify == 1:
+                # Blind spot: Reject+SkipVerify is equally safe AND saves 250 lag/step
+                bonus += 0.04
+                blind_spot_triggered = True
+
+        # ── App priority / merchant-tier alignment bonus ───────────────────
+        if action.app_priority == 0 and merchant_tier == 0.0:   # UPI + Small
+            bonus += 0.02
+        elif action.app_priority == 1 and merchant_tier == 1.0: # Credit + Enterprise
+            bonus += 0.02
+
+        # ── Compute raw reward and apply override for crash / fraud ────────
+        raw_reward: float = base + fraud_penalty + sla_penalty + infra_penalty + db_penalty + settlement_penalty + bonus
+
+        # Crash and fraud hard-set final reward to 0.0 regardless of other terms
+        if crashed or is_fraud_catastrophe:
+            final_reward: float = 0.0
+        else:
+            final_reward = max(0.0, min(1.0, raw_reward))
+
+        # ── ④ Advance counter and generate next observation ────────────────
         self.current_step += 1
         self._current_obs = self._generate_transaction(self.current_task)
 
         if self.current_step >= self.max_steps and not done:
             done = True
 
-        # ── ⑥ Clip and build info payload ────────────────────────────────
-        final_reward: float = max(0.0, min(1.0, reward))
-
-        breakdown: dict[str, float] = {"baseline": 0.8}
-        if action.infra_routing == 1:
-            if current_event_type == "flash_sale":
-                breakdown["throttle_flash_sale_penalty"] = -0.1
-            else:
-                breakdown["throttle_penalty"] = -0.2
-        if rolling_p99 > SLA_BREACH_THRESHOLD:
-            breakdown["sla_breach_penalty"] = -0.3
-        elif SLA_PROXIMITY_LOWER < rolling_p99 <= SLA_BREACH_THRESHOLD:
-            proximity = (rolling_p99 - SLA_PROXIMITY_LOWER) / (SLA_BREACH_THRESHOLD - SLA_PROXIMITY_LOWER)
-            breakdown["sla_proximity_warning"] = round(-0.1 * proximity, 4)
-        if circuit_breaker_tripped:
-            breakdown["circuit_breaker_penalty"] = -0.5
-        if LAG_PROXIMITY_LOWER < self._rolling_lag <= CRASH_THRESHOLD and not circuit_breaker_tripped:
-            proximity = (self._rolling_lag - LAG_PROXIMITY_LOWER) / (CRASH_THRESHOLD - LAG_PROXIMITY_LOWER)
-            breakdown["lag_proximity_warning"] = round(-0.1 * proximity, 4)
-        if risk_score > HIGH_RISK_THRESHOLD and action.risk_decision == 2:
-            breakdown["challenge_bonus"] = 0.05
-        if risk_score > HIGH_RISK_THRESHOLD and action.crypto_verify == 0:
-            breakdown["fullverify_bonus"] = 0.03
-        if action.crypto_verify == 1 and action.risk_decision == 0 and risk_score > HIGH_RISK_THRESHOLD:
-            breakdown["fraud_penalty"] = -1.0
-        if self._rolling_lag > CRASH_THRESHOLD and not circuit_breaker_tripped:
-            breakdown["crash_override"] = 0.0
+        # ── ⑤ Build reward_breakdown (CLAUDE.md contract) ─────────────────
+        reward_breakdown: dict[str, float] = {
+            "base":               base,
+            "fraud_penalty":      fraud_penalty,
+            "sla_penalty":        sla_penalty,
+            "infra_penalty":      round(infra_penalty, 4),
+            "db_penalty":         db_penalty,
+            "settlement_penalty": round(settlement_penalty, 4),
+            "bonus":              round(bonus, 4),
+            "final":              final_reward,
+        }
 
         typed_reward = UFRGReward(
             value=final_reward,
-            breakdown=breakdown,
-            crashed=self._rolling_lag > CRASH_THRESHOLD and not circuit_breaker_tripped,
+            breakdown=reward_breakdown,
+            crashed=crashed,
             circuit_breaker_tripped=circuit_breaker_tripped,
         )
 
+        # ── ⑥ Build info dict — CLAUDE.md contract + backward-compat keys ─
         info: dict[str, Any] = {
-            "step":                     self.current_step,
-            "task":                     self.current_task,
-            "event_type":               current_event_type,
-            "obs_risk_score":           risk_score,
-            "obs_kafka_lag":            kafka_lag,
-            "obs_rolling_p99":          rolling_p99,
-            "action_risk_decision":     action.risk_decision,
-            "action_infra_routing":     action.infra_routing,
-            "action_crypto_verify":     action.crypto_verify,
-            "reward_raw":               reward,
-            "reward_final":             final_reward,
-            "circuit_breaker_tripped":  circuit_breaker_tripped,
-            "crashed":                  typed_reward.crashed,
-            "done":                     done,
-            "internal_rolling_lag":     self._rolling_lag,
-            "internal_rolling_latency": self._rolling_latency,
+            # ── CLAUDE.md Phase 4 contract ────────────────────────────────
+            "phase":                        current_phase,
+            "curriculum_level":             self._curriculum_level,
+            "step_in_episode":              self.current_step,   # 1-indexed (after increment)
+            "raw_obs": {
+                "transaction_type":         self._current_obs.channel,
+                "risk_score":               risk_score,
+                "adversary_threat_level":   self._current_obs.adversary_threat_level,
+                "system_entropy":           self._current_obs.system_entropy,
+                "kafka_lag":                kafka_lag,
+                "api_latency":              self._current_obs.api_latency,
+                "rolling_p99":              rolling_p99,
+                "db_connection_pool":       db_pool,
+                "bank_api_status":          bank_status,
+                "merchant_tier":            merchant_tier,
+            },
+            "reward_breakdown":             reward_breakdown,
+            "termination_reason":           termination_reason,
+            "adversary_threat_level_raw":   self._current_obs.adversary_threat_level,
+            "blind_spot_triggered":         blind_spot_triggered,
+            "consecutive_deferred_async":   self._consecutive_deferred_async,
+            # ── Backward-compat keys required by graders.py ───────────────
+            "step":                         self.current_step,
+            "task":                         self.current_task,
+            "event_type":                   current_event_type,
+            "obs_risk_score":               risk_score,
+            "obs_kafka_lag":                kafka_lag,
+            "obs_rolling_p99":              rolling_p99,
+            "action_risk_decision":         action.risk_decision,
+            "action_infra_routing":         action.infra_routing,
+            "action_crypto_verify":         action.crypto_verify,
+            "reward_raw":                   raw_reward,
+            "reward_final":                 final_reward,
+            "circuit_breaker_tripped":      circuit_breaker_tripped,
+            "crashed":                      crashed,
+            "done":                         done,
+            "internal_rolling_lag":         self._rolling_lag,
+            "internal_rolling_latency":     self._rolling_latency,
         }
+
+        logger.debug(
+            "[STEP] task=%s phase=%s step=%d reward=%.4f done=%s blind_spot=%s",
+            self.current_task, current_phase, self.current_step,
+            final_reward, done, blind_spot_triggered,
+        )
 
         return self._current_obs, typed_reward, done, info

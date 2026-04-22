@@ -25,7 +25,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import ValidationError
 
-from unified_gateway import AEPOObservation, UFRGAction, UFRGObservation, UFRGReward, UnifiedFintechEnv
+from unified_gateway import AEPOAction, AEPOObservation, UFRGAction, UFRGObservation, UFRGReward, UnifiedFintechEnv
 
 # ---------------------------------------------------------------------------
 # Application bootstrap
@@ -134,8 +134,9 @@ async def step_env(request: Request):
     Request body (JSON)
     --------------------
     ``action`` : dict
-        A JSON object with keys ``risk_decision``, ``infra_routing``, and
-        ``crypto_verify`` (all integers in the ranges declared by UFRGAction).
+        A JSON object with keys matching AEPOAction fields. Required: ``risk_decision``,
+        ``infra_routing``, ``crypto_verify``. Optional (safe defaults provided):
+        ``db_retry_policy``, ``settlement_policy``, ``app_priority``.
 
     Returns
     -------
@@ -158,7 +159,7 @@ async def step_env(request: Request):
     # Validate action through the Pydantic model — rejects out-of-range values
     # before they reach the environment step logic.
     try:
-        action = UFRGAction(**action_dict)
+        action = AEPOAction(**action_dict)
     except (ValidationError, TypeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

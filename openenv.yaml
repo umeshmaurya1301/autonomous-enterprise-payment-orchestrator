@@ -51,7 +51,7 @@ observation_space:
     bank_api_status:        { type: "float", min: 0, max: 2     }
     merchant_tier:          { type: "float", min: 0, max: 1     }
 
-# Action space definition
+# Action space definition (6 dims — Phase 3 expansion)
 action_space:
   type: "multidiscrete"
-  dimensions: [3, 3, 2]
+  dimensions: [3, 2, 3, 2, 2, 3]
