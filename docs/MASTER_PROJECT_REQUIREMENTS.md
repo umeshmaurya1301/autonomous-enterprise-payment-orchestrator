@@ -521,6 +521,44 @@ These are the technical and narrative advances that justify AEPO as a Grand Fina
 
 ---
 
+## 16. Appendix: Hackathon Participant Help Guide Highlights
+
+The following are the core strategies and tips extracted from the official Meta OpenEnv Hackathon Participant Help Guide, which are critical for the RL training phase.
+
+### A. Pick the Right Training Stack
+- **TRL** for RL training algorithms (e.g., GRPO).
+- **Unsloth** to make RL training and inference memory-efficient and fast.
+- **OpenEnv** to standardize environment interaction.
+
+### B. Prefer GRPO / RLVR Style Training for Verifiable Tasks
+- Instead of a learned reward model, use a verifier, test harness, or environment.
+- GRPO is more efficient than older PPO setups.
+- **Rule of thumb**: If the task is verifiable, build the verifier first, then plug that verifier into RL training.
+
+### C. Keep Inference Fast
+- In RL for LLMs, **inference can dominate total runtime**. Rollout generation becomes the bottleneck, not the optimizer step.
+- Fast sampling, tight environment loops, and efficient model runtime (like Unsloth) are crucial.
+
+### D. Deploy Early & Scale Later
+- **Deploy Early**: OpenEnv environments are designed to be deployed as Hugging Face Spaces. Deploy early to establish a shared source of truth and catch API/packaging issues.
+- **Scale Later**: Do not start with scale. First confirm: `reset` works, `step` works, rewards are sensible, and timeouts work. Only then should you increase batch sizes, expand task diversity, and benchmark throughput.
+
+### E. Monitor the Right Things During Training
+- Don't just watch overall reward. Monitor individual reward function columns, timeout frequency, and generated strategies.
+- **Crucial**: Inspect actual generations during training. A rising reward is not enough if the model is learning to exploit bugs (reward hacking).
+
+### F. Save Models Correctly
+- If using QLoRA/LoRA, do **not** naively upcast a 4-bit model to 16-bit and merge. This severely damages model quality. Use proper merged-save paths or use the adapters directly.
+
+### G. 1-Day Execution Plan
+- **Phase 1-2**: Pick a narrow task and build the environment (`reset`/`step`).
+- **Phase 3-4**: Build rewards (2-4 independent checks + timeouts) and Deploy.
+- **Phase 5-6**: Train small (tiny TRL+Unsloth experiment) and Inspect for Hacking.
+- **Phase 7-8**: Add curriculum (if model gets zero reward too often) and Train Bigger.
+- **Phase 9**: Save and Demo (show before/after behavior).
+
+---
+
 > **Document End** · AEPO Grand Finale — Baseline Requirements v1.0
 > **Author:** Umesh Maurya · **Date:** 2026-04-24
 > **Based on:** PROJECT_REQUIREMENT.md (Round 1) + MASTER_DOC.md (v10.0.0) + Hackathon Themes + Judging Criteria + Participant Help Guide + FAQs

@@ -24,6 +24,8 @@ tags:
 [![Tests](https://img.shields.io/badge/Tests-189%20passed-brightgreen)](#)
 [![Coverage](https://img.shields.io/badge/Coverage-96%25-brightgreen)](#)
 
+**[🔥 OpenEnv HF Space](https://unknown1322-unified-fintech-risk-gateway.hf.space)** · **[🧠 TRL Colab Training Notebook](AEPO_Unsloth_GRPO.ipynb)** · **[📹 Demo & Writeup](https://youtu.be/PLACEHOLDER)**
+
 ---
 
 **A typed, task-driven OpenEnv environment where an autonomous agent must simultaneously manage fraud risk, Kafka infrastructure health, and P99 SLA compliance — with 11 causal transitions that make every decision echo across future steps.**
@@ -125,20 +127,12 @@ The Q-table is trained via a **curriculum-driven loop** (easy → medium → har
 
 The training curve shows three distinct phases:
 
-```
-Mean Reward (10-ep rolling)
-0.60 ┤                                    ╭──╮  ╭╮  ╭────
-0.50 ┤                              ╭─╮  ╯  ╰──╯╰──╯
-0.40 ┤                        ╭─────╯
-0.30 ┤ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─threshold ─ ─ ─ ─ ─ ─ ─ ─
-0.25 ┤╭─────────────────────╯
-     └──────────────────────────────────────────── Episode
-     0    100   200   250   350   450   500
+![AEPO Training Staircase Curve](results/reward_curve.png)
 
-Phase 1 (ep 0–180):   Exploration — random actions dominate, ~0.25
-Phase 2 (ep 200–350): Learning  — Q-table converges, passes threshold
-Phase 3 (ep 400–500): Exploitation — greedy policy stabilises at ~0.58
-```
+*The training curve shows three distinct phases:*
+- **Phase 1 (ep 0–180)**: Exploration — random actions dominate, ~0.25
+- **Phase 2 (ep 200–350)**: Learning — Q-table converges, passes threshold
+- **Phase 3 (ep 400–500)**: Exploitation — greedy policy stabilises at ~0.67
 
 ### Key Learning Discovery: Blind Spot #1
 

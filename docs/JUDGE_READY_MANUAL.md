@@ -379,16 +379,16 @@ SPACE_URL=http://localhost:7860 DRY_RUN=true python inference.py
 
 **Expected output:**
 ```
-[START] task=easy env=ufrg model=mistral-nemo:latest
+[START] task=easy env=ufrg model=qwen2.5-coder:32b
 [STEP] step=1 action={"risk_decision":0,"crypto_verify":1,"infra_routing":0,"db_retry_policy":0,"settlement_policy":0,"app_priority":2} reward=0.80 done=false error=null
 ...
 [END] success=true steps=100 score=0.76 rewards=0.80,0.80,...
 
-[START] task=medium env=ufrg model=mistral-nemo:latest
+[START] task=medium env=ufrg model=qwen2.5-coder:32b
 ...
 [END] success=false steps=100 score=0.41 rewards=...
 
-[START] task=hard env=ufrg model=mistral-nemo:latest
+[START] task=hard env=ufrg model=qwen2.5-coder:32b
 ...
 [END] success=false steps=100 score=0.30 rewards=...
 ```
@@ -431,11 +431,11 @@ watch -n 10 "curl -s -o /dev/null -w '%{http_code}' \
 
 ## Part 3 — Local Model Integration (Live Agent Testing)
 
-### Step 3.1 — Using Ollama (mistral-nemo, local)
+### Step 3.1 — Using Ollama (qwen2.5-coder:32b, local)
 
 ```bash
 # Pull the model
-ollama pull mistral-nemo
+ollama pull qwen2.5-coder:32b
 
 # Start Ollama server (leave this terminal open)
 ollama serve
@@ -446,7 +446,7 @@ uvicorn server.app:app --host 0.0.0.0 --port 7860
 # In a third terminal — run inference
 SPACE_URL="http://localhost:7860" \
 API_BASE_URL="http://localhost:11434/v1" \
-MODEL_NAME="mistral-nemo:latest" \
+MODEL_NAME="qwen2.5-coder:32b" \
 HF_TOKEN="ollama" \
 DRY_RUN="false" \
 python inference.py
@@ -691,7 +691,7 @@ time (SPACE_URL=http://localhost:7860 DRY_RUN=true python inference.py > /dev/nu
 
 # ── Local Ollama testing ──────────────────────────────────────────────────────
 SPACE_URL="http://localhost:7860" API_BASE_URL="http://localhost:11434/v1" \
-MODEL_NAME="mistral-nemo:latest" HF_TOKEN="ollama" DRY_RUN="false" \
+MODEL_NAME="qwen2.5-coder:32b" HF_TOKEN="ollama" DRY_RUN="false" \
 python inference.py
 
 # ── Deploy ────────────────────────────────────────────────────────────────────
