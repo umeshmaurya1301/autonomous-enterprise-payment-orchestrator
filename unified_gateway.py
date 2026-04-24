@@ -172,6 +172,12 @@ CB_CLOSE_BONUS: float = 0.05          # bonus for successfully closing a tripped
 # Lag must be below this threshold for the CB to transition from half-open → closed.
 # If lag is still too high the breaker stays half-open (no bonus, -0.10 penalty).
 CB_LAG_RECOVERY_THRESHOLD: float = 2000.0
+# Drain rate (units/step) while the CB is open: represents the Kafka consumer
+# processing the existing backlog now that new traffic has been halted.
+# Real circuit breakers stop NEW traffic; they do NOT instantly delete the queue.
+# 500 units/step means a 4000-unit queue drains in ~8 steps — costly but not
+# instant, so the agent cannot abuse the CB as a "magic lag eraser".
+CB_DRAIN_PER_STEP: float = 500.0
 
 # ---------------------------------------------------------------------------
 # Diurnal load modulation — Transition #11
@@ -1352,12 +1358,24 @@ class UnifiedFintechEnv(gym.Env):
             self._throttle_relief_queue.append(THROTTLE_RELIEF_PER_STEP)
         else:                               # CircuitBreaker
             circuit_breaker_tripped = True
-            if self._cb_consecutive_steps <= CB_HALF_OPEN_AFTER:
-                # Breaker open: hard-reset accumulators to shed all queued traffic
-                self._kafka_lag = 0.0
-                self._api_latency = LATENCY_BASELINE
-            # Half-open: do NOT hard-reset — probe traffic flows normally so the
+            # FIX: Remove the kafka_lag = 0.0 hard-reset that allowed the RL
+            # agent to exploit the CB as a "magic lag eraser" for a flat -0.50
+            # penalty. In production, a circuit breaker halts NEW incoming
+            # traffic but does NOT instantly clear the existing queue.
+            #
+            # Drain Mechanic: while the breaker is open, the Kafka consumers
+            # continue to process the backlog. We model this as a steady
+            # CB_DRAIN_PER_STEP reduction per step — the queue drains naturally
+            # while no new transactions are admitted.
+            #
+            # Half-open state is unchanged: probe traffic flows normally so the
             # agent can observe whether lag stays below CB_LAG_RECOVERY_THRESHOLD.
+            if self._cb_consecutive_steps <= CB_HALF_OPEN_AFTER:
+                # Breaker open: drain backlog, do NOT hard-reset to 0
+                self._kafka_lag = max(0.0, self._kafka_lag - CB_DRAIN_PER_STEP)
+                # api_latency still mean-reverts naturally each step via
+                # _generate_phase_observation(); no manual reset needed.
+            # Half-open: do not interfere — probe traffic flows normally.
 
         self._kafka_lag = max(0.0, self._kafka_lag)
         self._api_latency = max(0.0, self._api_latency)

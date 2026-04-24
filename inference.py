@@ -597,13 +597,30 @@ async def main() -> None:
                 success = "false"
                 task_score = 0.0
                 if current_step == 0:
+                    # FIX: Sanitize the exception string before printing.
+                    # The OpenEnv grader uses a strict per-line regex parser.
+                    # If the stringified exception contains \n or \r characters
+                    # (e.g. from HTTP response bodies or multi-line tracebacks),
+                    # the [STEP] line is split across multiple lines, breaking
+                    # the parser and producing a score of 0 for the entire task.
+                    # We collapse all whitespace/newlines into a single space and
+                    # wrap the result in double-quotes so the parser always sees
+                    # one unbroken token after `error=`.
+                    _raw_err: str = str(exc)
+                    # Replace any carriage-return, newline, or tab with a space
+                    _sanitized_err: str = _raw_err.replace("\r\n", " ").replace("\r", " ").replace("\n", " ").replace("\t", " ")
+                    # Collapse multiple consecutive spaces into one
+                    import re as _re
+                    _sanitized_err = _re.sub(r" +", " ", _sanitized_err).strip()
+                    # Wrap in double-quotes so the grader sees a single token
+                    _quoted_err: str = '"' + _sanitized_err.replace('"', "'") + '"'
                     print(
                         f"[STEP] step=1 "
                         f"action=null "
                         f"reward=0.00 "
                         f"done=true "
-                        f"error={exc}",
-                        flush=True
+                        f"error={_quoted_err}",
+                        flush=True,
                     )
                     step_rewards = [0.0]
 

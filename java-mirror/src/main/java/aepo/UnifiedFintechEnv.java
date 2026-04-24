@@ -169,6 +169,13 @@ public class UnifiedFintechEnv {
     public static final double CB_HALF_OPEN_PENALTY       = -0.10;
     public static final double CB_CLOSE_BONUS             = 0.05;
     public static final double CB_LAG_RECOVERY_THRESHOLD  = 2000.0;
+    // FIX: Drain rate replaces the hard kafka_lag = 0.0 reset.
+    // PYTHON EQUIVALENT: CB_DRAIN_PER_STEP: float = 500.0
+    // Real circuit breakers halt NEW traffic; they do not instantly delete the queue.
+    // 500 units/step: a 4000-unit backlog drains in ~8 steps — costly but not instant.
+    // This closes the "magic lag eraser" exploit where the RL agent abused the CB
+    // as a free lag reset for only -0.50/step.
+    public static final double CB_DRAIN_PER_STEP           = 500.0;
     private int cbConsecutiveSteps = 0;
 
     // ── Diurnal load modulation — Transition #11 ──────────────────────
@@ -729,13 +736,19 @@ public class UnifiedFintechEnv {
             }
         } else {                                    // CircuitBreaker
             circuitBreakerTripped = true;
-            // PYTHON EQUIVALENT:
+            // FIX: PYTHON EQUIVALENT (updated drain mechanic):
             //   if self._cb_consecutive_steps <= CB_HALF_OPEN_AFTER:
-            //       self._kafka_lag = 0.0; self._api_latency = LATENCY_BASELINE
-            //   # half-open: do NOT hard-reset — probe traffic flows normally
+            //       self._kafka_lag = max(0.0, self._kafka_lag - CB_DRAIN_PER_STEP)
+            //   # half-open: do not interfere — probe traffic flows normally
+            //
+            // Replaces the old hard-reset (kafkaLag = 0.0) which enabled reward
+            // hacking. The drain mechanic models the Kafka consumers processing
+            // the backlog while no new transactions are admitted.
             if (cbConsecutiveSteps <= CB_HALF_OPEN_AFTER) {
-                kafkaLag = 0.0;
-                apiLatency = LATENCY_BASELINE;
+                // Breaker open: drain backlog steadily, do NOT hard-reset to 0
+                kafkaLag = Math.max(0.0, kafkaLag - CB_DRAIN_PER_STEP);
+                // apiLatency mean-reverts naturally each step via
+                // generatePhaseObservation(); no manual reset needed.
             }
             // Half-open: accumulators left intact so agent can observe lag level
         }
