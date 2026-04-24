@@ -67,7 +67,7 @@ logger = logging.getLogger(__name__)
 # Named constants — training hyper-parameters
 # ---------------------------------------------------------------------------
 
-N_EPISODES: int = 500          # total training episodes (hard task only)
+N_EPISODES: int = 500          # total training episodes across all curriculum tasks
 N_BINS: int = 4                # bins per state feature — 4 bins × 6 features = 4096 reachable states
 N_ACTIONS: int = 216           # 3×2×3×2×2×3 — MultiDiscrete product
 LEARNING_RATE: float = 0.1     # Q-table update step size (lr in Bellman)
@@ -75,24 +75,38 @@ DISCOUNT: float = 0.95         # γ — future-reward discount factor
 EPSILON_START: float = 1.0     # initial exploration rate
 EPSILON_END: float = 0.05      # final exploration rate (minimum)
 LOG_EVERY: int = 10            # log a summary line every N episodes
-TRAIN_TASK: str = "hard"       # task the Q-table is trained on
+# Task is CURRICULUM-DRIVEN — the training loop reads env._curriculum_level
+# before each reset() and selects the matching task (easy/medium/hard).
+# This produces the staircase: agent masters easy → curriculum advances →
+# reward drops on harder task → agent adapts → advances again.
+# TRAIN_TASK_FALLBACK is only used if _curriculum_level is somehow out of range.
+TRAIN_TASK_FALLBACK: str = "easy"
+CURRICULUM_TASKS: tuple[str, ...] = ("easy", "medium", "hard")
 LAG_MAX: float = 10000.0       # normalisation divisor for LagPredictor target
 
 # Evaluation episodes per task (matches grader spec: 10)
 EVAL_EPISODES: int = 10
 
 # ---------------------------------------------------------------------------
-# State feature selection — 6 key obs fields that drive each reward component
+# State feature selection — 7 key obs fields that drive each reward component
 # ---------------------------------------------------------------------------
 # Using all 10 obs fields with 8 bins each gives 8^10 ≈ 1B states — far too
-# sparse for 500 episodes (≈ 20K transitions). These 6 are the causal drivers:
-#   risk_score        → fraud reward / blind-spot bonus
-#   kafka_lag         → crash penalty / throttle relief
-#   rolling_p99       → SLA penalty / bank coupling
-#   db_connection_pool→ backoff bonus / backoff penalty
-#   bank_api_status   → settlement deferred bonus
-#   merchant_tier     → app_priority bonus
-# 4^6 = 4096 states with 216 actions = 884 K Q-values — fully covered in 500 eps.
+# sparse for 500 episodes (≈ 20K transitions). These 7 are the causal drivers:
+#   risk_score             → fraud reward / blind-spot bonus
+#   kafka_lag              → crash penalty / throttle relief
+#   rolling_p99            → SLA penalty / bank coupling
+#   db_connection_pool     → backoff bonus / backoff penalty
+#   bank_api_status        → settlement deferred bonus
+#   merchant_tier          → app_priority bonus
+#   adversary_threat_level → KEY: easy=0-2, hard=7-10.  Without this field the
+#                            Q-table cannot distinguish easy Normal-phase states
+#                            from hard Attack-phase states that share the same
+#                            lag/risk bins.  Adding it lets the agent learn
+#                            "throttle aggressively when adversary is high,
+#                            don't bother when adversary is zero."
+# 4^7 = 16384 states × 216 actions = 3.5M Q-values.
+# 500 episodes × ~80 steps avg = 40K transitions → ~2.4 updates/cell on avg,
+# sufficient for TD-learning which propagates value across neighbouring states.
 STATE_FEATURE_KEYS: tuple[str, ...] = (
     "risk_score",
     "kafka_lag",
@@ -100,6 +114,7 @@ STATE_FEATURE_KEYS: tuple[str, ...] = (
     "db_connection_pool",
     "bank_api_status",
     "merchant_tier",
+    "adversary_threat_level",   # 7th: separates easy (bin 0) from hard (bins 2-3)
 )
 
 # ---------------------------------------------------------------------------
@@ -202,7 +217,7 @@ def make_trained_policy(q_table: defaultdict) -> Any:
 # Q-table training loop
 # ---------------------------------------------------------------------------
 
-def train_q_table(seed: int = 44) -> Tuple[defaultdict, LagPredictor, List[float], List[int]]:
+def train_q_table(seed: int = 44) -> Tuple[defaultdict, LagPredictor, List[float], List[int], Dict[str, defaultdict]]:
     """
     Train a sparse Q-table on the hard task for N_EPISODES episodes.
 
@@ -224,6 +239,23 @@ def train_q_table(seed: int = 44) -> Tuple[defaultdict, LagPredictor, List[float
     curriculum_levels : list[int]
         Curriculum level at the START of each episode (0=easy, 1=medium, 2=hard).
         Used to colour-code the staircase chart background.
+    q_snapshots : dict[str, defaultdict]
+        Per-task Q-table snapshots taken at each curriculum advancement.
+        Keys: "easy", "medium", "hard".
+        "easy"   → snapshot at the moment the curriculum advanced 0→1
+                   (Q-table specialised on easy, no hard contamination)
+        "medium" → snapshot at the moment the curriculum advanced 1→2
+        "hard"   → the final trained Q-table (500 episodes, hard-specialised)
+        Use these in evaluate_all_tasks() to avoid catastrophic forgetting:
+        evaluate easy with q_snapshots["easy"], hard with q_snapshots["hard"].
+
+    Curriculum-driven task selection
+    ---------------------------------
+    Each episode, the task is chosen from env._curriculum_level BEFORE reset()
+    is called (reset() may advance the level inside _close_episode(), so reading
+    before gives the level that governed the PREVIOUS episode's difficulty).
+    This produces the staircase: easy (green) → medium (orange) → hard (red),
+    with reward dropping at each advancement and rising as the agent adapts.
     """
     env = UnifiedFintechEnv()
     lag_model = LagPredictor()
@@ -239,13 +271,44 @@ def train_q_table(seed: int = 44) -> Tuple[defaultdict, LagPredictor, List[float
     blind_spot_logged = False   # log first occurrence of blind_spot_triggered
     lag_loss_accum: float = 0.0
     lag_loss_count: int = 0
+    # Per-task Q-table snapshots — taken at each curriculum advancement.
+    # Using a deepcopy at the advancement boundary gives us the Q-table that is
+    # maximally specialised on that task before hard-task updates contaminate it.
+    q_snapshots: Dict[str, defaultdict] = {}
 
     t_start = time.time()
 
     for ep in range(N_EPISODES):
         ep_seed = seed + ep
-        obs_obj, _ = env.reset(seed=ep_seed, options={"task": TRAIN_TASK})
-        ep_curriculum: int = env._curriculum_level  # snapshot level at episode start
+
+        # Curriculum-driven task selection:
+        # Read env._curriculum_level BEFORE calling reset() so we use the level
+        # that was set by the PREVIOUS episode's _close_episode(). reset() may
+        # advance it further (if the just-finished episode tips the threshold),
+        # which we capture in ep_curriculum AFTER the call.
+        pre_reset_level: int = env._curriculum_level
+        task_to_use = CURRICULUM_TASKS[min(pre_reset_level, len(CURRICULUM_TASKS) - 1)]
+
+        obs_obj, _ = env.reset(seed=ep_seed, options={"task": task_to_use})
+        ep_curriculum: int = env._curriculum_level  # snapshot AFTER reset (may have advanced)
+
+        # Log curriculum advancement + save Q-table snapshot for that stage.
+        # The snapshot captures the Q-table BEFORE any hard-task updates overwrite
+        # the easy/medium-learned Q-values (catastrophic forgetting prevention).
+        if ep > 0 and ep_curriculum > pre_reset_level:
+            snapshot_task = CURRICULUM_TASKS[pre_reset_level]
+            snap: defaultdict = defaultdict(lambda: np.zeros(N_ACTIONS, dtype=np.float32))
+            snap.update({k: v.copy() for k, v in q_table.items()})
+            q_snapshots[snapshot_task] = snap
+            logger.info(
+                "[CURRICULUM ADVANCE] episode=%d  level %d (%s) -> %d (%s)  "
+                "[Q-TABLE SNAPSHOT saved for '%s': %d states]",
+                ep + 1,
+                pre_reset_level, CURRICULUM_TASKS[pre_reset_level],
+                ep_curriculum, CURRICULUM_TASKS[min(ep_curriculum, len(CURRICULUM_TASKS) - 1)],
+                snapshot_task, len(snap),
+            )
+
         obs_norm = obs_obj.normalized()
         state = obs_to_state(obs_norm)
 
@@ -327,41 +390,60 @@ def train_q_table(seed: int = 44) -> Tuple[defaultdict, LagPredictor, List[float
         "Training complete — %d episodes in %.1fs (%.2f eps/s) | Q-table states=%d",
         N_EPISODES, total_time, N_EPISODES / total_time, len(q_table),
     )
-    return q_table, lag_model, episode_means, curriculum_levels
+
+    # Finalise snapshots: hard = final Q-table; fill in any stage that never fired
+    # (e.g. curriculum never advanced to medium — fall back to final Q-table).
+    q_snapshots["hard"] = q_table
+    for task in CURRICULUM_TASKS:
+        if task not in q_snapshots:
+            logger.warning(
+                "Curriculum never reached '%s' — using final Q-table for evaluation. "
+                "Consider lowering _CURRICULUM_THRESHOLDS or increasing N_EPISODES.",
+                task,
+            )
+            q_snapshots[task] = q_table
+
+    return q_table, lag_model, episode_means, curriculum_levels, q_snapshots
 
 
 # ---------------------------------------------------------------------------
 # Evaluation — compare random vs heuristic vs trained on all 3 tasks
 # ---------------------------------------------------------------------------
 
-def evaluate_all_tasks(trained_policy_fn: Any) -> dict[str, dict[str, float]]:
+def evaluate_all_tasks(q_snapshots: Dict[str, defaultdict]) -> dict[str, dict[str, float]]:
     """
     Evaluate random, heuristic, and trained policies on all three tasks.
 
-    Each evaluation runs EVAL_EPISODES episodes using the spec-compliant
-    grader interface (grade_agent). Returns a nested dict:
-        results[task][policy_name] = score
+    Uses per-task Q-table snapshots to avoid catastrophic forgetting:
+      - easy   → evaluated with Q-table snapshot taken at easy→medium advancement
+      - medium → evaluated with Q-table snapshot taken at medium→hard advancement
+      - hard   → evaluated with final Q-table (most hard-task training)
+
+    This is the correct evaluation: a curriculum-trained agent that specialised
+    on easy before advancing should be judged on its easy-stage knowledge, not
+    the hard-contaminated final Q-table.
 
     Parameters
     ----------
-    trained_policy_fn : callable
-        Greedy policy built from make_trained_policy(q_table).
+    q_snapshots : dict[str, defaultdict]
+        Per-task Q-table snapshots from train_q_table().
 
     Returns
     -------
     dict[str, dict[str, float]] — task → {policy → score}
     """
-    graders = {
+    task_graders = {
         "easy":   EasyGrader(),
         "medium": MediumGrader(),
         "hard":   HardGrader(),
     }
     results: dict[str, dict[str, float]] = {}
-    for task, grader in graders.items():
-        logger.info("Evaluating task=%s ...", task)
+    for task, grader in task_graders.items():
+        logger.info("Evaluating task=%s (using %s-stage Q-table) ...", task, task)
+        task_policy_fn = make_trained_policy(q_snapshots[task])
         r_score = grader.grade_agent(random_policy, n_episodes=EVAL_EPISODES)
         h_score = grader.grade_agent(heuristic_policy, n_episodes=EVAL_EPISODES)
-        t_score = grader.grade_agent(trained_policy_fn, n_episodes=EVAL_EPISODES)
+        t_score = grader.grade_agent(task_policy_fn, n_episodes=EVAL_EPISODES)
         results[task] = {
             "random":    r_score,
             "heuristic": h_score,
@@ -643,11 +725,13 @@ def main() -> None:
     args = parser.parse_args()
 
     logger.info("=== AEPO Phase 10 — Q-Table Training ===")
-    logger.info("Task: %s | Episodes: %d | lr=%.2f | gamma=%.2f | bins=%d",
-                TRAIN_TASK, N_EPISODES, LEARNING_RATE, DISCOUNT, N_BINS)
+    logger.info(
+        "Task: curriculum-driven (easy->medium->hard) | Episodes: %d | lr=%.2f | gamma=%.2f | bins=%d",
+        N_EPISODES, LEARNING_RATE, DISCOUNT, N_BINS,
+    )
 
     # ── Train ────────────────────────────────────────────────────────────────
-    q_table, lag_model, episode_means, curriculum_levels = train_q_table(seed=44)
+    q_table, lag_model, episode_means, curriculum_levels, q_snapshots = train_q_table(seed=44)
 
     # ── Plot charts ──────────────────────────────────────────────────────────
     results_dir = Path(__file__).parent / "results"
@@ -655,9 +739,11 @@ def main() -> None:
     plot_reward_staircase(episode_means, curriculum_levels, results_dir / "reward_staircase.png")
 
     # ── Evaluate ─────────────────────────────────────────────────────────────
+    # Each task is evaluated using its task-specific Q-table snapshot to avoid
+    # catastrophic forgetting: easy = snapshot at easy→medium advancement,
+    # hard = final Q-table (most hard-task training).
     logger.info("--- Evaluation: Random vs Heuristic vs Trained (baseline policy improvement curve) ---")
-    trained_fn = make_trained_policy(q_table)
-    eval_results = evaluate_all_tasks(trained_fn)
+    eval_results = evaluate_all_tasks(q_snapshots)
 
     # ── Print comparison table ────────────────────────────────────────────────
     if args.compare:

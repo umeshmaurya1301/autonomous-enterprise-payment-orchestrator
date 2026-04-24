@@ -53,8 +53,19 @@ public class UnifiedFintechEnv {
 
     // ── Phase 6 curriculum constants ───────────────────────────────────
     // PYTHON EQUIVALENT: class-level tuple/int/float constants in UnifiedFintechEnv
-    private static final double[] CURRICULUM_THRESHOLDS = {0.75, 0.45}; // easy→med, med→hard
-    private static final int CURRICULUM_WINDOW = 5;    // consecutive episodes to advance
+    private static final double[] CURRICULUM_THRESHOLDS = {0.65, 0.38}; // training advancement thresholds
+    private static final int CURRICULUM_WINDOW = 3;    // consecutive episodes to advance (reduced from 5)
+
+    // ── Bank API flapping model constants (Transition #10) ─────────────
+    // PYTHON EQUIVALENT: BANK_FLAP_SPIKE_H_TO_D, BANK_FLAP_SPIKE_D_TO_H, etc.
+    //
+    // Two-state Markov chain replaces the previous i.i.d. Bernoulli model.
+    // Spike phase: rapid flapping — D→H 40% (short bursts of degradation)
+    // Attack phase: sticky degradation — D→H 5% (hard to recover)
+    private static final double BANK_FLAP_SPIKE_H_TO_D  = 0.30;
+    private static final double BANK_FLAP_SPIKE_D_TO_H  = 0.40;
+    private static final double BANK_FLAP_ATTACK_H_TO_D = 0.80;
+    private static final double BANK_FLAP_ATTACK_D_TO_H = 0.05;
     private static final int ADVERSARY_WINDOW = 5;     // episodes before adversary reacts
     private static final double ADVERSARY_HIGH_THRESHOLD = 0.6; // avg > this → threat +0.5
     private static final double ADVERSARY_LOW_THRESHOLD = 0.3;  // avg < this → threat -0.5
@@ -159,6 +170,12 @@ public class UnifiedFintechEnv {
     public static final double CB_CLOSE_BONUS             = 0.05;
     public static final double CB_LAG_RECOVERY_THRESHOLD  = 2000.0;
     private int cbConsecutiveSteps = 0;
+
+    // ── Diurnal load modulation — Transition #11 ──────────────────────
+    // PYTHON EQUIVALENT: DIURNAL_AMPLITUDE: float = 100.0
+    // Max lag units added/subtracted per step by the sinusoidal time-of-day cycle.
+    // Peak at step 25 (+100), trough at step 75 (-100) of a 100-step episode.
+    public static final double DIURNAL_AMPLITUDE = 100.0;
 
     // ── Current observation ────────────────────────────────────────────
     // PYTHON EQUIVALENT: AEPOObservation (Pydantic BaseModel)
@@ -377,13 +394,31 @@ public class UnifiedFintechEnv {
                     lagDelta = uniform(500.0, 1000.0);
                     isBurstStep = true;
                 }
-                bankStatus = rng.nextDouble() < 0.3 ? 1.0 : 0.0;
+                // PYTHON EQUIVALENT: Markov chain (Transition #10)
+                // if self._bank_status == 0.0:  # Healthy
+                //     if rng.uniform() < BANK_FLAP_SPIKE_H_TO_D: self._bank_status = 1.0
+                // else:                          # Degraded
+                //     if rng.uniform() < BANK_FLAP_SPIKE_D_TO_H: self._bank_status = 0.0
+                if (bankStatus == 0.0) {
+                    if (rng.nextDouble() < BANK_FLAP_SPIKE_H_TO_D) bankStatus = 1.0;
+                } else {
+                    if (rng.nextDouble() < BANK_FLAP_SPIKE_D_TO_H) bankStatus = 0.0;
+                }
                 break;
 
             case "attack":
                 riskScore = uniform(85.0, 100.0);
                 lagDelta = uniform(100.0, 400.0);
-                bankStatus = 1.0;
+                // PYTHON EQUIVALENT: Markov sticky degradation (Transition #10)
+                // if self._bank_status == 0.0:
+                //     if rng.uniform() < BANK_FLAP_ATTACK_H_TO_D: self._bank_status = 1.0
+                // else:
+                //     if rng.uniform() < BANK_FLAP_ATTACK_D_TO_H: self._bank_status = 0.0
+                if (bankStatus == 0.0) {
+                    if (rng.nextDouble() < BANK_FLAP_ATTACK_H_TO_D) bankStatus = 1.0;
+                } else {
+                    if (rng.nextDouble() < BANK_FLAP_ATTACK_D_TO_H) bankStatus = 0.0;
+                }
                 break;
 
             case "recovery":
@@ -402,6 +437,19 @@ public class UnifiedFintechEnv {
                 lagDelta = uniform(50.0, 150.0);
                 bankStatus = 0.0;
         }
+
+        // Transition #11: Diurnal load modulation
+        // PYTHON EQUIVALENT:
+        //   step_idx = self.current_step
+        //   diurnal_mod = DIURNAL_AMPLITUDE * np.sin(step_idx * 2.0 * np.pi / self.max_steps)
+        //   lag_delta += diurnal_mod
+        //
+        // Sine wave over 100 steps: peak at step 25 (+DIURNAL_AMPLITUDE),
+        // trough at step 75 (-DIURNAL_AMPLITUDE).  Applied before adversary
+        // multiplier so the two effects compound during attack-phase midday.
+        // Java: Math.sin takes radians — same formula as Python's np.sin.
+        double diurnalMod = DIURNAL_AMPLITUDE * Math.sin(currentStep * 2.0 * Math.PI / maxSteps);
+        lagDelta += diurnalMod;
 
         // Apply kafka_lag delta
         kafkaLag += lagDelta;

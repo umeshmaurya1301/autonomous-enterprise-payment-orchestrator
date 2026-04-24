@@ -36,6 +36,12 @@ Causal Transitions (Phase 5):
   8. P99 EMA:         rolling_p99[t] = 0.8 × p99[t-1] + 0.2 × api_latency[t]
   9. Entropy driver:  system_entropy EMA tracks kafka_lag/crash_threshold × 100
                       (second-order loop: lag → entropy → latency spike via #6)
+ 10. Bank flapping:   bank_api_status follows a Markov chain per phase
+                      Spike: H→D 30%, D→H 40% (rapid flap)
+                      Attack: H→D 80%, D→H 5% (sticky degradation)
+ 11. Diurnal modulation: lag_delta += DIURNAL_AMPLITUDE × sin(step × 2π / max_steps)
+                      Peak at step 25 (+100 lag), trough at step 75 (-100 lag).
+                      Agent cannot observe step clock — must infer from lag dynamics.
 
 Phase Machine (fixed at reset, never mixed by curriculum):
   easy:   Normal × 100
@@ -117,6 +123,31 @@ ENTROPY_EMA_ALPHA: float = 0.3   # entropy converges to lag-target at rate 0.3
 ENTROPY_NOISE_SCALE: float = 10.0  # ±10 jitter so entropy is not fully deterministic
 
 # ---------------------------------------------------------------------------
+# Bank API flapping model — Markov chain transition probabilities (Transition #10)
+# ---------------------------------------------------------------------------
+# Real bank APIs flap: once degraded they stay degraded for several steps, then
+# recover briefly, then degrade again.  The previous i.i.d. Bernoulli model
+# (30% chance of Degraded every step, memoryless) did not produce flapping.
+# A two-state Markov chain with phase-dependent transition matrices does.
+#
+# States: 0=Healthy, 1=Degraded
+# Transitions are applied to self._bank_status each step; the obs reflects
+# the new state AFTER the transition fires.
+#
+# Spike phase — active flapping: short bursts of degradation
+#   H→D: 0.30  (Healthy→Degraded, same mean as before)
+#   D→H: 0.40  (Degraded→Healthy — key: real flapping has fast recovery)
+# Attack phase — sticky degradation: mostly stays Degraded, rare recovery
+#   H→D: 0.80  (bank under botnet pressure rarely stays healthy)
+#   D→H: 0.05  (almost never self-heals during attack)
+# Normal phase: always Healthy (no transition needed — forced to 0.0)
+# Recovery phase: uses existing heal_prob gradient (no Markov needed)
+BANK_FLAP_SPIKE_H_TO_D: float = 0.30   # P(Healthy→Degraded) in Spike
+BANK_FLAP_SPIKE_D_TO_H: float = 0.40   # P(Degraded→Healthy) in Spike — causes flapping
+BANK_FLAP_ATTACK_H_TO_D: float = 0.80  # P(Healthy→Degraded) in Attack
+BANK_FLAP_ATTACK_D_TO_H: float = 0.05  # P(Degraded→Healthy) in Attack — sticky
+
+# ---------------------------------------------------------------------------
 # Adversary policy constants (Phase 11 — tiny Q-table adversary)
 # ---------------------------------------------------------------------------
 
@@ -141,6 +172,27 @@ CB_CLOSE_BONUS: float = 0.05          # bonus for successfully closing a tripped
 # Lag must be below this threshold for the CB to transition from half-open → closed.
 # If lag is still too high the breaker stays half-open (no bonus, -0.10 penalty).
 CB_LAG_RECOVERY_THRESHOLD: float = 2000.0
+
+# ---------------------------------------------------------------------------
+# Diurnal load modulation — Transition #11
+# ---------------------------------------------------------------------------
+# UPI traffic follows a daily cycle: load peaks around midday (step 25/100)
+# and troughs in the early hours (step 75/100).  Modelled as a sine wave
+# superimposed on the phase's base lag_delta so every phase feels the cycle.
+#
+#   diurnal_mod = DIURNAL_AMPLITUDE × sin(step_idx × 2π / max_steps)
+#
+# At step 25 (quarter-wave) → +DIURNAL_AMPLITUDE lag units added.
+# At step 75 (three-quarter) → -DIURNAL_AMPLITUDE lag units (a relief).
+# At step 0 and 50 → zero contribution (crossing points).
+#
+# The agent cannot directly observe step_idx — it must infer the pattern
+# from lagged lag dynamics (2–3 step visible delay), forcing it to learn
+# proactive throttling rather than pure reactive control.
+#
+# Amplitude set conservatively (100 units) so it cannot by itself trigger
+# the crash threshold (4000) or add more than 2.5% to the max lag range.
+DIURNAL_AMPLITUDE: float = 100.0   # max lag units added/subtracted per step by sine
 
 
 # ---------------------------------------------------------------------------
@@ -484,8 +536,19 @@ class UnifiedFintechEnv(gym.Env):
     metadata: dict[str, Any] = {"render_modes": []}
 
     # ── Curriculum advancement thresholds ──────────────────────────────────
-    _CURRICULUM_THRESHOLDS: tuple[float, ...] = (0.75, 0.45)  # easy→med, med→hard
-    _CURRICULUM_WINDOW: int = 5   # consecutive episodes above threshold to advance
+    # These are TRAINING ADVANCEMENT thresholds — distinct from the grader
+    # evaluation thresholds (EasyGrader.THRESHOLD=0.75, MediumGrader=0.45, etc.).
+    # During training, the adversary Q-table actively pressures the agent
+    # (Burst mode raises lag 1.5×), making the effective easy-task difficulty
+    # higher than the grader's fixed-seed evaluation. The training thresholds
+    # are calibrated so the curriculum advances when the agent has genuinely
+    # mastered the adversarially-pressured version of each task.
+    # easy→medium: agent must sustain 0.65 under adversarial lag bursts
+    # medium→hard: agent must sustain 0.38 under Spike phase + bank flicker
+    _CURRICULUM_THRESHOLDS: tuple[float, ...] = (0.65, 0.38)
+    # 3 consecutive episodes (reduced from 5) — less sensitive to single-episode
+    # variance from adversary Burst mode without weakening the gatekeeping signal.
+    _CURRICULUM_WINDOW: int = 3
     _ADVERSARY_WINDOW: int = 5    # episodes before adversary reacts
     _ADVERSARY_HIGH_THRESHOLD: float = 0.6   # avg > this → threat +0.5
     _ADVERSARY_LOW_THRESHOLD: float = 0.3    # avg < this → threat -0.5
@@ -875,14 +938,36 @@ class UnifiedFintechEnv(gym.Env):
                 risk_score = rng.uniform(0.0, 10.0)
                 lag_delta = rng.uniform(500.0, 1000.0)
                 self._is_burst_step = True
-            # Healthy↔Degraded flicker: 30% chance of Degraded
-            self._bank_status = 1.0 if rng.uniform(0.0, 1.0) < 0.3 else 0.0
+            # Healthy↔Degraded flapping: Markov chain (Transition #10).
+            # Previous model (i.i.d. 30% each step) was memoryless — no flapping.
+            # Markov model: if currently Healthy, 30% chance → Degraded;
+            #               if currently Degraded, 40% chance → Healthy.
+            # The D→H recovery rate (0.40) is what creates real flapping behaviour:
+            # the bank oscillates in short bursts rather than staying degraded.
+            if self._bank_status == 0.0:  # currently Healthy
+                if rng.uniform(0.0, 1.0) < BANK_FLAP_SPIKE_H_TO_D:
+                    self._bank_status = 1.0   # flap to Degraded
+                # else stay Healthy
+            else:                          # currently Degraded
+                if rng.uniform(0.0, 1.0) < BANK_FLAP_SPIKE_D_TO_H:
+                    self._bank_status = 0.0   # flap back to Healthy
+                # else stay Degraded
 
         elif phase == "attack":
             # Attack: 100% botnet, risk 85–100, lag +100–400
             risk_score = rng.uniform(85.0, 100.0)
             lag_delta = rng.uniform(100.0, 400.0)
-            self._bank_status = 1.0  # Degraded
+            # Sticky Degraded: Markov with low D→H recovery (Transition #10).
+            # Previous model hard-coded bank_status=1.0 every step — no dynamics.
+            # Markov: Healthy→Degraded with P=0.80; Degraded→Healthy with P=0.05.
+            # The rare H→D escape gives the agent a brief window to use StandardSync
+            # on flap-recovery steps — a non-trivial signal to learn.
+            if self._bank_status == 0.0:  # currently Healthy (rare during attack)
+                if rng.uniform(0.0, 1.0) < BANK_FLAP_ATTACK_H_TO_D:
+                    self._bank_status = 1.0
+            else:                          # currently Degraded
+                if rng.uniform(0.0, 1.0) < BANK_FLAP_ATTACK_D_TO_H:
+                    self._bank_status = 0.0   # rare recovery flap
 
         elif phase == "recovery":
             # Recovery: declining botnet, risk 40–70, lag drain -100 to -200
@@ -903,6 +988,19 @@ class UnifiedFintechEnv(gym.Env):
             risk_score = rng.uniform(5.0, 30.0)
             lag_delta = rng.uniform(50.0, 150.0)
             self._bank_status = 0.0
+
+        # ── Transition #11: Diurnal load modulation ──────────────────────
+        # UPI traffic follows a daily cycle.  Step 25 = midday peak (+100 lag),
+        # step 75 = off-peak trough (-100 lag).  The agent cannot observe the
+        # step clock; it must infer the pattern from lagged lag dynamics,
+        # forcing proactive throttling rather than pure reactive control.
+        # Applied before the adversary multiplier so diurnal + adversary effects
+        # compound — attack-phase midday is the hardest scenario.
+        step_idx: int = self.current_step  # 0-based within episode
+        diurnal_mod: float = DIURNAL_AMPLITUDE * float(
+            np.sin(step_idx * 2.0 * np.pi / self.max_steps)
+        )
+        lag_delta += diurnal_mod
 
         # ── Phase 11: Apply adversary lag multiplier (spike/attack only) ──
         # Normal and recovery phases are unaffected to preserve their semantics:
@@ -1323,7 +1421,7 @@ class UnifiedFintechEnv(gym.Env):
             "termination_reason":           termination_reason,
             "adversary_threat_level_raw":   self._current_obs.adversary_threat_level,
             "blind_spot_triggered":         blind_spot_triggered,
-            "cumulative_settlement_backlog":   self._cumulative_settlement_backlog,
+            "consecutive_deferred_async":   self._cumulative_settlement_backlog,  # spec key name (CLAUDE.md)
             # POMDP Tweak #3: agent sees 0.5 when this is True (for pitch demo logging)
             "tier_hidden":                  self._tier_hidden,
             # CB half-open state: 0 = not in CB; 1–CB_HALF_OPEN_AFTER = open;
@@ -1358,3 +1456,68 @@ class UnifiedFintechEnv(gym.Env):
         )
 
         return self._current_obs, typed_reward, done, info
+
+
+# ---------------------------------------------------------------------------
+# GymnasiumCompatWrapper — makes gymnasium.utils.env_checker.check_env pass
+# ---------------------------------------------------------------------------
+
+class GymnasiumCompatWrapper(gym.Env):
+    """
+    Thin wrapper around UnifiedFintechEnv that satisfies Gymnasium ≥0.26 API.
+
+    UnifiedFintechEnv uses the OpenEnv 4-tuple contract:
+        step() → (AEPOObservation, UFRGReward, done, info)
+        reset() → (AEPOObservation, info)
+
+    Gymnasium 0.26+ check_env expects:
+        step() → (np.ndarray, float, terminated, truncated, info)
+        reset() → (np.ndarray, info)
+
+    This wrapper converts between the two without modifying the core env.
+    Use it ONLY for check_env validation and CI compatibility checks.
+    All submission code (graders, server, inference) uses UnifiedFintechEnv directly.
+    """
+
+    def __init__(self, task: str = "easy") -> None:
+        super().__init__()
+        self._env = UnifiedFintechEnv()
+        self._task = task
+        # Mirror the inner env's spaces so check_env can validate them
+        self.observation_space = self._env.observation_space
+        self.action_space = self._env.action_space
+
+    def reset(
+        self,
+        seed: int | None = None,
+        options: dict | None = None,
+    ) -> tuple[np.ndarray, dict]:
+        """Reset and return numpy observation array (Gymnasium API)."""
+        # super().reset() seeds this wrapper's np_random — required by check_env.
+        super().reset(seed=seed)
+        opts = options if options is not None else {"task": self._task}
+        obs_obj, info = self._env.reset(seed=seed, options=opts)
+        return obs_obj.to_array(), info
+
+    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
+        """Step and return 5-tuple with numpy obs (Gymnasium 0.26+ API)."""
+        # Convert numpy action array → AEPOAction Pydantic model
+        if isinstance(action, (np.ndarray, list)):
+            aepo_action = AEPOAction(
+                risk_decision=int(action[0]),
+                crypto_verify=int(action[1]),
+                infra_routing=int(action[2]),
+                db_retry_policy=int(action[3]),
+                settlement_policy=int(action[4]),
+                app_priority=int(action[5]),
+            )
+        else:
+            aepo_action = action
+
+        obs_obj, typed_reward, done, info = self._env.step(aepo_action)
+        terminated: bool = done
+        truncated: bool = False   # AEPO never truncates — only terminates
+        return obs_obj.to_array(), float(typed_reward.value), terminated, truncated, info
+
+    def render(self):
+        pass

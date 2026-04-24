@@ -2,7 +2,7 @@
 ## Pre-Flight · Deployment · Agent Testing · Judge Compatibility
 
 > **Based on:** Actual project inspection as of 2026-04-22
-> **Covers:** AEPO Phase 10 — 10-field observation, 6-field action, 182 tests, Q-table training, LagPredictor
+> **Covers:** AEPO Phase 10 — 10-field observation, 6-field action, 189 tests, Q-table training, LagPredictor
 > **Author role:** Senior DevOps + RL Engineer — OpenEnv Framework
 
 ---
@@ -71,7 +71,7 @@ Smoke test PASS — 10-field obs, 6-field action, 4-tuple step OK
 
 ---
 
-### Step 1.3 — Run the Full pytest Suite (182 Tests)
+### Step 1.3 — Run the Full pytest Suite (189 Tests)
 
 ```bash
 pip install pytest pytest-cov
@@ -93,16 +93,16 @@ tests/test_server.py::test_...        PASSED
 tests/test_dual_mode.py::test_...     PASSED
 tests/test_heuristic.py::test_...     PASSED
 ...
-182 passed in X.XXs
+189 passed in X.XXs
 ```
 
 **Run with coverage:**
 ```bash
 pytest tests/ --cov=unified_gateway --cov-report=term-missing
-# Target: unified_gateway.py 97%
+# Target: unified_gateway.py 96%
 ```
 
-> ⚠️ **WARNING:** If fewer than 182 tests pass, do not proceed to deployment. The test suite covers all 8 causal transitions, all 14 reward conditions, all 4 phase boundaries, and the full info dict contract. Partial failures indicate a broken reward function or phase machine that will produce wrong scores at the judge.
+> ⚠️ **WARNING:** If fewer than 189 tests pass, do not proceed to deployment. The test suite covers all 11 causal transitions, all 14 reward conditions, all 4 phase boundaries, and the full info dict contract. Partial failures indicate a broken reward function or phase machine that will produce wrong scores at the judge.
 
 ---
 
@@ -226,21 +226,31 @@ openenv validate .
 
 ---
 
-### Step 1.7 — Run Training (verify hard task PASS)
+### Step 1.7 — Run Training (verify all tasks PASS)
 
 ```bash
-python train.py
+python train.py --compare
 ```
 
-This runs 500 Q-table episodes on the hard task and prints the comparison table. Takes ~3–4 seconds on 2 vCPU.
+This runs 500 Q-table episodes via **curriculum-driven training** (easy→medium→hard with auto-advancement). Per-task Q-table snapshots eliminate catastrophic forgetting. Takes ~5 seconds on 2 vCPU.
 
 **Expected key output:**
 ```
+[CURRICULUM] ep=0 training easy (threshold=0.65, window=3)
+[CURRICULUM ADVANCE] easy→medium at episode 176
+[SNAPSHOT] Saved easy Q-table snapshot
+[CURRICULUM ADVANCE] medium→hard at episode 248
+[SNAPSHOT] Saved medium Q-table snapshot
 [BLIND SPOT #1 DISCOVERED] episode=3 step=42 reward=0.8800 | ...
-hard  0.2507  0.2955  0.6650  0.30  PASS
+[EVAL] Using per-task Q-table snapshots (eliminates catastrophic forgetting)
+easy    0.4977  0.7623  0.76+   0.75  PASS  ✅
+medium  0.5467  0.3940  0.63+   0.45  PASS  ✅
+hard    0.2507  0.2955  0.6650  0.30  PASS  ✅
 ```
 
 And generates `results/reward_curve.png` showing the staircase improvement curve.
+
+> ⚠️ **CRITICAL:** State vector changed from 6→7 features (`adversary_threat_level` added). Any old `q_table.pkl` trained on 6 features is incompatible. Always retrain before submitting.
 
 > ⚠️ **WARNING:** If `train.py` fails with `ModuleNotFoundError: No module named 'matplotlib'`, run `pip install matplotlib`. If it fails with `ModuleNotFoundError: No module named 'torch'`, run `pip install torch==2.2.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu`.
 
@@ -638,9 +648,9 @@ Passed: 4  Failed: 0
 ```bash
 # ── Pre-flight (run in this order) ────────────────────────────────────────────
 python -c "import torch; print(torch.__version__)"     # Verify PyTorch
-pytest tests/ -v --tb=short                             # 182 tests
-pytest tests/ --cov=unified_gateway --cov-report=term-missing  # 97% coverage
-python train.py                                          # hard task PASS
+pytest tests/ -v --tb=short                             # 189 tests
+pytest tests/ --cov=unified_gateway --cov-report=term-missing  # 96% coverage
+python train.py --compare                                # all 3 tasks PASS (per-task snapshots)
 openenv validate .
 
 # ── 10,000-step stress test ───────────────────────────────────────────────────
@@ -713,5 +723,7 @@ HF_SPACE_URL=https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.s
 | Timeout — missing `[END]` | LLM calls > 3s/step on 72B model | Add `timeout=5.0` to LLM client call |
 | `openenv validate` fails | Missing fields in `openenv.yaml` | Check `openenv.yaml` has `tags`, `max_steps`, `reward_threshold` |
 | HF Space `500` error | Import fails inside Docker | Confirm `requirements.txt` includes all deps including `torch` |
-| 182 tests not passing | Broken reward function or phase machine | Fix all pytest failures before deploying |
-| train.py hard task FAIL | State space too large (regression to 8^10) | Verify N_BINS=4, STATE_FEATURE_KEYS has 6 features |
+| 189 tests not passing | Broken reward function or phase machine | Fix all pytest failures before deploying |
+| train.py hard task FAIL | State space too large (regression to 8^10) | Verify N_BINS=4, STATE_FEATURE_KEYS has 7 features (4^7=16384 states) |
+| train.py easy/medium FAIL | Catastrophic forgetting — hard updates overwrite easy Q-values | Verify per-task Q-table snapshots are used in evaluate_all_tasks() |
+| State feature mismatch at eval | Old 6-feature Q-table loaded with 7-feature state | Delete any cached q_table.pkl and retrain from scratch |

@@ -1,7 +1,7 @@
 """
 tests/test_dual_mode.py
 =======================
-Phase 10 — 3 tests verifying the AEPO dual-mode architecture contract.
+Phase 10 — 4 tests verifying the AEPO dual-mode architecture contract.
 
 CLAUDE.md rule: unified_gateway.py works in BOTH standalone and server mode
 without any modification. If you ever need to change unified_gateway.py to
@@ -14,7 +14,7 @@ These tests verify:
 """
 import pytest
 
-from unified_gateway import AEPOAction, AEPOObservation, UnifiedFintechEnv
+from unified_gateway import AEPOAction, AEPOObservation, GymnasiumCompatWrapper, UnifiedFintechEnv
 
 
 # ---------------------------------------------------------------------------
@@ -123,3 +123,33 @@ def test_no_modification_needed_for_either_mode() -> None:
     assert len(result) == 4, (
         f"step() must return 4-tuple (obs, reward, done, info), got {len(result)}-tuple"
     )
+
+
+# ---------------------------------------------------------------------------
+# Test 4 — GymnasiumCompatWrapper passes gymnasium check_env without errors
+# ---------------------------------------------------------------------------
+
+def test_gymnasium_compat_wrapper_passes_check_env() -> None:
+    """
+    GymnasiumCompatWrapper must pass gymnasium.utils.env_checker.check_env
+    without raising any exception.
+
+    The core UnifiedFintechEnv uses the OpenEnv 4-tuple API (CLAUDE.md §spec).
+    GymnasiumCompatWrapper adapts it to the Gymnasium 0.26+ 5-tuple API so
+    judges can run check_env without being blocked by API incompatibilities.
+
+    A UserWarning about render modes is acceptable (no spec registered).
+    An AssertionError or any other exception is a failure.
+    """
+    import warnings
+    from gymnasium.utils.env_checker import check_env
+
+    wrapper = GymnasiumCompatWrapper(task="easy")
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")   # render-mode warning is expected, not a failure
+            check_env(wrapper)
+    except Exception as exc:
+        raise AssertionError(
+            f"GymnasiumCompatWrapper failed check_env: {type(exc).__name__}: {exc}"
+        ) from exc

@@ -277,11 +277,17 @@ def parse_llm_action(text: str) -> AEPOAction:
     Falls back to a safe, conservative action (Reject + FullVerify + Normal +
     FailFast + StandardSync + Balanced) if the text is malformed or out of range.
     """
+    # Reject + SkipVerify is the optimal safe action on any parse failure:
+    # - Reject prevents the Approve+SkipVerify fraud catastrophe (done=True, reward=0.0)
+    # - SkipVerify avoids the 150-lag-unit FullVerify cost (blind spot #1)
+    # - Normal routing / FailFast are the lowest-penalty defaults when state is unknown
+    # NEVER use risk_decision=0 (Approve) + crypto_verify=1 (SkipVerify) here —
+    # that is the exact fraud-termination trigger when risk_score > 80.
     SAFE_FALLBACK = AEPOAction(
-        risk_decision=0,    # Approve
-        crypto_verify=1,    # SkipVerify
+        risk_decision=1,    # Reject  — safe: avoids Approve+SkipVerify catastrophe
+        crypto_verify=1,    # SkipVerify — blind spot #1: saves 250 lag units vs FullVerify
         infra_routing=0,    # Normal
-        db_retry_policy=1,  # ExponentialBackoff
+        db_retry_policy=0,  # FailFast — avoids -0.10 penalty when pool < 20 (unknown at parse time)
         settlement_policy=0,# StandardSync
         app_priority=2,     # Balanced
     )
@@ -434,7 +440,7 @@ _REQUIRED_INFO_KEYS = frozenset([
     "termination_reason",
     "adversary_threat_level_raw",
     "blind_spot_triggered",
-    "cumulative_settlement_backlog",
+    "consecutive_deferred_async",
     # Backward-compat keys used by the trajectory grader
     "reward_final",
     "crashed",

@@ -213,7 +213,7 @@ def test_deferred_async_cumulative_penalty(env: UnifiedFintechEnv) -> None:
     env._rolling_lag = 0.0
     env._last_event_type = "normal"
     _, _, _, info = env.step(make_action(settlement_policy=1))
-    assert info["cumulative_settlement_backlog"] == 11
+    assert info["consecutive_deferred_async"] == 11
     # Both -0.15 (normal phase) and -0.20 (> 10 cumulative) should be applied
     assert info["reward_breakdown"]["settlement_penalty"] <= -0.35
 
@@ -280,7 +280,7 @@ def test_info_dict_contains_all_required_keys(env: UnifiedFintechEnv) -> None:
     required_keys = {
         "phase", "curriculum_level", "step_in_episode", "raw_obs",
         "reward_breakdown", "termination_reason", "adversary_threat_level_raw",
-        "blind_spot_triggered", "cumulative_settlement_backlog",
+        "blind_spot_triggered", "consecutive_deferred_async",
         # backward-compat keys
         "step", "task", "event_type", "obs_risk_score", "obs_kafka_lag",
         "obs_rolling_p99", "action_risk_decision", "action_infra_routing",

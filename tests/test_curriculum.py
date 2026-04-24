@@ -65,15 +65,17 @@ def test_curriculum_level_starts_at_0() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 2 — curriculum_level advances to 1 after 5 consecutive eps avg > 0.75
+# Test 2 — curriculum_level advances to 1 after 3 consecutive eps avg > 0.65
 # ---------------------------------------------------------------------------
 
 def test_curriculum_advances_to_1_after_5_episodes() -> None:
-    """5 consecutive episodes with mean > 0.75 → curriculum_level = 1."""
+    """3 consecutive episodes with mean > 0.65 → curriculum_level = 1.
+    (Injects 5 to confirm curriculum does not regress after advancing.)
+    """
     e = UnifiedFintechEnv()
     e.reset(options={"task": "easy"})
 
-    # Inject 5 high-scoring episodes
+    # Inject 5 high-scoring episodes (only 3 needed; 5 confirms no regression)
     for _ in range(5):
         _inject_episode(e, mean_reward=0.80)
 
@@ -81,11 +83,13 @@ def test_curriculum_advances_to_1_after_5_episodes() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test 3 — curriculum_level advances to 2 after 5 consecutive eps avg > 0.45
+# Test 3 — curriculum_level advances to 2 after 3 consecutive eps avg > 0.38
 # ---------------------------------------------------------------------------
 
 def test_curriculum_advances_to_2_after_5_episodes() -> None:
-    """After reaching level 1, 5 consecutive eps with mean > 0.45 → level 2."""
+    """After reaching level 1, 3 consecutive eps with mean > 0.38 → level 2.
+    (Injects 5 to confirm no regression after advancing.)
+    """
     e = UnifiedFintechEnv()
     e.reset(options={"task": "easy"})
 
@@ -94,7 +98,7 @@ def test_curriculum_advances_to_2_after_5_episodes() -> None:
         _inject_episode(e, mean_reward=0.80)
     assert e._curriculum_level == 1
 
-    # Now hit level 2
+    # Now hit level 2 (0.50 > 0.38 training threshold; injects 5 to confirm no regression)
     for _ in range(5):
         _inject_episode(e, mean_reward=0.50)
 
