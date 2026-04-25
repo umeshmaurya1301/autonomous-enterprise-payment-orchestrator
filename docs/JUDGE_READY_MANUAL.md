@@ -286,18 +286,22 @@ curl -s -o /dev/null -w "GET /       → HTTP %{http_code}\n" http://localhost:7
 # 2. Reset health check GET — must return 200
 curl -s -o /dev/null -w "GET /reset  → HTTP %{http_code}\n" http://localhost:7860/reset
 
-# 3. POST /reset — initialise easy task
+# 3. Contract declaration — must return 4-tuple confirmation (Fix 9.4)
+curl -s http://localhost:7860/contract | python3 -m json.tool
+# Expected: {"step_tuple": "4-tuple", "openenv_compliant": true, ...}
+
+# 4. POST /reset — initialise easy task
 curl -s -X POST http://localhost:7860/reset \
   -H "Content-Type: application/json" \
   -d '{"task": "easy"}' | python3 -m json.tool
 
-# 4. POST /step — send one 6-field action
+# 5. POST /step — send one 6-field action
 curl -s -X POST http://localhost:7860/step \
   -H "Content-Type: application/json" \
   -d '{"action": {"risk_decision": 0, "crypto_verify": 1, "infra_routing": 0, "db_retry_policy": 0, "settlement_policy": 0, "app_priority": 2}}' \
   | python3 -m json.tool
 
-# 5. GET /state — inspect current observation
+# 6. GET /state — inspect current observation
 curl -s http://localhost:7860/state | python3 -m json.tool
 ```
 
@@ -360,6 +364,20 @@ curl -s http://localhost:7860/state | python3 -m json.tool
 
 > ⚠️ **WARNING:** If the `/step` response is missing any key from the `info` dict shown above (especially `reward_breakdown`, `phase`, `blind_spot_triggered`), the server is returning an incomplete info dict. This will cause the grader to fail silently. Verify `server/app.py` returns the full `info` from `env.step()` without filtering.
 
+**New telemetry keys in `info` (added in audit remediation):** All steps now also include:
+```json
+{
+  "diurnal_pressure":         0.854,
+  "diurnal_lag_contribution": 70.71,
+  "diurnal_pomdp_hidden":     true,
+  "lag_critical_streak":      0,
+  "crash_grace_active":       false,
+  "p99_ema_alpha":             0.2,
+  "p99_poisoning_fix_active":  false
+}
+```
+These are diagnostic/monitoring keys — they do not affect the reward or the agent's observation.
+
 > ⚠️ **WARNING:** The action body must include all 6 fields: `risk_decision`, `crypto_verify`, `infra_routing`, `db_retry_policy`, `settlement_policy`, `app_priority`. Sending only the old 3-field UFRGAction format will return HTTP 422 — Pydantic will reject it.
 
 ---
@@ -373,7 +391,10 @@ docker run --rm -p 7860:7860 --name aepo-server aepo:local &
 # Wait for readiness
 sleep 5 && curl -s http://localhost:7860/ | python3 -m json.tool
 
-# Terminal 2 — run inference against local container (dry-run)
+# Terminal 2 — run trained Q-table agent (exact scores, 100% reproducible)
+SPACE_URL=http://localhost:7860 AGENT_MODE=qtable python inference.py
+
+# Or run heuristic agent (dry-run, no model file needed)
 SPACE_URL=http://localhost:7860 DRY_RUN=true python inference.py
 ```
 
@@ -727,3 +748,7 @@ HF_SPACE_URL=https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.s
 | train.py hard task FAIL | State space too large (regression to 8^10) | Verify N_BINS=4, STATE_FEATURE_KEYS has 7 features (4^7=16384 states) |
 | train.py easy/medium FAIL | Catastrophic forgetting — hard updates overwrite easy Q-values | Verify per-task Q-table snapshots are used in evaluate_all_tasks() |
 | State feature mismatch at eval | Old 6-feature Q-table loaded with 7-feature state | Delete any cached q_table.pkl and retrain from scratch |
+| `NameError: name 'deque'` in train.py | `deque` dropped from `collections` import | Fixed: `from collections import defaultdict, deque` |
+| AGENT_MODE=qtable fails | `results/qtable.pkl` not found | Run `python train.py` once to generate it before running inference |
+| `/contract` returns 404 | Server running old server/app.py | Restart server — `GET /contract` added in Fix 9.4 |
+| `diurnal_pressure` missing from info | Old unified_gateway.py | Verify `_get_diurnal_signal()` method is present in `UnifiedFintechEnv` |

@@ -53,8 +53,8 @@ public class UnifiedFintechEnv {
 
     // ── Phase 6 curriculum constants ───────────────────────────────────
     // PYTHON EQUIVALENT: class-level tuple/int/float constants in UnifiedFintechEnv
-    private static final double[] CURRICULUM_THRESHOLDS = {0.65, 0.38}; // training advancement thresholds
-    private static final int CURRICULUM_WINDOW = 3;    // consecutive episodes to advance (reduced from 5)
+    private static final double[] CURRICULUM_THRESHOLDS = {0.55, 0.32}; // training advancement thresholds
+    private static final int CURRICULUM_WINDOW = 2;    // consecutive episodes to advance (adversary gap compensation)
 
     // ── Bank API flapping model constants (Transition #10) ─────────────
     // PYTHON EQUIVALENT: BANK_FLAP_SPIKE_H_TO_D, BANK_FLAP_SPIKE_D_TO_H, etc.

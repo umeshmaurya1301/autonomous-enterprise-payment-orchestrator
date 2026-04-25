@@ -45,7 +45,7 @@ public class InferenceClient {
      *   SAFE_FALLBACK = AEPOAction(
      *       risk_decision=1,    # Reject  — safe: avoids Approve+SkipVerify catastrophe
      *       crypto_verify=1,    # SkipVerify — blind spot #1: saves 250 lag units
-     *       infra_routing=0,    # Normal
+     *       infra_routing=1,    # Throttle — Normal causes crash on unseen hard states
      *       db_retry_policy=0,  # FailFast — avoids -0.10 when pool < 20 (unknown at parse time)
      *       settlement_policy=0,# StandardSync
      *       app_priority=2,     # Balanced

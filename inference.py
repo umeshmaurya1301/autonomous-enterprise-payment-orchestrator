@@ -30,8 +30,11 @@ from __future__ import annotations
 
 import asyncio
 import os
+import pickle
 import re
-from typing import Any, Dict, Optional
+from collections import defaultdict
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
 
 import httpx
 import torch
@@ -58,11 +61,25 @@ from graders import get_grader
 # Configuration from environment variables
 # ──────────────────────────────────────────────────────────────────────────────
 
-SPACE_URL: str = os.environ.get("SPACE_URL", "https://unknown1321-unified-fintech-risk-gateway.hf.space").rstrip("/")
+SPACE_URL: str = os.environ.get("SPACE_URL", "https://unknown1322-unified-fintech-risk-gateway.hf.space").rstrip("/")
 API_BASE_URL: str = os.environ.get("API_BASE_URL", "http://localhost:11434/v1")
 MODEL_NAME: str = os.environ.get("MODEL_NAME", "qwen2.5-coder:32b")
 HF_TOKEN: str | None = os.environ.get("HF_TOKEN", "ollama")
-DRY_RUN: bool = os.environ.get("DRY_RUN", "false").strip().lower() == "true"
+
+# ── AGENT_MODE — controls which agent drives inference ───────────────────────
+# llm       (default) — calls the OpenAI-compatible LLM at API_BASE_URL
+#                        (zero-shot or GRPO-trained model; requires the server)
+# qtable              — loads results/qtable.pkl produced by train.py and acts
+#                        greedily — THIS reproduces the documented 0.6650 score
+# heuristic           — the intentionally-incomplete 3-blind-spot policy;
+#                        this is the BASELINE the trained agent must outperform
+#
+# Backward compat: DRY_RUN=true is an alias for AGENT_MODE=heuristic.
+_dry_run_env: bool = os.environ.get("DRY_RUN", "false").strip().lower() == "true"
+AGENT_MODE: str = os.environ.get(
+    "AGENT_MODE",
+    "heuristic" if _dry_run_env else "llm",
+).strip().lower()
 
 # ──────────────────────────────────────────────────────────────────────────────
 # System prompt — teaches the LLM how to act as the gateway agent
@@ -115,6 +132,9 @@ _INFRA_LABELS: Dict[int, str] = {0: "Normal", 1: "Throttle", 2: "CircuitBreaker"
 _LAG_PREDICTOR_PATH: str = os.path.join(
     os.path.dirname(__file__), "results", "lag_predictor.pt"
 )
+_QTABLE_PATH: str = os.path.join(
+    os.path.dirname(__file__), "results", "qtable.pkl"
+)
 
 
 def _load_lag_predictor() -> "LagPredictor | None":
@@ -136,6 +156,87 @@ def _load_lag_predictor() -> "LagPredictor | None":
     model.eval()
     print(f"[MODEL-PLAN] LagPredictor loaded from {_LAG_PREDICTOR_PATH}", flush=True)
     return model
+
+
+def _load_qtable_policy() -> "Callable | None":
+    """
+    Load per-task Q-table snapshots saved by train.py (results/qtable.pkl).
+
+    Returns a callable: policy_fn(obs, task) -> AEPOAction.
+    Uses the same 7-feature, 4-bin state discretisation as train.py's
+    obs_to_state() so state keys match exactly.
+
+    Falls back gracefully to None if the file doesn't exist (first-run
+    before train.py has been executed).
+    """
+    if not os.path.exists(_QTABLE_PATH):
+        print(
+            f"[QTABLE] {_QTABLE_PATH} not found — run `python train.py` first. "
+            "Falling back to LLM agent.",
+            flush=True,
+        )
+        return None
+
+    with open(_QTABLE_PATH, "rb") as _f:
+        snapshots: dict = pickle.load(_f)
+
+    print(
+        f"[QTABLE] Loaded Q-table snapshots from {_QTABLE_PATH} "
+        f"(tasks: {list(snapshots.keys())})",
+        flush=True,
+    )
+
+    # — Replicate obs_to_state + decode_action from train.py (no import needed) —
+    # Must match EXACTLY: 7 keys, 4 bins each, same stride ordering.
+    _N_BINS: int = 4
+    _FEATURE_KEYS: tuple = (
+        "risk_score", "kafka_lag", "rolling_p99", "db_connection_pool",
+        "bank_api_status", "merchant_tier", "adversary_threat_level",
+    )
+    # Strides for MultiDiscrete([3,2,3,2,2,3]) action decode
+    _STRIDES: tuple = (72, 36, 12, 6, 3, 1)
+    _MAXES:   tuple = (2,   1,  2,  1, 1, 2)  # max valid index per field
+
+    import numpy as _np
+
+    def _obs_to_state(norm: dict) -> tuple:
+        return tuple(
+            min(int(norm.get(k, 0.0) * _N_BINS), _N_BINS - 1)
+            for k in _FEATURE_KEYS
+        )
+
+    def _decode_action(idx: int) -> AEPOAction:
+        remaining = idx
+        fields: list = []
+        for stride in _STRIDES:
+            fields.append(remaining // stride)
+            remaining %= stride
+        return AEPOAction(
+            risk_decision   = max(0, min(2, fields[0])),
+            crypto_verify   = max(0, min(1, fields[1])),
+            infra_routing   = max(0, min(2, fields[2])),
+            db_retry_policy = max(0, min(1, fields[3])),
+            settlement_policy = max(0, min(1, fields[4])),
+            app_priority    = max(0, min(2, fields[5])),
+        )
+
+    # Safe default: Reject+SkipVerify+Normal+FailFast+StandardSync+Balanced
+    _SAFE_ACTION = AEPOAction(
+        risk_decision=1, crypto_verify=1, infra_routing=0,
+        db_retry_policy=0, settlement_policy=0, app_priority=2,
+    )
+    _SAFE_IDX: int = 1 * 72 + 1 * 36  # encodes the safe action above
+
+    def policy_fn(obs: AEPOObservation, task: str = "hard") -> AEPOAction:
+        q_table = snapshots.get(task, snapshots.get("hard", {}))
+        state = _obs_to_state(obs.normalized())
+        if state in q_table:
+            action_idx = int(_np.argmax(q_table[state]))
+        else:
+            action_idx = _SAFE_IDX
+        return _decode_action(action_idx)
+
+    return policy_fn
 
 
 def _model_based_infra_override(
@@ -182,7 +283,8 @@ def _model_based_infra_override(
 
     if best_infra != action.infra_routing:
         print(
-            f"[MODEL-PLAN] step={step} kafka_lag={current_lag:.3f} "
+            f"[MODEL-PLAN] Overriding policy with world-model prediction. "
+            f"step={step} kafka_lag={current_lag:.3f} "
             f"override: {_INFRA_LABELS[action.infra_routing]}"
             f"->{_INFRA_LABELS[best_infra]} "
             f"pred=[N:{preds[0]:.3f} T:{preds[1]:.3f} CB:{preds[2]:.3f}]",
@@ -322,38 +424,56 @@ def parse_llm_action(text: str) -> AEPOAction:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# get_action — LLM call or dry-run fallback
+# get_action — LLM call or heuristic/qtable fallback
 # ──────────────────────────────────────────────────────────────────────────────
 
 def get_action(
-    llm_client: OpenAI | None,
+    llm_client: "OpenAI | None",
     obs: AEPOObservation,
-    dry_run: bool = False,
+    *,
+    agent_mode: str = "llm",
+    qtable_policy: "Callable | None" = None,
+    current_task: str = "hard",
 ) -> AEPOAction:
     """
     Decide the next action given the current observation.
 
-    In *dry-run* mode the LLM is bypassed and the intentionally-incomplete
-    3-blind-spot heuristic from CLAUDE.md is used instead. This is the
-    BASELINE policy — the trained agent must outperform it by exploiting
-    the three blind spots.
+    Three modes controlled by AGENT_MODE env var:
 
-    BLIND SPOTS (deliberately NOT covered here — agent must find these):
-      #1: Reject+SkipVerify on high-risk → +0.04 bonus, saves 250 lag/step
-          (heuristic uses FullVerify — adds +150 kafka_lag per step)
-      #2: app_priority should match merchant_tier → +0.02/step bonus
-          (heuristic always picks Balanced)
-      #3: ExponentialBackoff when db_pool < 0.2 → -0.10 penalty
-          (heuristic never checks pool level)
+    ``llm`` (default)
+        Calls the OpenAI-compatible LLM at API_BASE_URL. Requires a running
+        local Ollama or HF endpoint. This is what the OpenEnv grader uses.
+
+    ``qtable``
+        Loads results/qtable.pkl (saved by train.py) and acts greedily.
+        **This is the only mode that reproduces the documented 0.6650 hard
+        task score.** Use this to verify training evidence without a GPU.
+        No LLM server required.
+
+    ``heuristic``
+        The intentionally-incomplete 3-blind-spot policy.
+        This is the BASELINE the trained agent must outperform.
+        BLIND SPOTS (deliberately NOT covered):
+          #1 Reject+SkipVerify on high-risk → +0.04 bonus, saves 250 lag/step
+          #2 app_priority should match merchant_tier → +0.02/step bonus
+          #3 ExponentialBackoff when db_pool < 0.2 → -0.10 penalty
     """
-    if dry_run:
-        # Normalised obs fields (all [0.0, 1.0] per AEPOObservation.normalized())
+    # ── Mode: qtable — greedy over trained Q-table ───────────────────────
+    if agent_mode == "qtable":
+        if qtable_policy is not None:
+            return qtable_policy(obs, current_task)
+        # Fallback: qtable file not found — silently use LLM
+        agent_mode = "llm"
+
+    # ── Mode: heuristic — intentionally incomplete baseline ──────────────
+    if agent_mode == "heuristic":
         norm = obs.normalized()
         risk_score  = norm["risk_score"]
         kafka_lag   = norm["kafka_lag"]
         rolling_p99 = norm["rolling_p99"]
+        db_pool     = norm["db_connection_pool"]
 
-        # ── Risk + crypto: BLIND SPOT #1 — should use SkipVerify on reject ──
+        # Risk + crypto: BLIND SPOT #1 — should use SkipVerify on reject
         if risk_score > 0.8:
             risk_decision = 1    # Reject
             crypto_verify = 0    # FullVerify — BLIND SPOT #1 (SkipVerify is better)
@@ -361,22 +481,16 @@ def get_action(
             risk_decision = 0    # Approve
             crypto_verify = 1    # SkipVerify
 
-        # ── Infra routing: lag-driven — throttle before crash cliff (crash at normalized 0.4) ──
-        if kafka_lag > 0.3:
-            infra_routing = 1    # Throttle
-        else:
-            infra_routing = 0    # Normal
+        # Infra routing: lag-driven
+        infra_routing = 1 if kafka_lag > 0.3 else 0  # Throttle / Normal
 
-        # ── DB retry: always Backoff — BLIND SPOT #3 (ignores pool level) ───
+        # DB retry: always Backoff — BLIND SPOT #3 (ignores pool level)
         db_retry_policy = 1      # ExponentialBackoff always
 
-        # ── Settlement: P99-driven ───────────────────────────────────────────
-        if rolling_p99 > 0.6:
-            settlement_policy = 1  # DeferredAsyncFallback
-        else:
-            settlement_policy = 0  # StandardSync
+        # Settlement: P99-driven
+        settlement_policy = 1 if rolling_p99 > 0.6 else 0  # DeferredAsync / StandardSync
 
-        # ── App priority: always Balanced — BLIND SPOT #2 ───────────────────
+        # App priority: always Balanced — BLIND SPOT #2
         app_priority = 2         # Balanced always (ignores merchant_tier)
 
         return AEPOAction(
@@ -507,16 +621,32 @@ def _render_step_dashboard(
 
 
 async def main() -> None:
-    # ── Build the LLM client (skipped in dry-run mode) ──────────────────────
-    llm_client: OpenAI | None = None
-    if not DRY_RUN:
+    # ── Banner: log which agent mode is active ───────────────────────────
+    _agent_banner = {
+        "llm":       f"LLM agent ({MODEL_NAME} via {API_BASE_URL})",
+        "qtable":    "Q-table agent (results/qtable.pkl — reproduces training scores)",
+        "heuristic": "Heuristic agent (3-blind-spot baseline — do NOT use for scoring)",
+    }.get(AGENT_MODE, f"Unknown agent mode: {AGENT_MODE!r}")
+    print(f"[AGENT] {_agent_banner}", flush=True)
+
+    # ── Build the LLM client (only needed for llm mode) ─────────────────
+    llm_client: "OpenAI | None" = None
+    if AGENT_MODE == "llm":
         llm_client = OpenAI(
             base_url=API_BASE_URL,
             api_key=HF_TOKEN,
         )
 
-    # ── Load the trained LagPredictor for model-based infra planning ─────────
-    lag_predictor: LagPredictor | None = _load_lag_predictor()
+    # ── Load Q-table (only needed for qtable mode) ────────────────────
+    qtable_policy: "Callable | None" = None
+    if AGENT_MODE == "qtable":
+        qtable_policy = _load_qtable_policy()
+        if qtable_policy is None:
+            print("[QTABLE] Falling back to LLM agent.", flush=True)
+            llm_client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+
+    # ── Load LagPredictor for model-based infra planning ───────────────
+    lag_predictor: "LagPredictor | None" = _load_lag_predictor()
 
     tasks = ["easy", "medium", "hard"]
 
@@ -540,8 +670,13 @@ async def main() -> None:
                 obs: AEPOObservation = await http_reset(http, task)
 
                 while not done:
-                    # ── Decide action (LLM or heuristic) ─────────────────────
-                    action: AEPOAction = get_action(llm_client, obs, dry_run=DRY_RUN)
+                    # ── Decide action (3-way: llm / qtable / heuristic) ───────
+                    action: AEPOAction = get_action(
+                        llm_client, obs,
+                        agent_mode=AGENT_MODE,
+                        qtable_policy=qtable_policy,
+                        current_task=task,
+                    )
 
                     # ── Model-based planner: override infra_routing near crash ─
                     if lag_predictor is not None:

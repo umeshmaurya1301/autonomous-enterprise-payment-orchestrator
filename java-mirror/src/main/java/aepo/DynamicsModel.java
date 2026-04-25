@@ -263,6 +263,31 @@ public class DynamicsModel {
         return buffer.size();
     }
 
+    /**
+     * Predict next kafka_lag (normalized) for a single 16-dim input vector.
+     *
+     * Called by DynaPlanner.plan() during Dyna-Q imagined transitions.
+     *
+     * // PYTHON EQUIVALENT:
+     * //   def predict_single(self, x: torch.Tensor) -> float:
+     * //       self.eval()
+     * //       with torch.no_grad():
+     * //           out = self(x.unsqueeze(0))   # (1,16) → (1,1)
+     * //       return float(out.squeeze().item())
+     *
+     * Java: wraps forward() in eval mode (no gradient tracking).
+     * In Python this is a real PyTorch forward pass; here it is a stub
+     * using the same linear + ReLU + linear + sigmoid math as forward().
+     *
+     * @param input 16-dim input vector from buildInputVector()
+     * @return predicted next kafka_lag normalized to [0.0, 1.0]
+     */
+    public double predictSingle(double[] input) {
+        // PYTHON EQUIVALENT: self.eval() — sets model to inference mode (no dropout/batchnorm update)
+        // Java has no equivalent; forward() is always deterministic in this stub.
+        return forward(input);
+    }
+
     // ── Training step (pseudocode) ───────────────────────────────────────────
 
     /**

@@ -31,8 +31,8 @@ public class TrainQTable {
 
     // ── Named constants — training hyper-parameters ──────────────────────────
 
-    /** Total training episodes (hard task only). */
-    static final int N_EPISODES = 500;
+    /** Total training episodes (curriculum: easy→medium→hard). */
+    static final int N_EPISODES = 2000;
 
     /** Bins per observation dimension for state discretisation. */
     static final int N_BINS = 8;
@@ -57,6 +57,136 @@ public class TrainQTable {
 
     /** Task the Q-table is trained on. */
     static final String TRAIN_TASK = "hard";
+
+    /** Imagined Q-updates performed per real env step (Dyna-Q). */
+    static final int DYNA_PLANNING_STEPS = 5;
+
+    /** Max real transitions stored in the Dyna replay buffer. */
+    static final int DYNA_BUFFER_CAPACITY = 2000;
+
+    // ────────────────────────────────────────────────────────────────────────
+    // DynaPlanner — Dyna-Q world-model planner (inner class)
+    // ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Dyna-Q planner: augments real Q-learning with LagPredictor-imagined
+     * transitions.  After every real env.step(), call store() then plan().
+     *
+     * // PYTHON EQUIVALENT:
+     * //   class DynaPlanner:
+     * //       _buffer: deque[tuple[dict, int, float, dict]] = deque(maxlen=capacity)
+     * //
+     * //       def store(self, obs_norm, action_idx, reward, next_obs_norm): ...
+     * //       def plan(self, q_table, lag_model, n_steps) -> int: ...
+     */
+    static class DynaPlanner {
+
+        // PYTHON EQUIVALENT: deque(maxlen=DYNA_BUFFER_CAPACITY)
+        // Java: ArrayDeque with manual capacity enforcement (Deque has no maxlen).
+        private final ArrayDeque<Object[]> buffer = new ArrayDeque<>();
+        private final int capacity;
+
+        DynaPlanner(int capacity) {
+            this.capacity = capacity;
+        }
+
+        /**
+         * Add a real (obs, action, reward, next_obs) transition to the buffer.
+         *
+         * // PYTHON EQUIVALENT:
+         * //   self._buffer.append((obs_norm, action_idx, reward, next_obs_norm))
+         */
+        void store(
+            Map<String, Double> obsNorm,
+            int actionIdx,
+            double reward,
+            Map<String, Double> nextObsNorm
+        ) {
+            if (buffer.size() >= capacity) {
+                buffer.pollFirst();  // evict oldest (FIFO, matching deque maxlen)
+            }
+            buffer.addLast(new Object[]{obsNorm, actionIdx, reward, nextObsNorm});
+        }
+
+        /**
+         * Perform nSteps imagined Bellman updates using the LagPredictor world model.
+         *
+         * For each planning step:
+         *   1. Sample a random real transition from the buffer.
+         *   2. Predict next kafka_lag with DynamicsModel (stub for PyTorch forward pass).
+         *   3. Substitute the prediction into next_obs to get the imagined next state.
+         *   4. Compute Bellman target and update Q[s][a].
+         *
+         * Returns the number of planning updates actually performed.
+         *
+         * // PYTHON EQUIVALENT:
+         * //   def plan(self, q_table, lag_model, n_steps=DYNA_PLANNING_STEPS) -> int:
+         * //       with torch.no_grad():
+         * //           for _ in range(min(n_steps, len(self._buffer))):
+         * //               obs, action_idx, reward, next_obs = random.choice(buffer)
+         * //               x = build_input_vector(obs, decode_action(action_idx))
+         * //               predicted_lag = float(lag_model(x.unsqueeze(0)).squeeze())
+         * //               imagined_next = dict(next_obs); imagined_next["kafka_lag"] = predicted_lag
+         * //               state = obs_to_state(obs); next_state = obs_to_state(imagined_next)
+         * //               target = reward + DISCOUNT * max(q_table[next_state])
+         * //               q_table[state][action_idx] += lr * (target - q_table[state][action_idx])
+         */
+        int plan(
+            Map<String, float[]> qTable,
+            DynamicsModel lagModel,
+            int nSteps
+        ) {
+            if (buffer.isEmpty()) return 0;
+
+            int available = Math.min(nSteps, buffer.size());
+            Object[][] entries = buffer.toArray(new Object[0][]);
+            int updates = 0;
+
+            for (int i = 0; i < available; i++) {
+                // Random sample — ThreadLocalRandom is the Java equivalent of random.randrange
+                int idx = ThreadLocalRandom.current().nextInt(entries.length);
+                @SuppressWarnings("unchecked")
+                Map<String, Double> obsNorm     = (Map<String, Double>) entries[idx][0];
+                int actionIdx                   = (Integer)             entries[idx][1];
+                double reward                   = (Double)              entries[idx][2];
+                @SuppressWarnings("unchecked")
+                Map<String, Double> nextObsNorm = (Map<String, Double>) entries[idx][3];
+
+                // PYTHON EQUIVALENT: x = build_input_vector(obs, decode_action(action_idx))
+                // Java: build double[] input via DynamicsModel.buildInputVector (stub)
+                AEPOAction action = decodeAction(actionIdx);
+                double[] x = DynamicsModel.buildInputVector(obsNorm, action);
+
+                // PYTHON EQUIVALENT: predicted_lag = float(lag_model(x.unsqueeze(0)).squeeze())
+                // Java: DynamicsModel.predictSingle is a stub returning a placeholder double.
+                // In production Python this is a real PyTorch forward() call under no_grad().
+                double predictedLag = lagModel.predictSingle(x);
+
+                // Build imagined next_obs — substitute model-predicted kafka_lag
+                Map<String, Double> imaginedNext = new HashMap<>(nextObsNorm);
+                imaginedNext.put("kafka_lag", predictedLag);
+
+                // Bellman update on imagined transition
+                int[] state     = obsToState(obsNorm);
+                int[] nextState = obsToState(imaginedNext);
+
+                float[] qVals     = qTableGet(qTable, state);
+                float[] nextQVals = qTableGet(qTable, nextState);
+                double target = reward + DISCOUNT * max(nextQVals);
+                qVals[actionIdx] += (float)(LEARNING_RATE * (target - qVals[actionIdx]));
+                updates++;
+            }
+            return updates;
+        }
+
+        int bufferSize() { return buffer.size(); }
+
+        // Helper: get Q-values for state, creating zeros on first access
+        private float[] qTableGet(Map<String, float[]> qTable, int[] state) {
+            String key = Arrays.toString(state);
+            return qTable.computeIfAbsent(key, k -> new float[N_ACTIONS]);
+        }
+    }
 
     // ── Mixed-radix strides for action encoding ──────────────────────────────
     // MultiDiscrete: [risk(3), crypto(2), infra(3), db_retry(2), settle(2), priority(3)]
@@ -182,9 +312,10 @@ public class TrainQTable {
      * Returns the per-episode mean rewards (length=N_EPISODES).
      *
      * // PYTHON EQUIVALENT:
-     * //   def train_q_table(seed=44):
+     * //   def train_q_table(seed=44, use_dyna=True):
      * //       env = UnifiedFintechEnv()
      * //       lag_model = LagPredictor()
+     * //       dyna_planner = DynaPlanner()
      * //       q_table = defaultdict(lambda: np.zeros(N_ACTIONS, dtype=np.float32))
      * //       epsilon = EPSILON_START
      * //       epsilon_decay = (EPSILON_START - EPSILON_END) / N_EPISODES
@@ -192,23 +323,34 @@ public class TrainQTable {
      * //       for ep in range(N_EPISODES):
      * //           obs, _ = env.reset(seed=seed+ep, options={"task": TRAIN_TASK})
      * //           ... [Q-learning loop] ...
-     * //       return q_table, lag_model, episode_means
+     * //           if use_dyna:
+     * //               dyna_planner.store(obs_norm, action_idx, reward, next_obs_norm)
+     * //               total_planning_updates += dyna_planner.plan(q_table, lag_model)
+     * //       return q_table, lag_model, episode_means, ...
+     *
+     * @param useDyna  When true, run DYNA_PLANNING_STEPS imagined Bellman updates
+     *                 per real step using DynaPlanner.  False = pure Q-table baseline
+     *                 (used by trainQTableForComparison to generate the baseline curve).
      *
      * In Java, UnifiedFintechEnv and DynamicsModel are stubs (see their respective
      * Java mirror files). The logic here mirrors the Python control flow exactly.
      */
-    public List<Double> trainQTable(int baseSeed) {
+    public List<Double> trainQTable(int baseSeed, boolean useDyna) {
         // PYTHON EQUIVALENT: env = UnifiedFintechEnv()
         UnifiedFintechEnv env = new UnifiedFintechEnv();
 
         // PYTHON EQUIVALENT: lag_model = LagPredictor()
         DynamicsModel lagModel = new DynamicsModel();
 
+        // PYTHON EQUIVALENT: dyna_planner = DynaPlanner()
+        DynaPlanner dynaPlanner = new DynaPlanner(DYNA_BUFFER_CAPACITY);
+
         double epsilon = EPSILON_START;
         double epsilonDecay = (EPSILON_START - EPSILON_END) / N_EPISODES;
 
         List<Double> episodeMeans = new ArrayList<>();
         boolean blindSpotLogged = false;
+        int totalPlanningUpdates = 0;
 
         long tStart = System.currentTimeMillis();
 
@@ -272,6 +414,15 @@ public class TrainQTable {
                 double nextLagNormalized = nextObsNorm.getOrDefault("kafka_lag", 0.0);
                 lagModel.storeTransition(lagInput, nextLagNormalized);
 
+                // PYTHON EQUIVALENT:
+                //   if use_dyna:
+                //       dyna_planner.store(obs_norm, action_idx, reward, next_obs_norm)
+                //       total_planning_updates += dyna_planner.plan(q_table, lag_model)
+                if (useDyna) {
+                    dynaPlanner.store(obsNorm, actionIdx, reward, nextObsNorm);
+                    totalPlanningUpdates += dynaPlanner.plan(qTable, lagModel, DYNA_PLANNING_STEPS);
+                }
+
                 stepRewards.add(reward);
                 obsNorm = nextObsNorm;
                 state = nextState;
@@ -290,22 +441,33 @@ public class TrainQTable {
             // ε decay
             epsilon = Math.max(EPSILON_END, epsilon - epsilonDecay);
 
+            // PYTHON EQUIVALENT (curriculum advance detection + epsilon reset):
+            // When curriculum advances, reset epsilon to max(epsilon, 0.50) so the
+            // agent explores the harder task instead of exploiting stale easy-task values.
+            // In the Python version this is gated by ep_curriculum > pre_reset_level.
+            // Java stub: log the concept; full curriculum logic in UnifiedFintechEnv.closeEpisode().
+            // if (curriculumAdvanced) { epsilon = Math.max(epsilon, 0.50); }
+
             // Periodic log every LOG_EVERY episodes
             if ((ep + 1) % LOG_EVERY == 0) {
                 int fromIdx = Math.max(0, episodeMeans.size() - LOG_EVERY);
                 double recentMean = episodeMeans.subList(fromIdx, episodeMeans.size())
                     .stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
                 long elapsed = System.currentTimeMillis() - tStart;
+                // PYTHON EQUIVALENT: logger.info("episode=... planning_updates=%d dyna_buffer=%d ...")
                 logger.info(String.format(
-                    "episode=%d/%d  recent_mean=%.4f  epsilon=%.3f  elapsed=%dms",
-                    ep + 1, N_EPISODES, recentMean, epsilon, elapsed
+                    "episode=%d/%d  recent_mean=%.4f  epsilon=%.3f  " +
+                    "planning_updates=%d  dyna_buffer=%d  elapsed=%dms",
+                    ep + 1, N_EPISODES, recentMean, epsilon,
+                    totalPlanningUpdates, dynaPlanner.bufferSize(), elapsed
                 ));
             }
         }
 
         logger.info(String.format(
-            "Training complete — %d episodes | Q-table states=%d",
-            N_EPISODES, qTable.size()
+            "Training complete — %d episodes | Q-table states=%d | " +
+            "Planning Updates Performed=%d",
+            N_EPISODES, qTable.size(), totalPlanningUpdates
         ));
         return episodeMeans;
     }
@@ -329,18 +491,90 @@ public class TrainQTable {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // Dyna-Q convergence comparison
+    // ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Run two training passes (with and without Dyna-Q) and log convergence
+     * episode for each pass.  Mirrors Python plot_dyna_comparison().
+     *
+     * // PYTHON EQUIVALENT:
+     * //   def plot_dyna_comparison(output_path, seed=44):
+     * //       means_no_dyna   = train_q_table(seed=seed, use_dyna=False)[2]
+     * //       means_with_dyna = train_q_table(seed=seed, use_dyna=True)[2]
+     * //       # plot both curves on one chart titled "World Model Accelerates Learning"
+     *
+     * In Java we log the first-cross episodes instead of producing a matplotlib chart.
+     */
+    public void runDynaComparison(int seed) {
+        logger.info("=== Dyna-Q Comparison: TWO training passes (seed=%d) ===", seed);
+
+        logger.info("Pass 1/2 — Q-table WITHOUT Dyna-Q (baseline) ...");
+        TrainQTable baselineTrainer = new TrainQTable();
+        List<Double> meansNoDyna = baselineTrainer.trainQTable(seed, false);
+
+        logger.info("Pass 2/2 — Q-table WITH Dyna-Q (world model) ...");
+        TrainQTable dynaTrainer = new TrainQTable();
+        List<Double> meansWithDyna = dynaTrainer.trainQTable(seed, true);
+
+        double threshold = 0.30;  // hard task threshold
+        int crossNoDyna   = firstCross(meansNoDyna,   threshold);
+        int crossWithDyna = firstCross(meansWithDyna, threshold);
+
+        if (crossNoDyna > 0 && crossWithDyna > 0) {
+            double speedup = (double) crossNoDyna / crossWithDyna;
+            logger.info(String.format(
+                "[DYNA-Q PROOF] Baseline crosses threshold at ep %d. " +
+                "Dyna-Q crosses at ep %d. Speedup: %.1f×",
+                crossNoDyna, crossWithDyna, speedup
+            ));
+        } else if (crossWithDyna > 0) {
+            logger.info(String.format(
+                "[DYNA-Q PROOF] Dyna-Q crosses threshold at ep %d. " +
+                "Baseline never crossed in %d episodes.",
+                crossWithDyna, N_EPISODES
+            ));
+        } else {
+            logger.warning(
+                "[DYNA-Q PROOF] Neither run crossed the threshold. Check hyperparameters."
+            );
+        }
+    }
+
+    /** Return first 1-indexed episode where 10-ep rolling mean >= threshold, or -1. */
+    private static int firstCross(List<Double> means, double threshold) {
+        int w = 10;
+        for (int i = w - 1; i < means.size(); i++) {
+            double rolling = means.subList(i - w + 1, i + 1)
+                .stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            if (rolling >= threshold) return i + 1;
+        }
+        return -1;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // Entry point
     // ────────────────────────────────────────────────────────────────────────
 
     /**
      * Main entry point — mirrors train.py main().
      *
+     * Pass "--compare-dyna" as first arg to run the two-pass comparison.
+     *
      * // PYTHON EQUIVALENT: if __name__ == "__main__": main()
      */
     public static void main(String[] args) {
         logger.info("=== AEPO Phase 10 — Q-Table Training (Java Mirror) ===");
         TrainQTable trainer = new TrainQTable();
-        List<Double> episodeMeans = trainer.trainQTable(44);  // seed=44 (hard task grader seed)
+
+        boolean compareDyna = args.length > 0 && "--compare-dyna".equals(args[0]);
+        if (compareDyna) {
+            // PYTHON EQUIVALENT: plot_dyna_comparison(results_dir / "dyna_comparison.png")
+            trainer.runDynaComparison(44);
+        }
+
+        // PYTHON EQUIVALENT: train_q_table(seed=44, use_dyna=True)
+        List<Double> episodeMeans = trainer.trainQTable(44, true);
         logger.info("Episode means collected: " + episodeMeans.size());
         // NOTE: matplotlib plot → results/reward_curve.png is Python-only.
         // In Java, write episodeMeans to a CSV and use a charting library (JFreeChart).

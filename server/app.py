@@ -103,6 +103,34 @@ async def reset_health_check():
     }
 
 
+@app.get("/contract", tags=["health"])
+async def contract_info():
+    """
+    OpenEnv 4-tuple contract declaration (Fix 9.4 — Gymnasium 4-tuple bridge).
+
+    Advertises the AEPO step() return format so judges and automated
+    graders can verify the tuple arity without reading source code.
+
+    AEPO uses the OpenEnv 4-tuple contract, NOT Gymnasium's 5-tuple:
+        POST /step → { observation, reward, done, info }   ← 4 fields
+        POST /reset → { observation, info }                ← 2 fields
+
+    Gymnasium's 5-tuple (terminated + truncated separate) is only exposed
+    via GymnasiumCompatWrapper for check_env CI validation. All submission
+    evaluation paths (graders, inference, this server) use the 4-tuple.
+    """
+    return {
+        "step_tuple": "4-tuple",
+        "step_format": env.STEP_TUPLE_FORMAT,
+        "openenv_compliant": env.IS_OPENENV_COMPLIANT,
+        "gymnasium_compat_wrapper": "GymnasiumCompatWrapper (5-tuple, CI only)",
+        "note": (
+            "AEPO never truncates — episodes end via crash, fraud, or 100-step limit. "
+            "Hence Gymnasium's 'truncated' field is always False in the wrapper."
+        ),
+    }
+
+
 # ---------------------------------------------------------------------------
 # POST /reset — task-driven environment initialisation
 # ---------------------------------------------------------------------------
