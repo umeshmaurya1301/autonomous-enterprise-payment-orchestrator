@@ -1,0 +1,2 @@
+# Normalize line endings for cross-platform commits (Windows / macOS / CI).
+* text=auto eol=lf
