@@ -24,7 +24,7 @@ tags:
 [![Tests](https://img.shields.io/badge/Tests-189%20passed-brightgreen)](#)
 [![Coverage](https://img.shields.io/badge/Coverage-96%25-brightgreen)](#)
 
-**[🔥 OpenEnv HF Space](https://unknown1322-unified-fintech-risk-gateway.hf.space)** · **[🧠 TRL Colab Training Notebook](AEPO_Unsloth_GRPO.ipynb)** · **[📹 Demo & Writeup](https://youtu.be/PLACEHOLDER)**
+*[🔥 OpenEnv HF Space](https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space)* · *[🧠 TRL Colab Training Notebook](AEPO_Unsloth_GRPO.ipynb)* · **[📹 Demo & Writeup](https://youtu.be/PLACEHOLDER)**
 
 ---
 
@@ -493,7 +493,7 @@ uvicorn server.app:app --port 7860
 ### Live Hugging Face Space
 
 The environment is deployed at:
-**https://unknown1322-unified-fintech-risk-gateway.hf.space**
+*https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space*
 
 | Endpoint | Method | Purpose |
 |---|---|---|

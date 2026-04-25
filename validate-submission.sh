@@ -13,7 +13,7 @@
 #   ./validate-submission.sh
 #
 # Override the Space URL:
-#   SPACE_URL=https://huggingface.co/spaces/unknown1321/unified-fintech-risk-gateway \
+#   SPACE_URL=https://huggingface.co/spaces/unknown1321/autonomous-enterprise-payment-orchestrator \
 #     ./validate-submission.sh
 # =============================================================================
 
@@ -32,13 +32,13 @@ info() { echo -e "${YELLOW}[INFO]${NC} $1"; }
 EXIT_CODE=0
 
 echo "============================================================"
-echo "  UFRG Pre-Submission Validation"
+echo "  AOEP Pre-Submission Validation"
 echo "============================================================"
 echo ""
 
 # ── Config ───────────────────────────────────────────────────────────────────
-SPACE_URL="${SPACE_URL:-https://unknown1321-unified-fintech-risk-gateway.hf.space}"
-IMAGE_NAME="ufrg-validate"
+SPACE_URL="${SPACE_URL:-https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space}"
+IMAGE_NAME="aoep-validate"
 
 # ── Check 1: HF Space health ─────────────────────────────────────────────────
 echo "── Check 1: HF Space liveness ──────────────────────────────"
@@ -71,7 +71,7 @@ if ! command -v docker &> /dev/null; then
     info "Docker not found — skipping build check"
 else
     info "Building Docker image '${IMAGE_NAME}' ..."
-    if docker build -t "${IMAGE_NAME}" . --quiet; then
+    if docker build --platform linux/amd64 -t "${IMAGE_NAME}" . --quiet; then
         pass "docker build succeeded"
         # Cleanup
         docker rmi "${IMAGE_NAME}" --force > /dev/null 2>&1 || true
@@ -86,7 +86,7 @@ echo ""
 echo "── Check 3: openenv validate ───────────────────────────────"
 if ! command -v openenv &> /dev/null; then
     info "openenv CLI not found — installing openenv-core ..."
-    pip install openenv-core --quiet
+    pip3 install openenv-core --quiet
 fi
 
 if openenv validate .; then
@@ -101,7 +101,7 @@ echo ""
 echo "── Check 4: pytest suite ───────────────────────────────────"
 if ! command -v pytest &> /dev/null; then
     info "pytest not found — installing ..."
-    pip install pytest --quiet
+    pip3 install pytest --quiet
 fi
 
 if pytest tests/ -q --tb=short 2>&1; then

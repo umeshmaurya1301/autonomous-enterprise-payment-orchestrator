@@ -61,7 +61,7 @@ from graders import get_grader
 # Configuration from environment variables
 # ──────────────────────────────────────────────────────────────────────────────
 
-SPACE_URL: str = os.environ.get("SPACE_URL", "https://unknown1322-unified-fintech-risk-gateway.hf.space").rstrip("/")
+SPACE_URL: str = os.environ.get("SPACE_URL", "https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space").rstrip("/")
 API_BASE_URL: str = os.environ.get("API_BASE_URL", "http://localhost:11434/v1")
 MODEL_NAME: str = os.environ.get("MODEL_NAME", "qwen2.5-coder:32b")
 HF_TOKEN: str | None = os.environ.get("HF_TOKEN", "ollama")
