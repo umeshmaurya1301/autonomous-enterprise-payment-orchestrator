@@ -28,9 +28,11 @@ Design decisions
 """
 
 import asyncio
+import os
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from unified_gateway import AEPOAction, AEPOObservation, UFRGAction, UFRGObservation, UFRGReward, UnifiedFintechEnv
@@ -264,6 +266,29 @@ async def get_state():
 
 def main() -> None:  # pragma: no cover
     uvicorn.run("server.app:app", host="0.0.0.0", port=7860)
+
+
+# ---------------------------------------------------------------------------
+# Static frontend — mounted LAST so explicit API routes take priority
+# ---------------------------------------------------------------------------
+# When deployed in Docker / HF Spaces the Next.js dashboard is built to a
+# static export at `frontend/out/`.  FastAPI serves it at "/" so the Space
+# shows the interactive dashboard by default.
+#
+# Explicit routes (/reset, /step, /state, /contract, /health) are resolved by
+# Starlette's router BEFORE it falls through to this mounted sub-app, so there
+# is no collision between the API and the static files.
+#
+# In local development (no Docker), this directory may not exist; the guard
+# prevents a startup crash while keeping the server fully functional for
+# openenv validate and pytest.
+_FRONTEND_OUT = os.path.join(os.path.dirname(__file__), "..", "frontend", "out")
+if os.path.isdir(_FRONTEND_OUT):
+    app.mount(
+        "/",
+        StaticFiles(directory=_FRONTEND_OUT, html=True),
+        name="frontend",
+    )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
 import type { AEPOAction, StepResult, StateResult, ResetResult, TaskDifficulty } from "./types";
 
-const BASE = "/api";
+// Static export has no Next.js server-side rewrite proxy, so API calls go
+// directly to FastAPI at the same origin.  FastAPI routes: /reset /step /state
+const BASE = "";
 
 export async function fetchState(): Promise<StateResult> {
   const res = await fetch(`${BASE}/state`, { cache: "no-store" });

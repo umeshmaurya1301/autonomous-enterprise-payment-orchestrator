@@ -1,63 +1,116 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Autonomous Enterprise Payment Orchestrator (AEPO) — Production Container
-# ─────────────────────────────────────────────────────────────────────────────
-# Two usage modes:
+# ═══════════════════════════════════════════════════════════════════════════════
+# Autonomous Enterprise Payment Orchestrator (AEPO)
+# Hugging Face Spaces — Production Container
+# ═══════════════════════════════════════════════════════════════════════════════
 #
-#   1. API server (default — used by HF Spaces and openenv validate):
-#        docker build -t aepo .
-#        docker run -p 7860:7860 aepo
+# Architecture:
+#   Stage 1  (frontend-build) — Node.js 20 builds the Next.js dashboard to a
+#                               static export (out/) that requires no Node runtime.
+#   Stage 2  (runtime)        — Python 3.10-slim runs the FastAPI server which
+#                               serves BOTH the OpenEnv API (POST /reset, /step,
+#                               GET /state) AND the static dashboard at /.
 #
-#   2. Inference / baseline scoring (evaluator-style HTTP client, no local server):
-#        docker run --rm \
-#          -e SPACE_URL=http://localhost:7860 \
-#          -e DRY_RUN=true \
-#          aepo python inference.py
-#      (Run a server in another terminal, or use host networking on Linux if needed.)
+# Port mapping:
+#   7860 — the ONLY port exposed; Hugging Face Spaces routes external traffic here.
 #
-#      To call the **live** Hugging Face Space, use the Space app URL (HTTPS API),
-#      not the huggingface.co/spaces/... page URL:
-#        docker run --rm \
-#          -e SPACE_URL=https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space \
-#          -e HF_TOKEN=hf_... \
-#          aepo python inference.py
+# OpenEnv compliance:
+#   POST /reset  → initialise episode
+#   POST /step   → advance one step
+#   GET  /state  → inspect current observation
+#   GET  /       → dashboard UI (static HTML/JS served by FastAPI)
+#
+# Usage:
+#   docker build -t aepo .
+#   docker run -p 7860:7860 aepo
 #
 # Space (browser): https://huggingface.co/spaces/unknown1321/autonomous-enterprise-payment-orchestrator
+# API (OpenEnv):   https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
 # ─────────────────────────────────────────────────────────────────────────────
-FROM python:3.10-slim
+# Stage 1 — Build the Next.js dashboard as a fully-static export
+# ─────────────────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS frontend-build
 
-# ── Metadata ─────────────────────────────────────────────────────────────────
-LABEL maintainer="Umesh Maurya <umeshmaurya1301>" \
-    description="Autonomous Enterprise Payment Orchestrator (AEPO) — Gymnasium OpenEnv" \
-    version="0.2.0"
+WORKDIR /build
 
-# ── OS-level hardening ───────────────────────────────────────────────────────
+# Install deps in a separate layer so Docker cache is reused when only source
+# files change (not package.json).
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --prefer-offline
+
+# Copy the rest of the frontend source and build.
+# next.config.mjs must set output: 'export' → generates out/
+COPY frontend/ ./
+RUN npm run build
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 2 — Python runtime: FastAPI + static dashboard files
+# ─────────────────────────────────────────────────────────────────────────────
+FROM python:3.10-slim AS runtime
+
+# ── Labels ───────────────────────────────────────────────────────────────────
+LABEL maintainer="Umesh Maurya <unknown1321>" \
+      description="AEPO — Autonomous Enterprise Payment Orchestrator (OpenEnv + HF Spaces)" \
+      version="0.2.0"
+
+# ── Python environment hardening ─────────────────────────────────────────────
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
+# ── HF Spaces mandatory: non-root user UID=1000 ──────────────────────────────
+# Hugging Face Spaces executes containers with UID 1000.  Creating a matching
+# user prevents permission errors on /home/user writes (logs, caches, etc.).
+RUN useradd -m -u 1000 -s /bin/bash user
+ENV HOME=/home/user
+
 WORKDIR /app
 
-# ── Application source (server/, openenv.yaml, unified_gateway.py, etc.) ─────
-COPY . /app
+# ── Python dependencies ───────────────────────────────────────────────────────
+# Install all non-torch deps first (fast), then fetch the CPU-only torch wheel
+# directly by URL to avoid the SHA mismatch that the simple-index advertises.
+COPY requirements.txt .
+RUN sed -e '/^--extra-index-url/d' -e '/^torch==/d' requirements.txt \
+        > /tmp/req_base.txt \
+    && pip install --no-cache-dir -r /tmp/req_base.txt \
+    && pip install --no-cache-dir \
+       "https://download.pytorch.org/whl/cpu/torch-2.2.0%2Bcpu-cp310-cp310-linux_x86_64.whl" \
+    && rm -f /tmp/req_base.txt
 
-# ── Dependencies (CPU PyTorch, FastAPI, Gymnasium) ─────────────────────────────
-# `pip install -r requirements.txt` can fail on torch: the CPU simple index
-# advertises a #sha256= fragment that may not match the file served from the
-# current CDN. Install the rest of requirements first, then the wheel by URL
-# (no index hash check).
-RUN sed -e '/^--extra-index-url/d' -e '/^torch==/d' /app/requirements.txt > /tmp/req_base.txt && \
-    pip install --no-cache-dir -r /tmp/req_base.txt && \
-    pip install --no-cache-dir \
-    "https://download.pytorch.org/whl/cpu/torch-2.2.0%2Bcpu-cp310-cp310-linux_x86_64.whl" && \
-    rm -f /tmp/req_base.txt
+# ── Application source ────────────────────────────────────────────────────────
+# Copy only the files needed at runtime — .venv, java-mirror, node_modules,
+# tests, and docs are excluded via .dockerignore.
+COPY unified_gateway.py dynamics_model.py graders.py inference.py openenv.yaml ./
+COPY server/ ./server/
 
-# ── Port Hugging Face Spaces routes to the container ─────────────────────────
+# Pre-trained artefacts — needed by inference.py (Q-table, MLP weights).
+# These are generated by train.py and committed / built before the Docker push.
+COPY results/ ./results/
+
+# ── Static frontend (built in Stage 1) ───────────────────────────────────────
+# FastAPI mounts this directory at "/" so the dashboard is served at the Space
+# root while OpenEnv API routes (/reset, /step, /state) retain priority because
+# FastAPI resolves explicit routes before mounted sub-apps.
+COPY --from=frontend-build /build/out ./frontend/out
+
+# Transfer ownership to the non-root user so all files are readable/writable.
+RUN chown -R user:user /app
+
+# ── Switch to non-root user (HF Spaces requirement) ──────────────────────────
+USER user
+
+# ── Expose the single public port ────────────────────────────────────────────
 EXPOSE 7860
 
-# ── Default: OpenEnv FastAPI server (openenv validate, HF health checks) ─────
-# Baseline / heuristic inference (no LLM) against local server in another process:
-#   DRY_RUN=true  →  AGENT_MODE=heuristic (see inference.py)
-#
-# Full LLM + remote Space example: see "live Hugging Face Space" block at top.
-CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
+# ── Healthcheck — HF Spaces and openenv validate both probe GET / ─────────────
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:7860/')" \
+    || exit 1
+
+# ── Default command ───────────────────────────────────────────────────────────
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860", \
+     "--workers", "1", "--log-level", "info"]

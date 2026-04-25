@@ -8,7 +8,7 @@ tags:
   - openenv
 
 # Live deployment URL — used by validate-submission.sh and evaluators
-space_url: "https://unknown1321-unified-fintech-risk-gateway.hf.space"
+space_url: "https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space"
 
 # Entry point for openenv validate
 entry_point: "unified_gateway:UnifiedFintechEnv"

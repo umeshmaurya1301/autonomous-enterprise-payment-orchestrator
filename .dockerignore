@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .dockerignore — AEPO Docker build context exclusions
+#
+# Keeps the build context small and prevents secrets / dev artefacts from
+# leaking into the production image.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Git history — never needed inside the image
+.git
+.gitignore
+.gitattributes
+
+# Python virtual environment — deps are reinstalled from requirements.txt
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+.mypy_cache
+
+# Java mirror — excluded from final submission, not needed at runtime
+java-mirror/
+spring/
+target/
+
+# Node.js local dev dependencies — Stage 1 installs its own via npm ci
+# (we copy frontend/* but exclude node_modules so it's not re-uploaded)
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Editor / IDE config
+.vscode/
+.idea/
+.claude/
+
+# Local dev docs and scratch files
+docs/
+scratch/
+LOCAL_TESTING.md
+DASHBOARD_GUIDE.md
+*.md
+!README.md
+
+# Compiled inference results that are large or sensitive (the model weights
+# and qtable ARE copied explicitly — see Dockerfile COPY results/)
+results/reward_staircase.png
+results/reward_curve.png
+inference_result.txt
+
+# Zip artefacts
+*.zip
+
+# Jupyter notebooks — not needed at runtime
+*.ipynb
+
+# Test suite — not included in production image
+tests/
+
+# Shell scripts — validate-submission.sh is a dev tool
+*.sh
+
+# Miscellaneous
+uv.lock
+pyproject.toml
+debug_heuristic.py
+verify_foundation.py
+verify_step.py
