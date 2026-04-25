@@ -85,8 +85,8 @@ echo ""
 # ── Check 3: openenv validate ─────────────────────────────────────────────────
 echo "── Check 3: openenv validate ───────────────────────────────"
 if ! command -v openenv &> /dev/null; then
-    info "openenv CLI not found — installing openenv-core ..."
-    pip3 install openenv-core --quiet
+    info "openenv CLI not found — installing openenv ..."
+    pip3 install openenv --quiet
 fi
 
 # tomllib is stdlib in Python 3.11+; patch openenv to use tomli backport on 3.10
