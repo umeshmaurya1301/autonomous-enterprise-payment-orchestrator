@@ -1,2 +1,6 @@
 # Normalize line endings for cross-platform commits (Windows / macOS / CI).
 * text=auto eol=lf
+*.pkl filter=lfs diff=lfs merge=lfs -text
+*.pt filter=lfs diff=lfs merge=lfs -text
+*.pth filter=lfs diff=lfs merge=lfs -text
+*.bin filter=lfs diff=lfs merge=lfs -text
