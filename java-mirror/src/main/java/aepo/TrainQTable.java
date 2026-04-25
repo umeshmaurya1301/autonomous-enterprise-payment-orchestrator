@@ -58,13 +58,14 @@ public class TrainQTable {
 
     /**
      * Fixed-schedule curriculum (Fix B). Deterministic episode budget per level.
-     * Sum must equal N_EPISODES. Hard gets 75% of the budget — it's the primary
+     * Sum must equal N_EPISODES. Hard gets 85% of the budget — it's the primary
      * task per CLAUDE.md spec and needs the most Q-table coverage to beat the
-     * heuristic. Easy/medium just need enough to populate per-task tables for
-     * evaluation.
-     * // PYTHON EQUIVALENT: EPISODES_PER_LEVEL: tuple[int, int, int] = (200, 300, 1500)
+     * heuristic threshold (≥ 0.30). Easy/medium just need enough episodes to
+     * (a) populate per-task tables for evaluation and (b) make the staircase
+     * visually clear in reward_staircase.png.
+     * // PYTHON EQUIVALENT: EPISODES_PER_LEVEL: tuple[int, int, int] = (100, 200, 1700)
      */
-    static final int[] EPISODES_PER_LEVEL = {200, 300, 1500};
+    static final int[] EPISODES_PER_LEVEL = {100, 200, 1700};
 
     /**
      * Fraction of exploratory steps that follow the heuristic (vs uniform random).

@@ -118,11 +118,14 @@ HEURISTIC_EXPLORATION_RATIO: float = 0.0
 # knocks reward below the gate once the agent does well, breaking the streak.
 # A deterministic schedule guarantees coverage on every task and produces the
 # staircase chart. Sum must equal N_EPISODES.
-EPISODES_PER_LEVEL: tuple[int, int, int] = (200, 300, 1500)  # easy, medium, hard
-# Hard gets 75% of the budget — it's the primary task per CLAUDE.md spec
+EPISODES_PER_LEVEL: tuple[int, int, int] = (100, 200, 1700)  # easy, medium, hard
+# Hard gets 85% of the budget — it's the primary task per CLAUDE.md spec
 # ("Hard task only for the main curve") and needs the most Q-table coverage
-# to beat the heuristic. Easy/medium just need enough to populate per-task
-# tables for evaluation. Sum must equal N_EPISODES.
+# to beat the heuristic threshold (≥ 0.30). Easy/medium just need enough
+# episodes to (a) populate per-task tables for evaluation and (b) make the
+# staircase visually clear in reward_staircase.png — both saturate within
+# ~50–100 episodes since agent reward plateaus quickly on the simpler
+# distributions. Sum must equal N_EPISODES.
 
 # Dyna-Q world-model planning
 DYNA_PLANNING_STEPS: int = 5     # imagined Q-updates per real env step

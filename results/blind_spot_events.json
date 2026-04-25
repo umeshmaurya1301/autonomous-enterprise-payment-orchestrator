@@ -1,12 +1,12 @@
 {
   "training_seed": 44,
-  "total_occurrences": 171,
+  "total_occurrences": 232,
   "first_discovery": {
-    "episode": 509,
-    "step": 42,
-    "reward": 0.36,
-    "kafka_lag_raw": 2194.5071586795107,
-    "risk_score_raw": 96.64250510437495,
+    "episode": 302,
+    "step": 41,
+    "reward": 0.7246,
+    "kafka_lag_raw": 3786.867082611673,
+    "risk_score_raw": 92.56470528265669,
     "action": {
       "risk_decision": 1,
       "crypto_verify": 1
@@ -14,21 +14,42 @@
     "reward_breakdown": {
       "base": 0.8,
       "fraud_penalty": 0.0,
-      "sla_penalty": -0.3,
-      "infra_penalty": -0.2,
+      "sla_penalty": -0.0967,
+      "infra_penalty": -0.0787,
       "db_penalty": 0.0,
-      "settlement_penalty": 0.0,
+      "settlement_penalty": 0.04,
       "bonus": 0.06,
-      "final": 0.36
+      "final": 0.7246000000000001
     }
   },
   "all_events": [
     {
-      "episode": 509,
-      "step": 42,
-      "reward": 0.36,
-      "kafka_lag_raw": 2194.5071586795107,
-      "risk_score_raw": 96.64250510437495,
+      "episode": 302,
+      "step": 41,
+      "reward": 0.7246,
+      "kafka_lag_raw": 3786.867082611673,
+      "risk_score_raw": 92.56470528265669,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0967,
+        "infra_penalty": -0.0787,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.7246000000000001
+      }
+    },
+    {
+      "episode": 302,
+      "step": 43,
+      "reward": 0.2966,
+      "kafka_lag_raw": 3634.217568474475,
+      "risk_score_raw": 89.22496296140159,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -37,166 +58,19 @@
         "base": 0.8,
         "fraud_penalty": 0.0,
         "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
+        "infra_penalty": -0.2634,
         "db_penalty": 0.0,
         "settlement_penalty": 0.0,
         "bonus": 0.06,
-        "final": 0.36
+        "final": 0.2966
       }
     },
     {
-      "episode": 575,
+      "episode": 333,
       "step": 41,
-      "reward": 0.6038,
-      "kafka_lag_raw": 2535.619636783011,
-      "risk_score_raw": 87.18033346291125,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0762,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6038000000000001
-      }
-    },
-    {
-      "episode": 598,
-      "step": 43,
-      "reward": 0.323,
-      "kafka_lag_raw": 3570.4284565217986,
-      "risk_score_raw": 95.48862697564977,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.257,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.32299999999999995
-      }
-    },
-    {
-      "episode": 598,
-      "step": 46,
-      "reward": 0.04,
-      "kafka_lag_raw": 4481.286800526316,
-      "risk_score_raw": 88.96413407388106,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.04
-      }
-    },
-    {
-      "episode": 600,
-      "step": 44,
-      "reward": 0.04,
-      "kafka_lag_raw": 907.9325306802259,
-      "risk_score_raw": 87.20813588333193,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.04
-      }
-    },
-    {
-      "episode": 617,
-      "step": 49,
-      "reward": 0.2467,
-      "kafka_lag_raw": 3932.593877892421,
-      "risk_score_raw": 90.75717757935732,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2933,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.2467
-      }
-    },
-    {
-      "episode": 618,
-      "step": 43,
-      "reward": 0.2578,
-      "kafka_lag_raw": 3822.0505137203413,
-      "risk_score_raw": 88.01318725288624,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2822,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.2578
-      }
-    },
-    {
-      "episode": 693,
-      "step": 43,
-      "reward": 0.38,
-      "kafka_lag_raw": 4324.166794052815,
-      "risk_score_raw": 92.50584409675197,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.37999999999999995
-      }
-    },
-    {
-      "episode": 729,
-      "step": 43,
       "reward": 0.0,
-      "kafka_lag_raw": 4076.063772553376,
-      "risk_score_raw": 90.37221664993892,
+      "kafka_lag_raw": 5622.606835135345,
+      "risk_score_raw": 89.76724904705827,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -204,20 +78,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.083,
-        "infra_penalty": -0.5,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
         "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
+        "settlement_penalty": 0.0,
         "bonus": 0.04,
         "final": 0.0
       }
     },
     {
-      "episode": 730,
+      "episode": 346,
       "step": 43,
-      "reward": 0.3147,
-      "kafka_lag_raw": 3652.6869369488422,
-      "risk_score_raw": 96.21200403582249,
+      "reward": 0.5528,
+      "kafka_lag_raw": 3471.7181931098403,
+      "risk_score_raw": 87.60885384254085,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -226,40 +100,19 @@
         "base": 0.8,
         "fraud_penalty": 0.0,
         "sla_penalty": -0.3,
-        "infra_penalty": -0.2653,
+        "infra_penalty": -0.0472,
         "db_penalty": 0.0,
         "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.3147
+        "bonus": 0.06,
+        "final": 0.5528
       }
     },
     {
-      "episode": 730,
+      "episode": 352,
       "step": 44,
-      "reward": 0.0565,
-      "kafka_lag_raw": 3234.5671874668215,
-      "risk_score_raw": 96.70100735933299,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5235,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.056500000000000036
-      }
-    },
-    {
-      "episode": 730,
-      "step": 45,
       "reward": 0.04,
-      "kafka_lag_raw": 2863.0865701401117,
-      "risk_score_raw": 90.00867745874223,
+      "kafka_lag_raw": 1134.3534829930295,
+      "risk_score_raw": 88.02596946334553,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -276,536 +129,11 @@
       }
     },
     {
-      "episode": 730,
-      "step": 49,
-      "reward": 0.34,
-      "kafka_lag_raw": 2419.975238292914,
-      "risk_score_raw": 98.71391766947914,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.33999999999999997
-      }
-    },
-    {
-      "episode": 730,
-      "step": 56,
-      "reward": 0.38,
-      "kafka_lag_raw": 2384.949067755065,
-      "risk_score_raw": 95.92508642831146,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.37999999999999995
-      }
-    },
-    {
-      "episode": 758,
-      "step": 44,
-      "reward": 0.06,
-      "kafka_lag_raw": 4430.617668180124,
-      "risk_score_raw": 99.6433535285631,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.06
-      }
-    },
-    {
-      "episode": 787,
-      "step": 41,
-      "reward": 0.58,
-      "kafka_lag_raw": 4815.007485068872,
-      "risk_score_raw": 90.56963628650222,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": 0.0,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5800000000000001
-      }
-    },
-    {
-      "episode": 791,
+      "episode": 365,
       "step": 43,
-      "reward": 0.2426,
-      "kafka_lag_raw": 3792.7191966422765,
-      "risk_score_raw": 91.66342424086905,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0581,
-        "infra_penalty": -0.5793,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.24259999999999998
-      }
-    },
-    {
-      "episode": 791,
-      "step": 45,
-      "reward": 0.5152,
-      "kafka_lag_raw": 3787.5610103520594,
-      "risk_score_raw": 97.8923479421671,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.086,
-        "infra_penalty": -0.2788,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5152000000000001
-      }
-    },
-    {
-      "episode": 791,
-      "step": 46,
-      "reward": 0.279,
-      "kafka_lag_raw": 3810.293815591509,
-      "risk_score_raw": 86.24676554227926,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.281,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.27899999999999997
-      }
-    },
-    {
-      "episode": 791,
-      "step": 48,
-      "reward": 0.5057,
-      "kafka_lag_raw": 3742.9933934804753,
-      "risk_score_raw": 87.35582801804355,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.0743,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5056999999999999
-      }
-    },
-    {
-      "episode": 825,
-      "step": 43,
-      "reward": 0.1,
-      "kafka_lag_raw": 4877.271069779114,
-      "risk_score_raw": 86.28177086869255,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.1
-      }
-    },
-    {
-      "episode": 826,
-      "step": 42,
-      "reward": 0.38,
-      "kafka_lag_raw": 4207.162153847818,
-      "risk_score_raw": 91.33201326768885,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.37999999999999995
-      }
-    },
-    {
-      "episode": 827,
-      "step": 42,
-      "reward": 0.34,
-      "kafka_lag_raw": 1029.471744174881,
-      "risk_score_raw": 93.44460548286168,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.33999999999999997
-      }
-    },
-    {
-      "episode": 827,
-      "step": 43,
-      "reward": 0.06,
-      "kafka_lag_raw": 969.3409699988761,
-      "risk_score_raw": 90.31307802055096,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.06
-      }
-    },
-    {
-      "episode": 842,
-      "step": 41,
-      "reward": 0.5037,
-      "kafka_lag_raw": 3263.125733014299,
-      "risk_score_raw": 88.44837797898501,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.1263,
-        "db_penalty": 0.03,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.5037
-      }
-    },
-    {
-      "episode": 842,
-      "step": 43,
-      "reward": 0.06,
-      "kafka_lag_raw": 4322.903418380365,
-      "risk_score_raw": 88.99114520536192,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.06
-      }
-    },
-    {
-      "episode": 842,
-      "step": 45,
-      "reward": 0.04,
-      "kafka_lag_raw": 4116.796132372757,
-      "risk_score_raw": 87.96410250738104,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.04
-      }
-    },
-    {
-      "episode": 845,
-      "step": 41,
-      "reward": 0.3785,
-      "kafka_lag_raw": 3215.487451197111,
-      "risk_score_raw": 88.21067604650923,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2215,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.37849999999999995
-      }
-    },
-    {
-      "episode": 846,
-      "step": 45,
-      "reward": 0.5327,
-      "kafka_lag_raw": 3072.700135303719,
-      "risk_score_raw": 87.76556937450898,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.0073,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.5327000000000001
-      }
-    },
-    {
-      "episode": 847,
-      "step": 42,
-      "reward": 0.38,
-      "kafka_lag_raw": 4232.092041055694,
-      "risk_score_raw": 90.33509402324603,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.37999999999999995
-      }
-    },
-    {
-      "episode": 890,
-      "step": 42,
-      "reward": 0.08,
-      "kafka_lag_raw": 2611.920565516735,
-      "risk_score_raw": 94.74165695783003,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.08
-      }
-    },
-    {
-      "episode": 890,
-      "step": 48,
-      "reward": 0.38,
-      "kafka_lag_raw": 2656.8653990178536,
-      "risk_score_raw": 96.08302279940861,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.37999999999999995
-      }
-    },
-    {
-      "episode": 914,
-      "step": 41,
-      "reward": 0.6168,
-      "kafka_lag_raw": 2653.700739449212,
-      "risk_score_raw": 92.10858579780198,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0632,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6168
-      }
-    },
-    {
-      "episode": 926,
-      "step": 43,
-      "reward": 0.5954,
-      "kafka_lag_raw": 3689.043963070699,
-      "risk_score_raw": 89.11658718368258,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0157,
-        "infra_penalty": -0.2689,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5954
-      }
-    },
-    {
-      "episode": 943,
-      "step": 44,
-      "reward": 0.5679,
-      "kafka_lag_raw": 689.2087282223423,
-      "risk_score_raw": 91.17671093048344,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0921,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.5679000000000001
-      }
-    },
-    {
-      "episode": 943,
-      "step": 46,
-      "reward": 0.58,
-      "kafka_lag_raw": 220.74788403359153,
-      "risk_score_raw": 96.59522448409899,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": 0.0,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5800000000000001
-      }
-    },
-    {
-      "episode": 964,
-      "step": 42,
-      "reward": 0.54,
-      "kafka_lag_raw": 698.492659471196,
-      "risk_score_raw": 91.79785763599776,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": 0.0,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.54
-      }
-    },
-    {
-      "episode": 976,
-      "step": 41,
       "reward": 0.56,
-      "kafka_lag_raw": 4399.111432391311,
-      "risk_score_raw": 95.82114041894485,
+      "kafka_lag_raw": 4100.749950050145,
+      "risk_score_raw": 85.3128550038704,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -822,11 +150,74 @@
       }
     },
     {
-      "episode": 982,
+      "episode": 373,
       "step": 42,
+      "reward": 0.6546,
+      "kafka_lag_raw": 639.7063163094874,
+      "risk_score_raw": 91.11771110351823,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0454,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6546000000000001
+      }
+    },
+    {
+      "episode": 373,
+      "step": 45,
+      "reward": 0.39,
+      "kafka_lag_raw": 590.580609313569,
+      "risk_score_raw": 86.41934822382096,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.38999999999999996
+      }
+    },
+    {
+      "episode": 373,
+      "step": 47,
+      "reward": 0.6,
+      "kafka_lag_raw": 680.1946887659491,
+      "risk_score_raw": 93.20789247205158,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6000000000000001
+      }
+    },
+    {
+      "episode": 373,
+      "step": 50,
       "reward": 0.54,
-      "kafka_lag_raw": 2445.0586075554547,
-      "risk_score_raw": 93.78069990418453,
+      "kafka_lag_raw": 1266.0912778260958,
+      "risk_score_raw": 91.6657888027678,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -843,74 +234,11 @@
       }
     },
     {
-      "episode": 1001,
-      "step": 44,
-      "reward": 0.8294,
-      "kafka_lag_raw": 1972.7199527229238,
-      "risk_score_raw": 93.66004436663324,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0606,
-        "infra_penalty": 0.0,
-        "db_penalty": 0.03,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.8294000000000001
-      }
-    },
-    {
-      "episode": 1001,
-      "step": 47,
-      "reward": 0.61,
-      "kafka_lag_raw": 2691.2911799209305,
-      "risk_score_raw": 93.79905967133449,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": 0.0,
-        "db_penalty": 0.03,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6100000000000001
-      }
-    },
-    {
-      "episode": 1001,
-      "step": 52,
-      "reward": 0.5315,
-      "kafka_lag_raw": 3485.343545978865,
-      "risk_score_raw": 85.67923771691522,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.0485,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5315
-      }
-    },
-    {
-      "episode": 1011,
-      "step": 43,
+      "episode": 373,
+      "step": 54,
       "reward": 0.38,
-      "kafka_lag_raw": 4028.019635917798,
-      "risk_score_raw": 96.47261725035224,
+      "kafka_lag_raw": 979.1839896810493,
+      "risk_score_raw": 97.79597077751589,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -927,11 +255,11 @@
       }
     },
     {
-      "episode": 1014,
+      "episode": 388,
       "step": 42,
-      "reward": 0.282,
-      "kafka_lag_raw": 2850.981013086691,
-      "risk_score_raw": 98.60841468203553,
+      "reward": 0.5754,
+      "kafka_lag_raw": 568.3911539251231,
+      "risk_score_raw": 90.89066443914538,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -939,20 +267,1028 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.098,
+        "sla_penalty": -0.0846,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.5754000000000001
+      }
+    },
+    {
+      "episode": 412,
+      "step": 42,
+      "reward": 0.0,
+      "kafka_lag_raw": 3770.3956860491626,
+      "risk_score_raw": 91.39066988619597,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.577,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 426,
+      "step": 43,
+      "reward": 0.8405,
+      "kafka_lag_raw": 3105.598400085499,
+      "risk_score_raw": 88.43647221109342,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0489,
+        "infra_penalty": -0.0106,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8405
+      }
+    },
+    {
+      "episode": 434,
+      "step": 41,
+      "reward": 0.37,
+      "kafka_lag_raw": 4789.034471278097,
+      "risk_score_raw": 92.75346877004222,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.36999999999999994
+      }
+    },
+    {
+      "episode": 445,
+      "step": 46,
+      "reward": 0.6,
+      "kafka_lag_raw": 4120.660369758738,
+      "risk_score_raw": 90.93231134476343,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6000000000000001
+      }
+    },
+    {
+      "episode": 474,
+      "step": 44,
+      "reward": 0.1804,
+      "kafka_lag_raw": 3864.385465769306,
+      "risk_score_raw": 93.3096682536832,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0732,
+        "infra_penalty": -0.5864,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.18039999999999998
+      }
+    },
+    {
+      "episode": 474,
+      "step": 49,
+      "reward": 0.0,
+      "kafka_lag_raw": 4184.350249667106,
+      "risk_score_raw": 96.8133067197046,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 480,
+      "step": 41,
+      "reward": 0.5473,
+      "kafka_lag_raw": 2017.8433638778015,
+      "risk_score_raw": 94.84487663232738,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0927,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.5473000000000001
+      }
+    },
+    {
+      "episode": 480,
+      "step": 44,
+      "reward": 0.2507,
+      "kafka_lag_raw": 2349.7471327202857,
+      "risk_score_raw": 87.43596013023527,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0893,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.2507
+      }
+    },
+    {
+      "episode": 486,
+      "step": 41,
+      "reward": 0.54,
+      "kafka_lag_raw": 4394.6130105551565,
+      "risk_score_raw": 92.01379753765133,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.54
+      }
+    },
+    {
+      "episode": 496,
+      "step": 41,
+      "reward": 0.54,
+      "kafka_lag_raw": 2855.24069384575,
+      "risk_score_raw": 92.51345930581424,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.54
+      }
+    },
+    {
+      "episode": 496,
+      "step": 42,
+      "reward": 0.3303,
+      "kafka_lag_raw": 3096.9076554075637,
+      "risk_score_raw": 92.57956384571892,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2097,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.3303
+      }
+    },
+    {
+      "episode": 504,
+      "step": 44,
+      "reward": 0.56,
+      "kafka_lag_raw": 1958.9148541530908,
+      "risk_score_raw": 94.336027823353,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.56
+      }
+    },
+    {
+      "episode": 507,
+      "step": 42,
+      "reward": 0.7341,
+      "kafka_lag_raw": 3692.633246348155,
+      "risk_score_raw": 88.97818976031273,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0766,
+        "infra_penalty": -0.0693,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.7341000000000001
+      }
+    },
+    {
+      "episode": 507,
+      "step": 44,
+      "reward": 0.0,
+      "kafka_lag_raw": 4649.6839968574695,
+      "risk_score_raw": 95.51924886866718,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 509,
+      "step": 41,
+      "reward": 0.3159,
+      "kafka_lag_raw": 3640.9059997609315,
+      "risk_score_raw": 88.50469867683665,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2641,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.31589999999999996
+      }
+    },
+    {
+      "episode": 509,
+      "step": 42,
+      "reward": 0.6,
+      "kafka_lag_raw": 4050.7815275872904,
+      "risk_score_raw": 96.64250510437495,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6000000000000001
+      }
+    },
+    {
+      "episode": 532,
+      "step": 41,
+      "reward": 0.7522,
+      "kafka_lag_raw": 1354.9518480416584,
+      "risk_score_raw": 85.45003613013623,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0878,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.7522000000000001
+      }
+    },
+    {
+      "episode": 549,
+      "step": 44,
+      "reward": 0.2613,
+      "kafka_lag_raw": 2395.955036166702,
+      "risk_score_raw": 91.25966391027013,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0987,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.26130000000000003
+      }
+    },
+    {
+      "episode": 549,
+      "step": 49,
+      "reward": 0.563,
+      "kafka_lag_raw": 3169.91339039416,
+      "risk_score_raw": 87.91054131119739,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.017,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.5630000000000001
+      }
+    },
+    {
+      "episode": 554,
+      "step": 41,
+      "reward": 0.0,
+      "kafka_lag_raw": 4296.951519575583,
+      "risk_score_raw": 94.42671966757278,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.1,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 580,
+      "step": 49,
+      "reward": 0.5883,
+      "kafka_lag_raw": 3217.4566697224654,
+      "risk_score_raw": 94.83242351587383,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0217,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.5883
+      }
+    },
+    {
+      "episode": 580,
+      "step": 52,
+      "reward": 0.0,
+      "kafka_lag_raw": 4332.032087606151,
+      "risk_score_raw": 86.91118165569351,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 589,
+      "step": 44,
+      "reward": 0.1,
+      "kafka_lag_raw": 1243.7531781038247,
+      "risk_score_raw": 99.4020631430165,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.1
+      }
+    },
+    {
+      "episode": 589,
+      "step": 45,
+      "reward": 0.6195,
+      "kafka_lag_raw": 607.82823291454,
+      "risk_score_raw": 95.0752532414617,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0805,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6195000000000002
+      }
+    },
+    {
+      "episode": 589,
+      "step": 46,
+      "reward": 0.3229,
+      "kafka_lag_raw": 582.4759613409426,
+      "risk_score_raw": 87.2355141486134,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0571,
         "infra_penalty": -0.5,
         "db_penalty": 0.0,
         "settlement_penalty": 0.04,
         "bonus": 0.04,
-        "final": 0.2820000000000001
+        "final": 0.32289999999999996
       }
     },
     {
-      "episode": 1019,
-      "step": 44,
-      "reward": 0.68,
-      "kafka_lag_raw": 4014.7012381754002,
-      "risk_score_raw": 98.2046876725485,
+      "episode": 589,
+      "step": 47,
+      "reward": 0.3058,
+      "kafka_lag_raw": 273.44348273752115,
+      "risk_score_raw": 85.56473596561972,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0342,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.3058
+      }
+    },
+    {
+      "episode": 594,
+      "step": 42,
+      "reward": 0.5968,
+      "kafka_lag_raw": 4327.903022575525,
+      "risk_score_raw": 90.09308065505338,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0832,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.5968000000000002
+      }
+    },
+    {
+      "episode": 603,
+      "step": 41,
+      "reward": 0.269,
+      "kafka_lag_raw": 2350.4352582188862,
+      "risk_score_raw": 92.99567972272034,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.071,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.2690000000000001
+      }
+    },
+    {
+      "episode": 607,
+      "step": 43,
+      "reward": 0.0,
+      "kafka_lag_raw": 5421.36692477981,
+      "risk_score_raw": 99.45993851785022,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 611,
+      "step": 43,
+      "reward": 0.9185,
+      "kafka_lag_raw": 2699.939896382706,
+      "risk_score_raw": 89.18483488286508,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0115,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.9185000000000001
+      }
+    },
+    {
+      "episode": 611,
+      "step": 45,
+      "reward": 0.2919,
+      "kafka_lag_raw": 3780.8384841474467,
+      "risk_score_raw": 91.40927911730874,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2781,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.2919
+      }
+    },
+    {
+      "episode": 612,
+      "step": 42,
+      "reward": 0.6472,
+      "kafka_lag_raw": 4615.4800594264125,
+      "risk_score_raw": 91.57128216615955,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0328,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.6472
+      }
+    },
+    {
+      "episode": 612,
+      "step": 43,
+      "reward": 0.0,
+      "kafka_lag_raw": 4941.224577010677,
+      "risk_score_raw": 95.97109705887851,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 617,
+      "step": 43,
+      "reward": 0.0908,
+      "kafka_lag_raw": 3091.637839660391,
+      "risk_score_raw": 88.38956381724856,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5092,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.09080000000000002
+      }
+    },
+    {
+      "episode": 617,
+      "step": 46,
+      "reward": 0.63,
+      "kafka_lag_raw": 4576.184765913484,
+      "risk_score_raw": 86.64199043875874,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6300000000000001
+      }
+    },
+    {
+      "episode": 624,
+      "step": 45,
+      "reward": 0.3148,
+      "kafka_lag_raw": 3252.2158340983306,
+      "risk_score_raw": 95.66933451499392,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2252,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.31479999999999997
+      }
+    },
+    {
+      "episode": 624,
+      "step": 49,
+      "reward": 0.279,
+      "kafka_lag_raw": 3610.4735554420504,
+      "risk_score_raw": 99.23463415530325,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.261,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.27899999999999997
+      }
+    },
+    {
+      "episode": 641,
+      "step": 43,
+      "reward": 0.8595,
+      "kafka_lag_raw": 4151.685555633364,
+      "risk_score_raw": 94.74082977110885,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0705,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8595000000000002
+      }
+    },
+    {
+      "episode": 657,
+      "step": 43,
+      "reward": 0.6487,
+      "kafka_lag_raw": 5025.06572727059,
+      "risk_score_raw": 92.80822285788102,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0313,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.6487
+      }
+    },
+    {
+      "episode": 691,
+      "step": 43,
+      "reward": 0.8136,
+      "kafka_lag_raw": 4055.400469239445,
+      "risk_score_raw": 98.08297283172088,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0864,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8136000000000001
+      }
+    },
+    {
+      "episode": 730,
+      "step": 46,
+      "reward": 0.38,
+      "kafka_lag_raw": 2546.4089542903275,
+      "risk_score_raw": 94.02737410865211,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.38
+      }
+    },
+    {
+      "episode": 739,
+      "step": 45,
+      "reward": 0.284,
+      "kafka_lag_raw": 524.244053565025,
+      "risk_score_raw": 90.18709630112586,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.096,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.2840000000000001
+      }
+    },
+    {
+      "episode": 743,
+      "step": 45,
+      "reward": 0.63,
+      "kafka_lag_raw": 2994.764994095174,
+      "risk_score_raw": 90.02233222978279,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6300000000000001
+      }
+    },
+    {
+      "episode": 743,
+      "step": 46,
+      "reward": 0.5907,
+      "kafka_lag_raw": 3392.5599885361107,
+      "risk_score_raw": 93.66598125932816,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0393,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5907
+      }
+    },
+    {
+      "episode": 757,
+      "step": 42,
+      "reward": 0.34,
+      "kafka_lag_raw": 4122.8948216708595,
+      "risk_score_raw": 96.67160566904637,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.33999999999999997
+      }
+    },
+    {
+      "episode": 774,
+      "step": 43,
+      "reward": 0.36,
+      "kafka_lag_raw": 2327.6492114419975,
+      "risk_score_raw": 97.79259469559126,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.36
+      }
+    },
+    {
+      "episode": 793,
+      "step": 42,
+      "reward": 0.335,
+      "kafka_lag_raw": 1370.3513001468034,
+      "risk_score_raw": 96.12534198227806,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.045,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.33499999999999996
+      }
+    },
+    {
+      "episode": 793,
+      "step": 48,
+      "reward": 0.5931,
+      "kafka_lag_raw": 508.03870893779583,
+      "risk_score_raw": 88.13447528195861,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0869,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.5931000000000002
+      }
+    },
+    {
+      "episode": 794,
+      "step": 41,
+      "reward": 0.0,
+      "kafka_lag_raw": 4576.706724139145,
+      "risk_score_raw": 97.28526321292668,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -965,15 +1301,15 @@
         "db_penalty": 0.0,
         "settlement_penalty": 0.04,
         "bonus": 0.04,
-        "final": 0.6800000000000002
+        "final": 0.0
       }
     },
     {
-      "episode": 1019,
-      "step": 45,
-      "reward": 0.0,
-      "kafka_lag_raw": 4146.681914748618,
-      "risk_score_raw": 92.93633408367157,
+      "episode": 827,
+      "step": 42,
+      "reward": 0.1585,
+      "kafka_lag_raw": 1487.1049489759475,
+      "risk_score_raw": 93.44460548286168,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -981,83 +1317,125 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0685,
+        "sla_penalty": -0.0415,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.15850000000000006
+      }
+    },
+    {
+      "episode": 827,
+      "step": 48,
+      "reward": 0.41,
+      "kafka_lag_raw": 1962.3358700083493,
+      "risk_score_raw": 88.41241120427834,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.4099999999999999
+      }
+    },
+    {
+      "episode": 844,
+      "step": 42,
+      "reward": 0.8043,
+      "kafka_lag_raw": 3415.892610636312,
+      "risk_score_raw": 85.63362319265015,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0841,
+        "infra_penalty": -0.0416,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8043000000000002
+      }
+    },
+    {
+      "episode": 854,
+      "step": 42,
+      "reward": 0.8233,
+      "kafka_lag_raw": 3546.3259756921752,
+      "risk_score_raw": 91.90646763302887,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0521,
+        "infra_penalty": -0.0546,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8233000000000001
+      }
+    },
+    {
+      "episode": 854,
+      "step": 43,
+      "reward": 0.04,
+      "kafka_lag_raw": 4108.651436958856,
+      "risk_score_raw": 90.30013041277454,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.04
+      }
+    },
+    {
+      "episode": 869,
+      "step": 43,
+      "reward": 0.6004,
+      "kafka_lag_raw": 4682.97958029195,
+      "risk_score_raw": 87.51545470603504,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0396,
         "infra_penalty": -0.2,
         "db_penalty": 0.0,
         "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1028,
-      "step": 44,
-      "reward": 0.5077,
-      "kafka_lag_raw": 3723.44166043532,
-      "risk_score_raw": 91.51363602081116,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.0723,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
         "bonus": 0.04,
-        "final": 0.5076999999999999
+        "final": 0.6004
       }
     },
     {
-      "episode": 1028,
-      "step": 45,
-      "reward": 0.38,
-      "kafka_lag_raw": 4141.105802749786,
-      "risk_score_raw": 95.44751392986836,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.37999999999999995
-      }
-    },
-    {
-      "episode": 1028,
-      "step": 46,
-      "reward": 0.0,
-      "kafka_lag_raw": 4605.469590109966,
-      "risk_score_raw": 88.61623192003059,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1029,
+      "episode": 878,
       "step": 41,
       "reward": 0.88,
-      "kafka_lag_raw": 2533.188528473288,
-      "risk_score_raw": 86.32833974222663,
+      "kafka_lag_raw": 2717.336767397535,
+      "risk_score_raw": 91.75519306280982,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1074,11 +1452,11 @@
       }
     },
     {
-      "episode": 1048,
-      "step": 41,
-      "reward": 0.5696,
-      "kafka_lag_raw": 3319.0887481716663,
-      "risk_score_raw": 90.18720236031518,
+      "episode": 878,
+      "step": 44,
+      "reward": 0.8303,
+      "kafka_lag_raw": 3534.826185721773,
+      "risk_score_raw": 95.0282836551207,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1086,20 +1464,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0785,
-        "infra_penalty": -0.2319,
-        "db_penalty": 0.0,
+        "sla_penalty": -0.0462,
+        "infra_penalty": -0.0535,
+        "db_penalty": 0.03,
         "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5696000000000001
+        "bonus": 0.06,
+        "final": 0.8303
       }
     },
     {
-      "episode": 1056,
-      "step": 44,
-      "reward": 0.54,
-      "kafka_lag_raw": 786.1446312978524,
-      "risk_score_raw": 92.4067350604169,
+      "episode": 878,
+      "step": 47,
+      "reward": 0.0,
+      "kafka_lag_raw": 4469.339677120504,
+      "risk_score_raw": 98.4820411131297,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1108,19 +1486,250 @@
         "base": 0.8,
         "fraud_penalty": 0.0,
         "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 884,
+      "step": 42,
+      "reward": 0.7131,
+      "kafka_lag_raw": 3837.045525176966,
+      "risk_score_raw": 86.9138714139293,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0832,
+        "infra_penalty": -0.0837,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.7131000000000002
+      }
+    },
+    {
+      "episode": 884,
+      "step": 43,
+      "reward": 0.7637,
+      "kafka_lag_raw": 3908.4483521701914,
+      "risk_score_raw": 95.74603517230466,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0755,
+        "infra_penalty": -0.0908,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.7637
+      }
+    },
+    {
+      "episode": 884,
+      "step": 45,
+      "reward": 0.0,
+      "kafka_lag_raw": 5201.1502330109715,
+      "risk_score_raw": 85.92437165159228,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 890,
+      "step": 45,
+      "reward": 0.06,
+      "kafka_lag_raw": 1797.350659207988,
+      "risk_score_raw": 98.07025771465302,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.06
+      }
+    },
+    {
+      "episode": 890,
+      "step": 47,
+      "reward": 0.34,
+      "kafka_lag_raw": 1092.9827373778799,
+      "risk_score_raw": 98.48656415384043,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.33999999999999997
+      }
+    },
+    {
+      "episode": 900,
+      "step": 41,
+      "reward": 0.88,
+      "kafka_lag_raw": 4148.484589931703,
+      "risk_score_raw": 92.19441940556064,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.8800000000000001
+      }
+    },
+    {
+      "episode": 914,
+      "step": 44,
+      "reward": 0.41,
+      "kafka_lag_raw": 4108.521528572443,
+      "risk_score_raw": 97.6716073425803,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.4099999999999999
+      }
+    },
+    {
+      "episode": 917,
+      "step": 43,
+      "reward": 0.7806,
+      "kafka_lag_raw": 493.5949003018407,
+      "risk_score_raw": 93.48018242198201,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0594,
         "infra_penalty": 0.0,
         "db_penalty": 0.0,
         "settlement_penalty": 0.0,
         "bonus": 0.04,
-        "final": 0.54
+        "final": 0.7806000000000001
       }
     },
     {
-      "episode": 1056,
-      "step": 55,
+      "episode": 924,
+      "step": 41,
+      "reward": 0.0,
+      "kafka_lag_raw": 4109.265524703835,
+      "risk_score_raw": 90.84068170777351,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0581,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 931,
+      "step": 44,
+      "reward": 0.0,
+      "kafka_lag_raw": 5204.936914317886,
+      "risk_score_raw": 97.99212286591904,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 942,
+      "step": 45,
+      "reward": 0.791,
+      "kafka_lag_raw": 1686.8639101254512,
+      "risk_score_raw": 96.51527825169144,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.089,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.7910000000000001
+      }
+    },
+    {
+      "episode": 942,
+      "step": 48,
       "reward": 0.4,
-      "kafka_lag_raw": 1159.645051236119,
-      "risk_score_raw": 95.20899441722078,
+      "kafka_lag_raw": 1710.2032168657213,
+      "risk_score_raw": 96.9066094624467,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1137,137 +1746,11 @@
       }
     },
     {
-      "episode": 1058,
-      "step": 42,
-      "reward": 0.035,
-      "kafka_lag_raw": 3549.8326124327373,
-      "risk_score_raw": 93.1460954913107,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.555,
-        "db_penalty": 0.03,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.03499999999999995
-      }
-    },
-    {
-      "episode": 1058,
-      "step": 45,
-      "reward": 0.0475,
-      "kafka_lag_raw": 3525.4604944042944,
-      "risk_score_raw": 88.190000234775,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5525,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.04750000000000001
-      }
-    },
-    {
-      "episode": 1089,
-      "step": 41,
-      "reward": 0.6351,
-      "kafka_lag_raw": 1218.795183186171,
-      "risk_score_raw": 92.85133944631232,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0449,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6351
-      }
-    },
-    {
-      "episode": 1137,
-      "step": 41,
-      "reward": 0.024,
-      "kafka_lag_raw": 3359.7310886431005,
-      "risk_score_raw": 88.54135198454527,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.536,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.023999999999999966
-      }
-    },
-    {
-      "episode": 1150,
-      "step": 41,
-      "reward": 0.0,
-      "kafka_lag_raw": 4237.974653752448,
-      "risk_score_raw": 88.59718974673818,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1153,
-      "step": 45,
-      "reward": 0.6762,
-      "kafka_lag_raw": 2580.0240974660355,
-      "risk_score_raw": 91.58172846861686,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0038,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6762000000000001
-      }
-    },
-    {
-      "episode": 1153,
+      "episode": 942,
       "step": 52,
-      "reward": 0.4479,
-      "kafka_lag_raw": 3163.644677792566,
-      "risk_score_raw": 93.72478133532475,
+      "reward": 0.34,
+      "kafka_lag_raw": 2250.101105152402,
+      "risk_score_raw": 93.10807286478115,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1275,20 +1758,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0157,
-        "infra_penalty": -0.2164,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
         "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
+        "settlement_penalty": 0.0,
         "bonus": 0.04,
-        "final": 0.4478999999999999
+        "final": 0.33999999999999997
       }
     },
     {
-      "episode": 1153,
-      "step": 54,
-      "reward": 0.1594,
-      "kafka_lag_raw": 2956.2697474289726,
-      "risk_score_raw": 91.18319710260383,
+      "episode": 942,
+      "step": 53,
+      "reward": 0.5991,
+      "kafka_lag_raw": 2422.8941663383,
+      "risk_score_raw": 93.58921959829773,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1296,20 +1779,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0206,
-        "infra_penalty": -0.5,
+        "sla_penalty": -0.0809,
+        "infra_penalty": -0.2,
         "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
+        "settlement_penalty": 0.04,
         "bonus": 0.04,
-        "final": 0.1594000000000001
+        "final": 0.5991000000000002
       }
     },
     {
-      "episode": 1153,
-      "step": 56,
-      "reward": 0.775,
-      "kafka_lag_raw": 2622.646498234949,
-      "risk_score_raw": 88.87886241962305,
+      "episode": 942,
+      "step": 57,
+      "reward": 0.6,
+      "kafka_lag_raw": 2618.0043996963545,
+      "risk_score_raw": 98.51851663331986,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1317,62 +1800,41 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.085,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6000000000000001
+      }
+    },
+    {
+      "episode": 943,
+      "step": 41,
+      "reward": 0.7825,
+      "kafka_lag_raw": 2068.2325643020636,
+      "risk_score_raw": 94.6341879418729,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0575,
         "infra_penalty": 0.0,
         "db_penalty": 0.0,
         "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.7750000000000001
-      }
-    },
-    {
-      "episode": 1153,
-      "step": 60,
-      "reward": 0.1558,
-      "kafka_lag_raw": 3441.8059106172345,
-      "risk_score_raw": 99.06201670419904,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2442,
-        "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
-        "bonus": 0.06,
-        "final": 0.15579999999999997
-      }
-    },
-    {
-      "episode": 1153,
-      "step": 63,
-      "reward": 0.1414,
-      "kafka_lag_raw": 3386.4251016670532,
-      "risk_score_raw": 86.74891123599221,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2386,
-        "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
         "bonus": 0.04,
-        "final": 0.14139999999999997
+        "final": 0.7825000000000001
       }
     },
     {
-      "episode": 1180,
+      "episode": 952,
       "step": 41,
-      "reward": 0.0,
-      "kafka_lag_raw": 3705.306924335485,
-      "risk_score_raw": 98.70226517632449,
+      "reward": 0.7658,
+      "kafka_lag_raw": 1827.308371141569,
+      "risk_score_raw": 98.47486235945718,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1380,41 +1842,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5705,
+        "sla_penalty": -0.0742,
+        "infra_penalty": 0.0,
         "db_penalty": 0.0,
         "settlement_penalty": 0.0,
         "bonus": 0.04,
-        "final": 0.0
+        "final": 0.7658
       }
     },
     {
-      "episode": 1180,
-      "step": 44,
-      "reward": 0.6012,
-      "kafka_lag_raw": 4007.4811518417564,
-      "risk_score_raw": 97.35722336824212,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0788,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6012000000000002
-      }
-    },
-    {
-      "episode": 1182,
+      "episode": 972,
       "step": 41,
-      "reward": 0.6465,
-      "kafka_lag_raw": 3335.013834903102,
-      "risk_score_raw": 98.65345617470041,
+      "reward": 0.63,
+      "kafka_lag_raw": 4206.749499508611,
+      "risk_score_raw": 98.69502180792658,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1422,41 +1863,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2335,
-        "db_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
         "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6465000000000001
+        "bonus": 0.06,
+        "final": 0.6300000000000001
       }
     },
     {
-      "episode": 1182,
-      "step": 45,
-      "reward": 0.7547,
-      "kafka_lag_raw": 3791.448907476303,
-      "risk_score_raw": 96.25891116568923,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0462,
-        "infra_penalty": -0.0791,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.7547000000000001
-      }
-    },
-    {
-      "episode": 1184,
+      "episode": 982,
       "step": 42,
-      "reward": 0.3327,
-      "kafka_lag_raw": 4379.381759050241,
-      "risk_score_raw": 95.30570198724689,
+      "reward": 0.2582,
+      "kafka_lag_raw": 3057.7125922592877,
+      "risk_score_raw": 93.78069990418453,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1464,20 +1884,41 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0673,
+        "sla_penalty": -0.076,
+        "infra_penalty": -0.5058,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.25820000000000004
+      }
+    },
+    {
+      "episode": 983,
+      "step": 41,
+      "reward": 0.0,
+      "kafka_lag_raw": 5849.24358168277,
+      "risk_score_raw": 97.0880856132421,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0381,
         "infra_penalty": -0.5,
         "db_penalty": 0.0,
         "settlement_penalty": 0.04,
         "bonus": 0.06,
-        "final": 0.3327
+        "final": 0.0
       }
     },
     {
-      "episode": 1197,
-      "step": 43,
-      "reward": 0.5269,
-      "kafka_lag_raw": 3975.765411649927,
-      "risk_score_raw": 86.94886154256123,
+      "episode": 1014,
+      "step": 41,
+      "reward": 0.9105,
+      "kafka_lag_raw": 2674.0713172817505,
+      "risk_score_raw": 89.15050308101036,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1485,83 +1926,62 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0555,
-        "infra_penalty": -0.2976,
-        "db_penalty": 0.0,
+        "sla_penalty": -0.0195,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
         "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5269
-      }
-    },
-    {
-      "episode": 1206,
-      "step": 43,
-      "reward": 0.6247,
-      "kafka_lag_raw": 2542.677399540783,
-      "risk_score_raw": 85.35312020393002,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0553,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6247
-      }
-    },
-    {
-      "episode": 1206,
-      "step": 50,
-      "reward": 0.5787,
-      "kafka_lag_raw": 3357.3313556262656,
-      "risk_score_raw": 91.74583029601455,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0656,
-        "infra_penalty": -0.2357,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5787000000000001
-      }
-    },
-    {
-      "episode": 1209,
-      "step": 44,
-      "reward": 0.6224,
-      "kafka_lag_raw": 1607.8316865702216,
-      "risk_score_raw": 95.74162239258102,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0376,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
         "bonus": 0.06,
-        "final": 0.6224000000000001
+        "final": 0.9105000000000001
       }
     },
     {
-      "episode": 1209,
-      "step": 49,
+      "episode": 1014,
+      "step": 42,
+      "reward": 0.6766,
+      "kafka_lag_raw": 2875.4678152995807,
+      "risk_score_raw": 98.60841468203553,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0034,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.6766000000000001
+      }
+    },
+    {
+      "episode": 1015,
+      "step": 41,
+      "reward": 0.6695,
+      "kafka_lag_raw": 2042.3024551452445,
+      "risk_score_raw": 97.31187326091015,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0605,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6695000000000002
+      }
+    },
+    {
+      "episode": 1015,
+      "step": 42,
       "reward": 0.57,
-      "kafka_lag_raw": 1658.0443220126785,
-      "risk_score_raw": 97.57774533387563,
+      "kafka_lag_raw": 2233.4843409744503,
+      "risk_score_raw": 85.69120761738279,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1578,11 +1998,11 @@
       }
     },
     {
-      "episode": 1209,
-      "step": 63,
-      "reward": 0.07,
-      "kafka_lag_raw": 2769.588039791031,
-      "risk_score_raw": 99.75601085279376,
+      "episode": 1015,
+      "step": 47,
+      "reward": 0.534,
+      "kafka_lag_raw": 3473.0374800027494,
+      "risk_score_raw": 89.84973732766893,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1590,125 +2010,83 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.03,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.07
-      }
-    },
-    {
-      "episode": 1209,
-      "step": 69,
-      "reward": 0.3267,
-      "kafka_lag_raw": 3432.741053839803,
-      "risk_score_raw": 89.07660098787314,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2433,
-        "db_penalty": 0.03,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.32669999999999993
-      }
-    },
-    {
-      "episode": 1212,
-      "step": 45,
-      "reward": 0.0998,
-      "kafka_lag_raw": 3001.7717426140075,
-      "risk_score_raw": 95.11848575262889,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5002,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.09980000000000003
-      }
-    },
-    {
-      "episode": 1216,
-      "step": 42,
-      "reward": 0.6374,
-      "kafka_lag_raw": 2609.98665416589,
-      "risk_score_raw": 85.54739341681929,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0426,
-        "infra_penalty": -0.2,
+        "sla_penalty": -0.0987,
+        "infra_penalty": -0.2473,
         "db_penalty": 0.0,
         "settlement_penalty": 0.04,
         "bonus": 0.04,
-        "final": 0.6374000000000002
+        "final": 0.534
       }
     },
     {
-      "episode": 1216,
-      "step": 48,
+      "episode": 1015,
+      "step": 50,
+      "reward": 0.3302,
+      "kafka_lag_raw": 3497.9588406853704,
+      "risk_score_raw": 92.30799603169561,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2498,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.33019999999999994
+      }
+    },
+    {
+      "episode": 1029,
+      "step": 44,
+      "reward": 0.5394,
+      "kafka_lag_raw": 3406.39990705783,
+      "risk_score_raw": 93.86726472113858,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0406,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.5394
+      }
+    },
+    {
+      "episode": 1029,
+      "step": 46,
+      "reward": 0.7942,
+      "kafka_lag_raw": 4181.109022489954,
+      "risk_score_raw": 96.8623192064238,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0858,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.7942000000000001
+      }
+    },
+    {
+      "episode": 1034,
+      "step": 44,
       "reward": 0.0,
-      "kafka_lag_raw": 4664.147519860937,
-      "risk_score_raw": 85.23853212566814,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1228,
-      "step": 42,
-      "reward": 0.0,
-      "kafka_lag_raw": 4396.661283064507,
-      "risk_score_raw": 96.31923899764217,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.068,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1232,
-      "step": 41,
-      "reward": 0.58,
-      "kafka_lag_raw": 1310.8959234630852,
-      "risk_score_raw": 93.77452559578079,
+      "kafka_lag_raw": 4713.833225749146,
+      "risk_score_raw": 90.79885782671995,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1720,16 +2098,394 @@
         "infra_penalty": 0.0,
         "db_penalty": 0.0,
         "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5800000000000001
+        "bonus": 0.06,
+        "final": 0.0
       }
     },
     {
-      "episode": 1232,
+      "episode": 1046,
       "step": 44,
+      "reward": 0.6022,
+      "kafka_lag_raw": 3277.615254539128,
+      "risk_score_raw": 99.16343861725713,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0278,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6022000000000001
+      }
+    },
+    {
+      "episode": 1046,
+      "step": 45,
+      "reward": 0.5946,
+      "kafka_lag_raw": 3353.822420227574,
+      "risk_score_raw": 99.19613919836293,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0354,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5946
+      }
+    },
+    {
+      "episode": 1046,
+      "step": 50,
+      "reward": 0.0,
+      "kafka_lag_raw": 4204.155892657247,
+      "risk_score_raw": 86.24672341467483,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1047,
+      "step": 43,
+      "reward": 0.2328,
+      "kafka_lag_raw": 3523.8326703520424,
+      "risk_score_raw": 98.111630466961,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0748,
+        "infra_penalty": -0.5524,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.23280000000000006
+      }
+    },
+    {
+      "episode": 1089,
+      "step": 42,
+      "reward": 0.7672,
+      "kafka_lag_raw": 3251.0855634314985,
+      "risk_score_raw": 86.9523800927741,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0877,
+        "infra_penalty": -0.0251,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.7672000000000001
+      }
+    },
+    {
+      "episode": 1166,
+      "step": 42,
+      "reward": 0.0,
+      "kafka_lag_raw": 4282.765191322058,
+      "risk_score_raw": 90.21937691937792,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1170,
+      "step": 44,
+      "reward": 0.6,
+      "kafka_lag_raw": 4315.015228223145,
+      "risk_score_raw": 96.37258070927763,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6000000000000001
+      }
+    },
+    {
+      "episode": 1187,
+      "step": 44,
+      "reward": 0.7876,
+      "kafka_lag_raw": 3697.003899088879,
+      "risk_score_raw": 91.14266056934777,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0427,
+        "infra_penalty": -0.0697,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.7876000000000001
+      }
+    },
+    {
+      "episode": 1187,
+      "step": 45,
+      "reward": 0.3057,
+      "kafka_lag_raw": 3543.20431288882,
+      "risk_score_raw": 98.01356827002422,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2543,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.30569999999999997
+      }
+    },
+    {
+      "episode": 1187,
+      "step": 48,
+      "reward": 0.5777,
+      "kafka_lag_raw": 3522.781450004263,
+      "risk_score_raw": 86.44411468410604,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0523,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5777000000000001
+      }
+    },
+    {
+      "episode": 1187,
+      "step": 49,
+      "reward": 0.0827,
+      "kafka_lag_raw": 3472.8190007693647,
+      "risk_score_raw": 94.38024457522503,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5473,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0827
+      }
+    },
+    {
+      "episode": 1206,
+      "step": 47,
+      "reward": 0.3017,
+      "kafka_lag_raw": 1145.521485514918,
+      "risk_score_raw": 92.58562346826724,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0783,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.30169999999999997
+      }
+    },
+    {
+      "episode": 1206,
+      "step": 50,
+      "reward": 0.54,
+      "kafka_lag_raw": 720.4179556679259,
+      "risk_score_raw": 91.74583029601455,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.54
+      }
+    },
+    {
+      "episode": 1206,
+      "step": 51,
+      "reward": 0.8075,
+      "kafka_lag_raw": 596.1434056917531,
+      "risk_score_raw": 99.15173213974178,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0725,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.8075000000000001
+      }
+    },
+    {
+      "episode": 1206,
+      "step": 61,
+      "reward": 0.06,
+      "kafka_lag_raw": 733.956995546137,
+      "risk_score_raw": 88.39073512932761,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.06
+      }
+    },
+    {
+      "episode": 1209,
+      "step": 49,
+      "reward": 0.794,
+      "kafka_lag_raw": 1519.8844237823635,
+      "risk_score_raw": 97.57774533387563,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.066,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.794
+      }
+    },
+    {
+      "episode": 1216,
+      "step": 46,
+      "reward": 0.36,
+      "kafka_lag_raw": 1176.5712681290736,
+      "risk_score_raw": 94.4742582447727,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.36
+      }
+    },
+    {
+      "episode": 1216,
+      "step": 47,
+      "reward": 0.36,
+      "kafka_lag_raw": 1365.0566856852925,
+      "risk_score_raw": 91.4158459260944,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.36
+      }
+    },
+    {
+      "episode": 1216,
+      "step": 48,
       "reward": 0.11,
-      "kafka_lag_raw": 2072.088063704594,
-      "risk_score_raw": 87.18553754708448,
+      "kafka_lag_raw": 1415.4534458048495,
+      "risk_score_raw": 85.23853212566814,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1746,11 +2502,74 @@
       }
     },
     {
-      "episode": 1253,
+      "episode": 1217,
+      "step": 44,
+      "reward": 0.8347,
+      "kafka_lag_raw": 4038.7277804935843,
+      "risk_score_raw": 98.42079336294317,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0953,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8347000000000002
+      }
+    },
+    {
+      "episode": 1232,
+      "step": 68,
+      "reward": 0.54,
+      "kafka_lag_raw": 860.8411947351044,
+      "risk_score_raw": 85.0742721985742,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.54
+      }
+    },
+    {
+      "episode": 1251,
       "step": 41,
-      "reward": 0.0,
-      "kafka_lag_raw": 4934.083649575914,
-      "risk_score_raw": 93.97866767006512,
+      "reward": 0.3522,
+      "kafka_lag_raw": 2917.2591143002846,
+      "risk_score_raw": 90.63454038922056,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0278,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.35219999999999996
+      }
+    },
+    {
+      "episode": 1263,
+      "step": 56,
+      "reward": 0.37,
+      "kafka_lag_raw": 1766.302377168772,
+      "risk_score_raw": 85.2316432798849,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -1760,80 +2579,17 @@
         "fraud_penalty": 0.0,
         "sla_penalty": -0.3,
         "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.0,
         "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1256,
-      "step": 41,
-      "reward": 0.6022,
-      "kafka_lag_raw": 2565.7089208062025,
-      "risk_score_raw": 92.71875199034365,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0778,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6022000000000001
-      }
-    },
-    {
-      "episode": 1263,
-      "step": 41,
-      "reward": 0.68,
-      "kafka_lag_raw": 503.27337281747765,
-      "risk_score_raw": 85.92438517624979,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6800000000000002
-      }
-    },
-    {
-      "episode": 1263,
-      "step": 48,
-      "reward": 0.3503,
-      "kafka_lag_raw": 1532.2662318762125,
-      "risk_score_raw": 87.36377242889083,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0297,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.35030000000000006
+        "final": 0.36999999999999994
       }
     },
     {
       "episode": 1267,
       "step": 41,
-      "reward": 0.2997,
-      "kafka_lag_raw": 4278.234357699931,
+      "reward": 0.0,
+      "kafka_lag_raw": 5177.458594482216,
       "risk_score_raw": 97.31739938398368,
       "action": {
         "risk_decision": 1,
@@ -1842,1196 +2598,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0403,
+        "sla_penalty": 0.0,
         "infra_penalty": -0.5,
         "db_penalty": 0.0,
         "settlement_penalty": 0.0,
         "bonus": 0.04,
-        "final": 0.2997
-      }
-    },
-    {
-      "episode": 1268,
-      "step": 41,
-      "reward": 0.8948,
-      "kafka_lag_raw": 4630.073390185083,
-      "risk_score_raw": 86.32947076958791,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0352,
-        "infra_penalty": 0.0,
-        "db_penalty": 0.03,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.8948
+        "final": 0.0
       }
     },
     {
       "episode": 1269,
-      "step": 41,
-      "reward": 0.3109,
-      "kafka_lag_raw": 2586.3008036940823,
-      "risk_score_raw": 98.37803724814802,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0591,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.03,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.3109
-      }
-    },
-    {
-      "episode": 1286,
-      "step": 44,
-      "reward": 0.9085,
-      "kafka_lag_raw": 3014.848805614964,
-      "risk_score_raw": 95.0691918838051,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.0015,
-        "db_penalty": 0.03,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.9085000000000002
-      }
-    },
-    {
-      "episode": 1286,
-      "step": 47,
-      "reward": 0.5667,
-      "kafka_lag_raw": 3745.334053751821,
-      "risk_score_raw": 90.00042666044668,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0388,
-        "infra_penalty": -0.2745,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5667000000000001
-      }
-    },
-    {
-      "episode": 1286,
-      "step": 50,
-      "reward": 0.0458,
-      "kafka_lag_raw": 3341.510718024677,
-      "risk_score_raw": 90.01773939667515,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5342,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.045799999999999993
-      }
-    },
-    {
-      "episode": 1286,
-      "step": 51,
-      "reward": 0.5732,
-      "kafka_lag_raw": 3148.506288633684,
-      "risk_score_raw": 95.64362053619317,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0919,
-        "infra_penalty": -0.2149,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5732000000000002
-      }
-    },
-    {
-      "episode": 1294,
-      "step": 44,
-      "reward": 0.68,
-      "kafka_lag_raw": 4233.109050759968,
-      "risk_score_raw": 97.20472758218436,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6800000000000002
-      }
-    },
-    {
-      "episode": 1298,
-      "step": 41,
-      "reward": 0.6632,
-      "kafka_lag_raw": 3167.6782711396163,
-      "risk_score_raw": 90.81661792726378,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2168,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6632000000000001
-      }
-    },
-    {
-      "episode": 1312,
       "step": 42,
-      "reward": 0.3214,
-      "kafka_lag_raw": 4871.946132453226,
-      "risk_score_raw": 88.13627689991421,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0786,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.3214
-      }
-    },
-    {
-      "episode": 1355,
-      "step": 41,
-      "reward": 0.658,
-      "kafka_lag_raw": 4408.749018637377,
-      "risk_score_raw": 92.87959058531354,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.022,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6580000000000001
-      }
-    },
-    {
-      "episode": 1358,
-      "step": 42,
-      "reward": 0.5553,
-      "kafka_lag_raw": 3318.1811669654844,
-      "risk_score_raw": 90.38518698064613,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0929,
-        "infra_penalty": -0.2318,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5553000000000001
-      }
-    },
-    {
-      "episode": 1358,
-      "step": 44,
-      "reward": 0.0,
-      "kafka_lag_raw": 4828.025408140111,
-      "risk_score_raw": 89.73301850963226,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.03,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1359,
-      "step": 44,
-      "reward": 0.48,
-      "kafka_lag_raw": 2334.9413077308463,
-      "risk_score_raw": 98.03648269497076,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
-        "bonus": 0.04,
-        "final": 0.48000000000000004
-      }
-    },
-    {
-      "episode": 1359,
-      "step": 45,
-      "reward": 0.2,
-      "kafka_lag_raw": 2188.8213342497625,
-      "risk_score_raw": 92.57575915041805,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
-        "bonus": 0.06,
-        "final": 0.20000000000000004
-      }
-    },
-    {
-      "episode": 1359,
-      "step": 50,
-      "reward": 0.4194,
-      "kafka_lag_raw": 3260.7491711515463,
-      "risk_score_raw": 86.27373729107559,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0345,
-        "infra_penalty": -0.2261,
-        "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
-        "bonus": 0.04,
-        "final": 0.41940000000000005
-      }
-    },
-    {
-      "episode": 1387,
-      "step": 43,
-      "reward": 0.0,
-      "kafka_lag_raw": 4557.820386357138,
-      "risk_score_raw": 91.06559772624185,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0845,
-        "infra_penalty": -0.5,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1390,
-      "step": 41,
-      "reward": 0.5653,
-      "kafka_lag_raw": 423.42974841747036,
-      "risk_score_raw": 97.39174867624166,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0947,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.5653000000000001
-      }
-    },
-    {
-      "episode": 1390,
-      "step": 45,
-      "reward": 0.6442,
-      "kafka_lag_raw": 701.4660413279197,
-      "risk_score_raw": 87.37878810846237,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0358,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6442000000000001
-      }
-    },
-    {
-      "episode": 1390,
-      "step": 60,
-      "reward": 0.3343,
-      "kafka_lag_raw": 3057.4686764139274,
-      "risk_score_raw": 96.9447408965232,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2057,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.3343
-      }
-    },
-    {
-      "episode": 1390,
-      "step": 61,
-      "reward": 0.0,
-      "kafka_lag_raw": 3073.5065753202184,
-      "risk_score_raw": 99.15238310514732,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5074,
-        "db_penalty": 0.0,
-        "settlement_penalty": -0.2,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1390,
-      "step": 67,
-      "reward": 0.3844,
-      "kafka_lag_raw": 2776.6717538794305,
-      "risk_score_raw": 88.22179713326497,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0956,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
-        "bonus": 0.04,
-        "final": 0.3843999999999999
-      }
-    },
-    {
-      "episode": 1394,
-      "step": 42,
-      "reward": 0.5595,
-      "kafka_lag_raw": 3653.9276471923285,
-      "risk_score_raw": 95.1461472754869,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0351,
-        "infra_penalty": -0.2654,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.5595
-      }
-    },
-    {
-      "episode": 1394,
-      "step": 43,
-      "reward": 0.6672,
-      "kafka_lag_raw": 3024.5140333043905,
-      "risk_score_raw": 85.58010769817788,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0303,
-        "infra_penalty": -0.2025,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.6672
-      }
-    },
-    {
-      "episode": 1394,
-      "step": 45,
-      "reward": 0.662,
-      "kafka_lag_raw": 2975.093195687045,
-      "risk_score_raw": 92.25440970971412,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.018,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6620000000000001
-      }
-    },
-    {
-      "episode": 1394,
-      "step": 46,
-      "reward": 0.6747,
-      "kafka_lag_raw": 2851.9151234252527,
-      "risk_score_raw": 95.69600103792551,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0053,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6747000000000001
-      }
-    },
-    {
-      "episode": 1394,
-      "step": 47,
-      "reward": 0.68,
-      "kafka_lag_raw": 2728.8949240364577,
-      "risk_score_raw": 99.62387655131432,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6800000000000002
-      }
-    },
-    {
-      "episode": 1404,
-      "step": 42,
-      "reward": 0.4938,
-      "kafka_lag_raw": 3996.4749188389032,
-      "risk_score_raw": 88.95086235738373,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0866,
-        "infra_penalty": -0.2996,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.4938
-      }
-    },
-    {
-      "episode": 1404,
-      "step": 43,
-      "reward": 0.6026,
-      "kafka_lag_raw": 4005.061050047561,
-      "risk_score_raw": 87.28427813979953,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0774,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6026
-      }
-    },
-    {
-      "episode": 1415,
-      "step": 44,
-      "reward": 0.8255,
-      "kafka_lag_raw": 1959.8519896224889,
-      "risk_score_raw": 95.15329481881344,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0345,
-        "infra_penalty": 0.0,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.8255000000000001
-      }
-    },
-    {
-      "episode": 1415,
-      "step": 49,
-      "reward": 0.38,
-      "kafka_lag_raw": 2689.796624346604,
-      "risk_score_raw": 85.58660140451353,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.37999999999999995
-      }
-    },
-    {
-      "episode": 1415,
-      "step": 54,
-      "reward": 0.0309,
-      "kafka_lag_raw": 3690.6005666866827,
-      "risk_score_raw": 96.64371294545396,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.5691,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.03090000000000006
-      }
-    },
-    {
-      "episode": 1415,
-      "step": 55,
-      "reward": 0.38,
-      "kafka_lag_raw": 2942.842128133711,
-      "risk_score_raw": 88.72468002727182,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.37999999999999995
-      }
-    },
-    {
-      "episode": 1415,
-      "step": 60,
-      "reward": 0.2728,
-      "kafka_lag_raw": 3222.3414936945424,
-      "risk_score_raw": 94.40127278790314,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.085,
-        "infra_penalty": -0.5222,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.2728000000000001
-      }
-    },
-    {
-      "episode": 1415,
-      "step": 64,
-      "reward": 0.6091,
-      "kafka_lag_raw": 2654.7442140430067,
-      "risk_score_raw": 88.2084497024197,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0709,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6091000000000002
-      }
-    },
-    {
-      "episode": 1415,
-      "step": 71,
-      "reward": 0.6657,
-      "kafka_lag_raw": 2305.022711529234,
-      "risk_score_raw": 86.85814496750272,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0343,
-        "infra_penalty": 0.0,
-        "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
-        "bonus": 0.06,
-        "final": 0.6657
-      }
-    },
-    {
-      "episode": 1415,
-      "step": 75,
-      "reward": 0.36,
-      "kafka_lag_raw": 1766.4920053430897,
-      "risk_score_raw": 96.64138959981425,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.36
-      }
-    },
-    {
-      "episode": 1415,
-      "step": 77,
-      "reward": 0.36,
-      "kafka_lag_raw": 1823.0090900648988,
-      "risk_score_raw": 96.97599320005497,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.36
-      }
-    },
-    {
-      "episode": 1426,
-      "step": 41,
-      "reward": 0.5516,
-      "kafka_lag_raw": 3600.56351898919,
-      "risk_score_raw": 90.49911538091607,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0683,
-        "infra_penalty": -0.2601,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5516000000000001
-      }
-    },
-    {
-      "episode": 1426,
-      "step": 42,
-      "reward": 0.6203,
-      "kafka_lag_raw": 4487.981735570544,
-      "risk_score_raw": 91.41019219763658,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0597,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6203000000000001
-      }
-    },
-    {
-      "episode": 1453,
-      "step": 43,
-      "reward": 0.6099,
-      "kafka_lag_raw": 4179.103177541754,
-      "risk_score_raw": 90.36883531951806,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0701,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6099000000000001
-      }
-    },
-    {
-      "episode": 1485,
-      "step": 41,
-      "reward": 0.522,
-      "kafka_lag_raw": 3863.048288325053,
-      "risk_score_raw": 85.66074050146806,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0517,
-        "infra_penalty": -0.2863,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.06,
-        "final": 0.522
-      }
-    },
-    {
-      "episode": 1485,
-      "step": 42,
-      "reward": 0.6445,
-      "kafka_lag_raw": 4308.51273439956,
-      "risk_score_raw": 92.21148156928975,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0355,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6445000000000001
-      }
-    },
-    {
-      "episode": 1504,
-      "step": 45,
-      "reward": 0.7,
-      "kafka_lag_raw": 2563.945518606031,
-      "risk_score_raw": 94.64994767519805,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.7000000000000002
-      }
-    },
-    {
-      "episode": 1507,
-      "step": 41,
-      "reward": 0.6545,
-      "kafka_lag_raw": 4207.722576274012,
-      "risk_score_raw": 88.55685741775193,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0255,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6545000000000001
-      }
-    },
-    {
-      "episode": 1568,
-      "step": 48,
-      "reward": 0.2893,
-      "kafka_lag_raw": 3906.747748685069,
-      "risk_score_raw": 91.07905601044207,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2907,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.2893
-      }
-    },
-    {
-      "episode": 1568,
-      "step": 52,
-      "reward": 0.0,
-      "kafka_lag_raw": 4420.635903116384,
-      "risk_score_raw": 98.57949335444555,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1587,
-      "step": 46,
-      "reward": 0.8438,
-      "kafka_lag_raw": 2308.9223436565767,
-      "risk_score_raw": 86.85841542771958,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0562,
-        "infra_penalty": 0.0,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.06,
-        "final": 0.8438000000000001
-      }
-    },
-    {
-      "episode": 1587,
-      "step": 51,
-      "reward": 0.5763,
-      "kafka_lag_raw": 3140.0128499888224,
-      "risk_score_raw": 91.37875710890508,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0497,
-        "infra_penalty": -0.214,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.5763
-      }
-    },
-    {
-      "episode": 1589,
-      "step": 41,
-      "reward": 0.5979,
-      "kafka_lag_raw": 3245.08019397573,
-      "risk_score_raw": 86.3153499170646,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0576,
-        "infra_penalty": -0.2245,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5979000000000001
-      }
-    },
-    {
-      "episode": 1589,
-      "step": 46,
-      "reward": 0.0,
-      "kafka_lag_raw": 4550.847057222826,
-      "risk_score_raw": 87.18128216194368,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.3,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1611,
-      "step": 42,
-      "reward": 0.68,
-      "kafka_lag_raw": 4409.297664590941,
-      "risk_score_raw": 92.94868771503094,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6800000000000002
-      }
-    },
-    {
-      "episode": 1643,
-      "step": 42,
-      "reward": 0.5034,
-      "kafka_lag_raw": 3880.2053057595053,
-      "risk_score_raw": 90.77999096317679,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0886,
-        "infra_penalty": -0.288,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5034
-      }
-    },
-    {
-      "episode": 1643,
-      "step": 44,
-      "reward": 0.5906,
-      "kafka_lag_raw": 4662.2334889173035,
-      "risk_score_raw": 86.50751158883448,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0894,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5906
-      }
-    },
-    {
-      "episode": 1649,
-      "step": 42,
-      "reward": 0.6622,
-      "kafka_lag_raw": 2562.2619790148515,
-      "risk_score_raw": 98.35161383137994,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0178,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6622000000000001
-      }
-    },
-    {
-      "episode": 1689,
-      "step": 41,
-      "reward": 0.68,
-      "kafka_lag_raw": 2517.804072743188,
-      "risk_score_raw": 94.27085980738585,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6800000000000002
-      }
-    },
-    {
-      "episode": 1714,
-      "step": 48,
-      "reward": 0.0,
-      "kafka_lag_raw": 4925.937322700771,
-      "risk_score_raw": 92.06804376909807,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0607,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1715,
-      "step": 42,
-      "reward": 0.6776,
-      "kafka_lag_raw": 3014.674340313497,
-      "risk_score_raw": 99.16058378112781,
+      "reward": 0.6791,
+      "kafka_lag_raw": 2066.6635657310458,
+      "risk_score_raw": 88.11375953541207,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3040,145 +2620,19 @@
         "base": 0.8,
         "fraud_penalty": 0.0,
         "sla_penalty": -0.0009,
-        "infra_penalty": -0.2015,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6776000000000001
-      }
-    },
-    {
-      "episode": 1718,
-      "step": 47,
-      "reward": 0.6023,
-      "kafka_lag_raw": 2986.349091170963,
-      "risk_score_raw": 93.22696808832117,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0777,
         "infra_penalty": -0.2,
         "db_penalty": 0.0,
         "settlement_penalty": 0.04,
         "bonus": 0.04,
-        "final": 0.6023000000000001
+        "final": 0.6791
       }
     },
     {
-      "episode": 1718,
-      "step": 48,
-      "reward": 0.6056,
-      "kafka_lag_raw": 2679.9090812182044,
-      "risk_score_raw": 88.4590987207037,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0744,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6056000000000001
-      }
-    },
-    {
-      "episode": 1718,
-      "step": 49,
-      "reward": 0.6166,
-      "kafka_lag_raw": 2618.8979966731513,
-      "risk_score_raw": 95.11647630136738,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0634,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6166
-      }
-    },
-    {
-      "episode": 1721,
-      "step": 42,
-      "reward": 0.4966,
-      "kafka_lag_raw": 3978.8175388765703,
-      "risk_score_raw": 90.51802656910519,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0855,
-        "infra_penalty": -0.2979,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.4966
-      }
-    },
-    {
-      "episode": 1730,
-      "step": 41,
-      "reward": 0.6673,
-      "kafka_lag_raw": 3127.1419762108953,
-      "risk_score_raw": 92.91074246303779,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2127,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6673000000000001
-      }
-    },
-    {
-      "episode": 1743,
-      "step": 41,
-      "reward": 0.5815,
-      "kafka_lag_raw": 3515.3965829781596,
-      "risk_score_raw": 87.52915513801594,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.007,
-        "infra_penalty": -0.2515,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.5815000000000001
-      }
-    },
-    {
-      "episode": 1776,
+      "episode": 1269,
       "step": 44,
-      "reward": 0.6317,
-      "kafka_lag_raw": 3482.959030034214,
-      "risk_score_raw": 99.07838392248755,
+      "reward": 0.9,
+      "kafka_lag_raw": 2994.8815275007346,
+      "risk_score_raw": 98.99960841304092,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3187,19 +2641,19 @@
         "base": 0.8,
         "fraud_penalty": 0.0,
         "sla_penalty": 0.0,
-        "infra_penalty": -0.2483,
+        "infra_penalty": 0.0,
         "db_penalty": 0.0,
         "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6317000000000002
+        "bonus": 0.06,
+        "final": 0.9000000000000001
       }
     },
     {
-      "episode": 1776,
-      "step": 48,
-      "reward": 0.6317,
-      "kafka_lag_raw": 4325.0321919436365,
-      "risk_score_raw": 90.4456704865835,
+      "episode": 1269,
+      "step": 45,
+      "reward": 0.2899,
+      "kafka_lag_raw": 3132.6067851949892,
+      "risk_score_raw": 90.74284498810134,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3207,125 +2661,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0483,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6317000000000002
-      }
-    },
-    {
-      "episode": 1789,
-      "step": 42,
-      "reward": 0.68,
-      "kafka_lag_raw": 4507.321336814157,
-      "risk_score_raw": 97.47464080003091,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6800000000000002
-      }
-    },
-    {
-      "episode": 1873,
-      "step": 42,
-      "reward": 0.6521,
-      "kafka_lag_raw": 4532.888523508431,
-      "risk_score_raw": 92.51145444804384,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0279,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6521000000000001
-      }
-    },
-    {
-      "episode": 1873,
-      "step": 43,
-      "reward": 0.0,
-      "kafka_lag_raw": 4470.539050353265,
-      "risk_score_raw": 95.67140233289328,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0313,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1915,
-      "step": 43,
-      "reward": 0.68,
-      "kafka_lag_raw": 2984.94575082277,
-      "risk_score_raw": 96.53940647075937,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6800000000000002
-      }
-    },
-    {
-      "episode": 1915,
-      "step": 49,
-      "reward": 0.5596,
-      "kafka_lag_raw": 4157.047026670492,
-      "risk_score_raw": 99.631024574387,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0804,
-        "infra_penalty": -0.2,
+        "sla_penalty": -0.0368,
+        "infra_penalty": -0.5133,
         "db_penalty": 0.0,
         "settlement_penalty": 0.0,
         "bonus": 0.04,
-        "final": 0.5596000000000001
+        "final": 0.2899000000000001
       }
     },
     {
-      "episode": 1915,
+      "episode": 1269,
       "step": 50,
-      "reward": 0.1624,
-      "kafka_lag_raw": 3869.683594222896,
-      "risk_score_raw": 98.52873268780762,
+      "reward": 0.8059,
+      "kafka_lag_raw": 4341.169565035999,
+      "risk_score_raw": 92.49036023973183,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3333,20 +2682,41 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0906,
-        "infra_penalty": -0.587,
+        "sla_penalty": -0.0941,
+        "infra_penalty": 0.0,
         "db_penalty": 0.0,
-        "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.16240000000000007
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8059000000000001
       }
     },
     {
-      "episode": 1915,
-      "step": 57,
-      "reward": 0.0971,
-      "kafka_lag_raw": 3828.8295975029764,
-      "risk_score_raw": 93.59481008863843,
+      "episode": 1286,
+      "step": 42,
+      "reward": 0.7765,
+      "kafka_lag_raw": 1836.713781346597,
+      "risk_score_raw": 99.84744382618302,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0635,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.7765000000000001
+      }
+    },
+    {
+      "episode": 1286,
+      "step": 49,
+      "reward": 0.286,
+      "kafka_lag_raw": 3539.5447520839393,
+      "risk_score_raw": 94.84899066123313,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3355,19 +2725,19 @@
         "base": 0.8,
         "fraud_penalty": 0.0,
         "sla_penalty": -0.3,
-        "infra_penalty": -0.2829,
+        "infra_penalty": -0.254,
         "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
+        "settlement_penalty": 0.0,
         "bonus": 0.04,
-        "final": 0.09709999999999996
+        "final": 0.286
       }
     },
     {
-      "episode": 1926,
-      "step": 47,
-      "reward": 0.575,
-      "kafka_lag_raw": 3826.4866769483388,
-      "risk_score_raw": 99.55179497184407,
+      "episode": 1286,
+      "step": 53,
+      "reward": 0.63,
+      "kafka_lag_raw": 4188.038758508305,
+      "risk_score_raw": 87.7892979247166,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3375,62 +2745,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0224,
-        "infra_penalty": -0.2826,
-        "db_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
         "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.5750000000000001
+        "bonus": 0.06,
+        "final": 0.6300000000000001
       }
     },
     {
-      "episode": 1926,
-      "step": 48,
-      "reward": 0.6544,
-      "kafka_lag_raw": 4221.245189659728,
-      "risk_score_raw": 96.71558324353161,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0256,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6544000000000001
-      }
-    },
-    {
-      "episode": 1936,
-      "step": 49,
-      "reward": 0.0,
-      "kafka_lag_raw": 4227.599319321799,
-      "risk_score_raw": 99.05516512625178,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": -0.0918,
-        "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": -0.16,
-        "bonus": 0.04,
-        "final": 0.0
-      }
-    },
-    {
-      "episode": 1938,
+      "episode": 1294,
       "step": 42,
-      "reward": 0.626,
-      "kafka_lag_raw": 3191.7253260932134,
-      "risk_score_raw": 92.19536198597545,
+      "reward": 0.93,
+      "kafka_lag_raw": 2866.1882835482875,
+      "risk_score_raw": 93.37349213644626,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3438,20 +2766,83 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0348,
-        "infra_penalty": -0.2192,
-        "db_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
         "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6260000000000001
+        "bonus": 0.06,
+        "final": 0.9300000000000002
       }
     },
     {
-      "episode": 1938,
+      "episode": 1298,
+      "step": 45,
+      "reward": 0.8575,
+      "kafka_lag_raw": 3372.4904471896043,
+      "risk_score_raw": 90.5243791613654,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0053,
+        "infra_penalty": -0.0372,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8575000000000002
+      }
+    },
+    {
+      "episode": 1298,
+      "step": 51,
+      "reward": 0.2726,
+      "kafka_lag_raw": 3974.2402741536685,
+      "risk_score_raw": 92.25399923065113,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2974,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.2726
+      }
+    },
+    {
+      "episode": 1298,
+      "step": 52,
+      "reward": 0.5581,
+      "kafka_lag_raw": 3718.6543249477363,
+      "risk_score_raw": 99.46015648199608,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0719,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5580999999999999
+      }
+    },
+    {
+      "episode": 1326,
       "step": 43,
-      "reward": 0.6213,
-      "kafka_lag_raw": 3466.891575665873,
-      "risk_score_raw": 93.07387716923486,
+      "reward": 0.842,
+      "kafka_lag_raw": 3879.5927663503307,
+      "risk_score_raw": 85.83880639688125,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3459,20 +2850,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.012,
-        "infra_penalty": -0.2467,
-        "db_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": -0.088,
+        "db_penalty": 0.03,
         "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6213000000000001
+        "bonus": 0.06,
+        "final": 0.8420000000000001
       }
     },
     {
-      "episode": 1961,
+      "episode": 1326,
       "step": 46,
       "reward": 0.0,
-      "kafka_lag_raw": 4930.384414704819,
-      "risk_score_raw": 97.10518181472554,
+      "kafka_lag_raw": 3927.8619222581087,
+      "risk_score_raw": 90.54610355511088,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3480,8 +2871,8 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.0226,
-        "infra_penalty": -0.2,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5928,
         "db_penalty": 0.0,
         "settlement_penalty": 0.0,
         "bonus": 0.04,
@@ -3489,11 +2880,662 @@
       }
     },
     {
-      "episode": 1982,
+      "episode": 1326,
+      "step": 48,
+      "reward": 0.4996,
+      "kafka_lag_raw": 3803.71008454602,
+      "risk_score_raw": 90.53305170870877,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0804,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.49959999999999993
+      }
+    },
+    {
+      "episode": 1345,
       "step": 41,
-      "reward": 0.68,
-      "kafka_lag_raw": 2870.7084578547733,
-      "risk_score_raw": 98.51924914684913,
+      "reward": 0.9272,
+      "kafka_lag_raw": 2731.1020369556336,
+      "risk_score_raw": 95.3881194473886,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0028,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.9272
+      }
+    },
+    {
+      "episode": 1353,
+      "step": 42,
+      "reward": 0.7921,
+      "kafka_lag_raw": 3977.278454491475,
+      "risk_score_raw": 90.23365532254188,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0102,
+        "infra_penalty": -0.0977,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.7921
+      }
+    },
+    {
+      "episode": 1353,
+      "step": 44,
+      "reward": 0.8209,
+      "kafka_lag_raw": 3871.5494200330622,
+      "risk_score_raw": 96.4529811934415,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0219,
+        "infra_penalty": -0.0872,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8209000000000002
+      }
+    },
+    {
+      "episode": 1390,
+      "step": 45,
+      "reward": 0.5823,
+      "kafka_lag_raw": 2209.9483843289736,
+      "risk_score_raw": 87.37878810846237,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0977,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.5823
+      }
+    },
+    {
+      "episode": 1391,
+      "step": 45,
+      "reward": 0.8408,
+      "kafka_lag_raw": 2837.577566335898,
+      "risk_score_raw": 89.51660085033164,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0892,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8408000000000002
+      }
+    },
+    {
+      "episode": 1391,
+      "step": 48,
+      "reward": 0.6162,
+      "kafka_lag_raw": 3194.3325451141036,
+      "risk_score_raw": 95.77728903004339,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0444,
+        "infra_penalty": -0.2194,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.6162000000000001
+      }
+    },
+    {
+      "episode": 1391,
+      "step": 49,
+      "reward": 0.8797,
+      "kafka_lag_raw": 3121.1264879592195,
+      "risk_score_raw": 91.76386632591809,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0382,
+        "infra_penalty": -0.0121,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8797000000000001
+      }
+    },
+    {
+      "episode": 1391,
+      "step": 55,
+      "reward": 0.4877,
+      "kafka_lag_raw": 3922.6159004907604,
+      "risk_score_raw": 89.89808385319884,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0923,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.48769999999999997
+      }
+    },
+    {
+      "episode": 1391,
+      "step": 58,
+      "reward": 0.0,
+      "kafka_lag_raw": 5315.087768086536,
+      "risk_score_raw": 99.90810403522129,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1394,
+      "step": 43,
+      "reward": 0.3084,
+      "kafka_lag_raw": 1890.5184352035228,
+      "risk_score_raw": 85.58010769817788,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0316,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.30840000000000006
+      }
+    },
+    {
+      "episode": 1399,
+      "step": 41,
+      "reward": 0.5942,
+      "kafka_lag_raw": 3358.4827181330957,
+      "risk_score_raw": 91.56432066581056,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0358,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5942000000000001
+      }
+    },
+    {
+      "episode": 1399,
+      "step": 42,
+      "reward": 0.7864,
+      "kafka_lag_raw": 3441.393820764525,
+      "risk_score_raw": 97.66176029012561,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0995,
+        "infra_penalty": -0.0441,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.7864
+      }
+    },
+    {
+      "episode": 1410,
+      "step": 42,
+      "reward": 0.8748,
+      "kafka_lag_raw": 4239.718083030483,
+      "risk_score_raw": 89.40337898876125,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0552,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8748
+      }
+    },
+    {
+      "episode": 1412,
+      "step": 41,
+      "reward": 0.9229,
+      "kafka_lag_raw": 2699.331401276757,
+      "risk_score_raw": 88.14731530124715,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0071,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.9229
+      }
+    },
+    {
+      "episode": 1412,
+      "step": 45,
+      "reward": 0.8465,
+      "kafka_lag_raw": 3334.7783376958855,
+      "risk_score_raw": 90.85105258158634,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0,
+        "infra_penalty": -0.0335,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.8465000000000001
+      }
+    },
+    {
+      "episode": 1412,
+      "step": 51,
+      "reward": 0.6,
+      "kafka_lag_raw": 4295.500369111643,
+      "risk_score_raw": 90.70762438056144,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6000000000000001
+      }
+    },
+    {
+      "episode": 1415,
+      "step": 44,
+      "reward": 0.54,
+      "kafka_lag_raw": 2152.2633603169966,
+      "risk_score_raw": 95.15329481881344,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.54
+      }
+    },
+    {
+      "episode": 1415,
+      "step": 48,
+      "reward": 0.54,
+      "kafka_lag_raw": 1705.0003865626602,
+      "risk_score_raw": 96.6477976997098,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.54
+      }
+    },
+    {
+      "episode": 1415,
+      "step": 55,
+      "reward": 0.3215,
+      "kafka_lag_raw": 1901.754694548244,
+      "risk_score_raw": 88.72468002727182,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0585,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.3215
+      }
+    },
+    {
+      "episode": 1415,
+      "step": 58,
+      "reward": 0.64,
+      "kafka_lag_raw": 1755.830430565808,
+      "risk_score_raw": 97.65341640888808,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.04,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.6400000000000001
+      }
+    },
+    {
+      "episode": 1415,
+      "step": 64,
+      "reward": 0.1787,
+      "kafka_lag_raw": 1509.5437470511204,
+      "risk_score_raw": 88.2084497024197,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0013,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": -0.16,
+        "bonus": 0.04,
+        "final": 0.17870000000000008
+      }
+    },
+    {
+      "episode": 1415,
+      "step": 74,
+      "reward": 0.4616,
+      "kafka_lag_raw": 287.0993787021417,
+      "risk_score_raw": 87.22573565162008,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0184,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": -0.16,
+        "bonus": 0.04,
+        "final": 0.46160000000000007
+      }
+    },
+    {
+      "episode": 1457,
+      "step": 50,
+      "reward": 0.56,
+      "kafka_lag_raw": 1942.4842144711383,
+      "risk_score_raw": 94.83834647074637,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.56
+      }
+    },
+    {
+      "episode": 1457,
+      "step": 52,
+      "reward": 0.6035,
+      "kafka_lag_raw": 2145.8080669107794,
+      "risk_score_raw": 92.27938478583589,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0765,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.6035000000000001
+      }
+    },
+    {
+      "episode": 1457,
+      "step": 53,
+      "reward": 0.54,
+      "kafka_lag_raw": 2011.002396732719,
+      "risk_score_raw": 99.87918620275698,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.54
+      }
+    },
+    {
+      "episode": 1457,
+      "step": 55,
+      "reward": 0.34,
+      "kafka_lag_raw": 2130.4411880243283,
+      "risk_score_raw": 89.1005128938513,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.33999999999999997
+      }
+    },
+    {
+      "episode": 1484,
+      "step": 44,
+      "reward": 0.54,
+      "kafka_lag_raw": 1654.5615825376,
+      "risk_score_raw": 97.8347295969073,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.54
+      }
+    },
+    {
+      "episode": 1514,
+      "step": 42,
+      "reward": 0.8346,
+      "kafka_lag_raw": 3653.6022396854937,
+      "risk_score_raw": 97.29206449524077,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": -0.0654,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8346
+      }
+    },
+    {
+      "episode": 1518,
+      "step": 42,
+      "reward": 0.0,
+      "kafka_lag_raw": 4237.846482278511,
+      "risk_score_raw": 97.41118868897618,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0251,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1568,
+      "step": 50,
+      "reward": 0.18,
+      "kafka_lag_raw": 819.3189243238446,
+      "risk_score_raw": 99.83838054348894,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": -0.16,
+        "bonus": 0.04,
+        "final": 0.18000000000000005
+      }
+    },
+    {
+      "episode": 1568,
+      "step": 52,
+      "reward": 0.51,
+      "kafka_lag_raw": 583.2091759016014,
+      "risk_score_raw": 98.57949335444555,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3503,18 +3545,18 @@
         "fraud_penalty": 0.0,
         "sla_penalty": 0.0,
         "infra_penalty": -0.2,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
+        "db_penalty": 0.03,
+        "settlement_penalty": -0.16,
         "bonus": 0.04,
-        "final": 0.6800000000000002
+        "final": 0.5100000000000001
       }
     },
     {
-      "episode": 1987,
-      "step": 41,
-      "reward": 0.6424,
-      "kafka_lag_raw": 3125.8046577693804,
-      "risk_score_raw": 87.57076492908882,
+      "episode": 1568,
+      "step": 55,
+      "reward": 0.8008,
+      "kafka_lag_raw": 161.01768159920178,
+      "risk_score_raw": 86.90975033941258,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3522,41 +3564,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": -0.025,
-        "infra_penalty": -0.2126,
+        "sla_penalty": -0.0592,
+        "infra_penalty": 0.0,
         "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6424000000000001
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.8008
       }
     },
     {
-      "episode": 1987,
-      "step": 42,
-      "reward": 0.6446,
-      "kafka_lag_raw": 3353.5455446745373,
-      "risk_score_raw": 86.14942723504275,
-      "action": {
-        "risk_decision": 1,
-        "crypto_verify": 1
-      },
-      "reward_breakdown": {
-        "base": 0.8,
-        "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2354,
-        "db_penalty": 0.0,
-        "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6446000000000001
-      }
-    },
-    {
-      "episode": 1987,
-      "step": 45,
+      "episode": 1577,
+      "step": 43,
       "reward": 0.0,
-      "kafka_lag_raw": 4859.702785668779,
-      "risk_score_raw": 92.42725202810861,
+      "kafka_lag_raw": 5116.101015356606,
+      "risk_score_raw": 89.39642762709366,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3564,20 +3585,1133 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
+        "sla_penalty": -0.3,
         "infra_penalty": -0.2,
         "db_penalty": 0.0,
         "settlement_penalty": 0.04,
         "bonus": 0.04,
         "final": 0.0
+      }
+    },
+    {
+      "episode": 1587,
+      "step": 57,
+      "reward": 0.3657,
+      "kafka_lag_raw": 3643.4188393429863,
+      "risk_score_raw": 91.1854378221116,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0643,
+        "db_penalty": 0.03,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.36569999999999997
+      }
+    },
+    {
+      "episode": 1587,
+      "step": 58,
+      "reward": 0.3489,
+      "kafka_lag_raw": 3511.396061522772,
+      "risk_score_raw": 90.70451855773771,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0511,
+        "db_penalty": 0.0,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.34890000000000004
+      }
+    },
+    {
+      "episode": 1587,
+      "step": 62,
+      "reward": 0.404,
+      "kafka_lag_raw": 3260.22034345092,
+      "risk_score_raw": 98.84616444570577,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.026,
+        "db_penalty": 0.03,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.40399999999999997
+      }
+    },
+    {
+      "episode": 1587,
+      "step": 64,
+      "reward": 0.3784,
+      "kafka_lag_raw": 3515.795396630186,
+      "risk_score_raw": 97.44537940493095,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0516,
+        "db_penalty": 0.03,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.3784
+      }
+    },
+    {
+      "episode": 1587,
+      "step": 66,
+      "reward": 0.346,
+      "kafka_lag_raw": 3539.817545075559,
+      "risk_score_raw": 88.11043628078752,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.054,
+        "db_penalty": 0.0,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.34600000000000003
+      }
+    },
+    {
+      "episode": 1587,
+      "step": 67,
+      "reward": 0.5094,
+      "kafka_lag_raw": 3920.203051747244,
+      "risk_score_raw": 96.00703016064864,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0986,
+        "infra_penalty": -0.092,
+        "db_penalty": 0.0,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.5094000000000001
+      }
+    },
+    {
+      "episode": 1657,
+      "step": 48,
+      "reward": 0.5947,
+      "kafka_lag_raw": 3352.542364353833,
+      "risk_score_raw": 96.5971529119457,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0353,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5947
+      }
+    },
+    {
+      "episode": 1657,
+      "step": 52,
+      "reward": 0.5058,
+      "kafka_lag_raw": 3941.901710333714,
+      "risk_score_raw": 97.57733532946664,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0942,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5058
+      }
+    },
+    {
+      "episode": 1663,
+      "step": 55,
+      "reward": 0.6936,
+      "kafka_lag_raw": 2559.483949892431,
+      "risk_score_raw": 99.04102920103497,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0064,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.6936
+      }
+    },
+    {
+      "episode": 1663,
+      "step": 64,
+      "reward": 0.3386,
+      "kafka_lag_raw": 3913.749544468023,
+      "risk_score_raw": 89.17858768811348,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0914,
+        "db_penalty": 0.03,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.33859999999999996
+      }
+    },
+    {
+      "episode": 1686,
+      "step": 41,
+      "reward": 0.36,
+      "kafka_lag_raw": 2569.011228498859,
+      "risk_score_raw": 92.00650403268341,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.36000000000000004
+      }
+    },
+    {
+      "episode": 1686,
+      "step": 44,
+      "reward": 0.9,
+      "kafka_lag_raw": 2739.417230870052,
+      "risk_score_raw": 90.11524170309045,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.9000000000000001
+      }
+    },
+    {
+      "episode": 1689,
+      "step": 49,
+      "reward": 0.3924,
+      "kafka_lag_raw": 2039.5688431301087,
+      "risk_score_raw": 92.64281900909411,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0076,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.39239999999999997
+      }
+    },
+    {
+      "episode": 1689,
+      "step": 53,
+      "reward": 0.5724,
+      "kafka_lag_raw": 2094.1942605426952,
+      "risk_score_raw": 91.21952189372693,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0676,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.5724
+      }
+    },
+    {
+      "episode": 1689,
+      "step": 56,
+      "reward": 0.5424,
+      "kafka_lag_raw": 1861.440598743218,
+      "risk_score_raw": 95.6329357474637,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0976,
+        "infra_penalty": -0.2,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.04,
+        "final": 0.5424
+      }
+    },
+    {
+      "episode": 1703,
+      "step": 42,
+      "reward": 0.6369,
+      "kafka_lag_raw": 3931.332509893224,
+      "risk_score_raw": 99.12857255035482,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": -0.0931,
+        "db_penalty": 0.03,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.6369
+      }
+    },
+    {
+      "episode": 1718,
+      "step": 45,
+      "reward": 0.06,
+      "kafka_lag_raw": 2002.1223346928252,
+      "risk_score_raw": 87.3748010158857,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.06
+      }
+    },
+    {
+      "episode": 1725,
+      "step": 47,
+      "reward": 0.5923,
+      "kafka_lag_raw": 3377.449070553244,
+      "risk_score_raw": 92.49342773370671,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0377,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5923
+      }
+    },
+    {
+      "episode": 1727,
+      "step": 42,
+      "reward": 0.8926,
+      "kafka_lag_raw": 3374.3685257502434,
+      "risk_score_raw": 89.05168543116869,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": -0.0374,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8926000000000001
+      }
+    },
+    {
+      "episode": 1727,
+      "step": 46,
+      "reward": 0.0,
+      "kafka_lag_raw": 4575.942960157942,
+      "risk_score_raw": 96.85545381173078,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0538,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1778,
+      "step": 41,
+      "reward": 0.88,
+      "kafka_lag_raw": 4178.691082349709,
+      "risk_score_raw": 90.68472233476233,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.8800000000000001
+      }
+    },
+    {
+      "episode": 1778,
+      "step": 42,
+      "reward": 0.0,
+      "kafka_lag_raw": 4179.45626560992,
+      "risk_score_raw": 85.43490803010911,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1802,
+      "step": 41,
+      "reward": 0.865,
+      "kafka_lag_raw": 3650.463550966557,
+      "risk_score_raw": 97.39482343920248,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": -0.065,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8650000000000002
+      }
+    },
+    {
+      "episode": 1802,
+      "step": 42,
+      "reward": 0.7969,
+      "kafka_lag_raw": 3831.02189604122,
+      "risk_score_raw": 86.09579603164865,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": -0.0831,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.7969000000000002
+      }
+    },
+    {
+      "episode": 1802,
+      "step": 43,
+      "reward": 0.7802,
+      "kafka_lag_raw": 3997.672890700087,
+      "risk_score_raw": 86.9350123355136,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": -0.0998,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.7802000000000001
+      }
+    },
+    {
+      "episode": 1805,
+      "step": 41,
+      "reward": 0.7791,
+      "kafka_lag_raw": 3992.990025940329,
+      "risk_score_raw": 89.77175112142594,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0016,
+        "infra_penalty": -0.0993,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.7791000000000001
+      }
+    },
+    {
+      "episode": 1805,
+      "step": 43,
+      "reward": 0.0,
+      "kafka_lag_raw": 4414.387003716531,
+      "risk_score_raw": 90.69957781602905,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0582,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1832,
+      "step": 43,
+      "reward": 0.8806,
+      "kafka_lag_raw": 2728.8677193208027,
+      "risk_score_raw": 88.31728318608316,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0494,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.8806
+      }
+    },
+    {
+      "episode": 1832,
+      "step": 44,
+      "reward": 0.8462,
+      "kafka_lag_raw": 2648.6446144798215,
+      "risk_score_raw": 90.00869316901003,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0338,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.8462000000000001
+      }
+    },
+    {
+      "episode": 1832,
+      "step": 47,
+      "reward": 0.58,
+      "kafka_lag_raw": 4053.7850721481514,
+      "risk_score_raw": 96.46474153598047,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.5800000000000001
+      }
+    },
+    {
+      "episode": 1832,
+      "step": 49,
+      "reward": 0.58,
+      "kafka_lag_raw": 4471.2660150344445,
+      "risk_score_raw": 95.57599205249002,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.5800000000000001
+      }
+    },
+    {
+      "episode": 1900,
+      "step": 41,
+      "reward": 0.9,
+      "kafka_lag_raw": 2746.3490485736224,
+      "risk_score_raw": 91.92397579754962,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.9000000000000001
+      }
+    },
+    {
+      "episode": 1900,
+      "step": 42,
+      "reward": 0.9,
+      "kafka_lag_raw": 2638.0440981842203,
+      "risk_score_raw": 93.30319236366742,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": 0.0,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.9000000000000001
+      }
+    },
+    {
+      "episode": 1900,
+      "step": 57,
+      "reward": 0.6134,
+      "kafka_lag_raw": 3166.013142460898,
+      "risk_score_raw": 87.82940035846653,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0166,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6134
+      }
+    },
+    {
+      "episode": 1900,
+      "step": 61,
+      "reward": 0.5877,
+      "kafka_lag_raw": 3423.3682827637895,
+      "risk_score_raw": 88.67173786977557,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0423,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5877000000000001
+      }
+    },
+    {
+      "episode": 1900,
+      "step": 62,
+      "reward": 0.63,
+      "kafka_lag_raw": 2893.9672857809232,
+      "risk_score_raw": 89.40295366876855,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.6300000000000001
+      }
+    },
+    {
+      "episode": 1900,
+      "step": 66,
+      "reward": 0.5915,
+      "kafka_lag_raw": 3385.0994472056054,
+      "risk_score_raw": 94.1220350327486,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.0385,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5915000000000001
+      }
+    },
+    {
+      "episode": 1900,
+      "step": 71,
+      "reward": 0.58,
+      "kafka_lag_raw": 4724.049817131267,
+      "risk_score_raw": 93.51210907690061,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.5800000000000001
+      }
+    },
+    {
+      "episode": 1900,
+      "step": 72,
+      "reward": 0.0,
+      "kafka_lag_raw": 4520.667841695082,
+      "risk_score_raw": 98.55176051257646,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.04,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1903,
+      "step": 41,
+      "reward": 0.7459,
+      "kafka_lag_raw": 3973.270344874238,
+      "risk_score_raw": 89.3135283016664,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0868,
+        "infra_penalty": -0.0973,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.7459000000000002
+      }
+    },
+    {
+      "episode": 1903,
+      "step": 42,
+      "reward": 0.06,
+      "kafka_lag_raw": 4239.723202184741,
+      "risk_score_raw": 92.7825792130711,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.06
+      }
+    },
+    {
+      "episode": 1903,
+      "step": 43,
+      "reward": 0.0,
+      "kafka_lag_raw": 4118.980697852317,
+      "risk_score_raw": 96.61116298894595,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1904,
+      "step": 42,
+      "reward": 0.7408,
+      "kafka_lag_raw": 3811.45152227573,
+      "risk_score_raw": 98.61982278183406,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0681,
+        "infra_penalty": -0.0811,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.7408000000000001
+      }
+    },
+    {
+      "episode": 1904,
+      "step": 46,
+      "reward": 0.0,
+      "kafka_lag_raw": 4045.149894543338,
+      "risk_score_raw": 98.53442336654845,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1905,
+      "step": 43,
+      "reward": 0.0135,
+      "kafka_lag_raw": 3464.6420336405304,
+      "risk_score_raw": 94.9342732742891,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5465,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.013500000000000012
+      }
+    },
+    {
+      "episode": 1905,
+      "step": 48,
+      "reward": 0.06,
+      "kafka_lag_raw": 4025.125121076146,
+      "risk_score_raw": 91.20372558120043,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.06
+      }
+    },
+    {
+      "episode": 1905,
+      "step": 49,
+      "reward": 0.0,
+      "kafka_lag_raw": 3694.4378690322155,
+      "risk_score_raw": 90.9799135926796,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5694,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 1915,
+      "step": 51,
+      "reward": 0.281,
+      "kafka_lag_raw": 3119.34918936655,
+      "risk_score_raw": 88.51710135398805,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0671,
+        "infra_penalty": -0.5119,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.28099999999999997
+      }
+    },
+    {
+      "episode": 1915,
+      "step": 53,
+      "reward": 0.674,
+      "kafka_lag_raw": 2667.9292053877434,
+      "risk_score_raw": 87.48260605032351,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.056,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.03,
+        "settlement_penalty": -0.16,
+        "bonus": 0.06,
+        "final": 0.6739999999999999
+      }
+    },
+    {
+      "episode": 1915,
+      "step": 55,
+      "reward": 0.0575,
+      "kafka_lag_raw": 3025.495144695278,
+      "risk_score_raw": 90.1824592133186,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5025,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.05750000000000005
+      }
+    },
+    {
+      "episode": 1915,
+      "step": 58,
+      "reward": 0.06,
+      "kafka_lag_raw": 2617.4157526841345,
+      "risk_score_raw": 88.45441527010183,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.06
+      }
+    },
+    {
+      "episode": 1921,
+      "step": 41,
+      "reward": 0.2677,
+      "kafka_lag_raw": 4135.769801605104,
+      "risk_score_raw": 92.64252736479376,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0923,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.2677
+      }
+    },
+    {
+      "episode": 1932,
+      "step": 41,
+      "reward": 0.9025,
+      "kafka_lag_raw": 3173.2254785406194,
+      "risk_score_raw": 96.6935851937219,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0102,
+        "infra_penalty": -0.0173,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.9025000000000001
       }
     },
     {
       "episode": 1992,
-      "step": 42,
-      "reward": 0.5618,
-      "kafka_lag_raw": 3781.981575317932,
-      "risk_score_raw": 87.35448923857814,
+      "step": 41,
+      "reward": 0.2633,
+      "kafka_lag_raw": 4471.218509647386,
+      "risk_score_raw": 93.86038840017294,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3585,20 +4719,20 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2782,
+        "sla_penalty": -0.0967,
+        "infra_penalty": -0.5,
         "db_penalty": 0.0,
         "settlement_penalty": 0.0,
-        "bonus": 0.04,
-        "final": 0.5618000000000001
+        "bonus": 0.06,
+        "final": 0.26330000000000003
       }
     },
     {
-      "episode": 1998,
-      "step": 47,
-      "reward": 0.68,
-      "kafka_lag_raw": 4752.965937063989,
-      "risk_score_raw": 97.57744624170317,
+      "episode": 1992,
+      "step": 43,
+      "reward": 0.8245,
+      "kafka_lag_raw": 4410.536888994261,
+      "risk_score_raw": 90.65026301885989,
       "action": {
         "risk_decision": 1,
         "crypto_verify": 1
@@ -3606,12 +4740,159 @@
       "reward_breakdown": {
         "base": 0.8,
         "fraud_penalty": 0.0,
-        "sla_penalty": 0.0,
-        "infra_penalty": -0.2,
+        "sla_penalty": -0.0755,
+        "infra_penalty": 0.0,
         "db_penalty": 0.0,
         "settlement_penalty": 0.04,
-        "bonus": 0.04,
-        "final": 0.6800000000000002
+        "bonus": 0.06,
+        "final": 0.8245
+      }
+    },
+    {
+      "episode": 1992,
+      "step": 44,
+      "reward": 0.0,
+      "kafka_lag_raw": 4542.059576596012,
+      "risk_score_raw": 90.21188715213162,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0703,
+        "infra_penalty": 0.0,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 2000,
+      "step": 42,
+      "reward": 0.2897,
+      "kafka_lag_raw": 3574.1675757093785,
+      "risk_score_raw": 88.95209751183768,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0129,
+        "infra_penalty": -0.5574,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.2897
+      }
+    },
+    {
+      "episode": 2000,
+      "step": 43,
+      "reward": 0.256,
+      "kafka_lag_raw": 3363.2765398227657,
+      "risk_score_raw": 93.5843719275345,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0677,
+        "infra_penalty": -0.5363,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.25600000000000006
+      }
+    },
+    {
+      "episode": 2000,
+      "step": 45,
+      "reward": 0.2633,
+      "kafka_lag_raw": 4012.5791991916517,
+      "risk_score_raw": 85.43984682670799,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.0967,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.26330000000000003
+      }
+    },
+    {
+      "episode": 2000,
+      "step": 47,
+      "reward": 0.0,
+      "kafka_lag_raw": 3920.618450295327,
+      "risk_score_raw": 85.41580833630016,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5921,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.0
+      }
+    },
+    {
+      "episode": 2000,
+      "step": 48,
+      "reward": 0.549,
+      "kafka_lag_raw": 3809.7255625938096,
+      "risk_score_raw": 96.09720154127984,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.081,
+        "db_penalty": 0.03,
+        "settlement_penalty": 0.04,
+        "bonus": 0.06,
+        "final": 0.5489999999999999
+      }
+    },
+    {
+      "episode": 2000,
+      "step": 49,
+      "reward": 0.06,
+      "kafka_lag_raw": 4075.8924893998274,
+      "risk_score_raw": 98.07802306322003,
+      "action": {
+        "risk_decision": 1,
+        "crypto_verify": 1
+      },
+      "reward_breakdown": {
+        "base": 0.8,
+        "fraud_penalty": 0.0,
+        "sla_penalty": -0.3,
+        "infra_penalty": -0.5,
+        "db_penalty": 0.0,
+        "settlement_penalty": 0.0,
+        "bonus": 0.06,
+        "final": 0.06
       }
     }
   ]
