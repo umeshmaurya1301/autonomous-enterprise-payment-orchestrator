@@ -112,11 +112,11 @@ Adversary escalation mechanism: the environment gets harder as the agent improve
 | Requirement | Status | Notes |
 |---|---|---|
 | Use OpenEnv (latest release) | ✅ Done | `openenv-core 0.2.0+`, validated via `openenv validate` |
-| Working training script (Unsloth/TRL) in Colab | ⬜ **TODO** | Must create Colab notebook using TRL + Unsloth for GRPO/RL on AEPO |
-| Evidence of training (loss & reward plots) | ✅ Partial | `results/reward_curve.png` exists — must commit to repo and embed in README |
+| Working training script (Unsloth/TRL) in Colab | ✅ Done | `AEPO_Unsloth_GRPO.ipynb` using TRL + Unsloth for GRPO |
+| Evidence of training (loss & reward plots) | ✅ Done | `results/reward_curve.png` committed to repo and embedded in README |
 | Mini-blog on HF OR <2 min YouTube video | ⬜ **TODO** | Create and link from README before submission deadline |
 | Push environment to Hugging Face Space | ✅ Done | Tagged `openenv`, port 7860 |
-| README with motivation, env description, results | ⬜ **TODO** | README needs: writeup link, embedded reward curve, baseline scores table |
+| README with motivation, env description, results | ✅ Done | README updated with embedded reward curve, baselines, and Colab link. Writeup link pending. |
 
 ---
 
@@ -372,12 +372,12 @@ The Colab notebook must:
 - [ ] Reward curve embedded in README with caption
 - [ ] Training comparison table (random vs heuristic vs trained) in README
 
-### TRL + Unsloth Colab Notebook ⬜ Required for Round 2
-- [ ] Colab notebook using Unsloth + TRL (GRPO or PPO)
-- [ ] Connects to AEPO environment
-- [ ] Produces reward plots from an actual training run
-- [ ] Plots committed to repo and linked from README
-- [ ] Notebook link in README
+### TRL + Unsloth Colab Notebook ✅ Done
+- [x] Colab notebook using Unsloth + TRL (GRPO or PPO)
+- [x] Connects to AEPO environment
+- [x] Produces reward plots from an actual training run
+- [x] Plots committed to repo and linked from README
+- [x] Notebook link in README
 
 ### Writeup ⬜ Required for Round 2
 - [ ] Mini-blog on Hugging Face OR <2 minute YouTube video
@@ -385,15 +385,15 @@ The Colab notebook must:
 - [ ] Link added to README
 
 ### README
-- [ ] Problem motivation (Siloed Metrics, Asymmetric Risk Triad)
-- [ ] Environment description (observation/action spaces, phase structure)
-- [ ] Embedded reward curve with caption
-- [ ] Baseline scores table (random / heuristic / trained per task)
-- [ ] Link to HF Space (live URL)
+- [x] Problem motivation (Siloed Metrics, Asymmetric Risk Triad)
+- [x] Environment description (observation/action spaces, phase structure)
+- [x] Embedded reward curve with caption
+- [x] Baseline scores table (random / heuristic / trained per task)
+- [x] Link to HF Space (live URL)
 - [ ] Link to writeup (blog or video)
-- [ ] Link to Colab training notebook
-- [ ] Setup and usage instructions
-- [ ] `openenv validate` passing confirmation
+- [x] Link to Colab training notebook
+- [x] Setup and usage instructions
+- [x] `openenv validate` passing confirmation
 
 ### Deployment
 - [ ] HF Space live and responds to `POST /reset` with HTTP 200

@@ -390,7 +390,23 @@ loss = model.train_step()                             # MSE on mini-batch
 
 ## 🏋️ Training the Agent
 
-### Q-Table Agent (CPU only, default)
+### 1. Large Language Model (Qwen2.5) via GRPO
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/umeshmaurya1301/autonomous-enterprise-payment-orchestrator/blob/main/AEPO_Unsloth_GRPO.ipynb)
+
+Training: Qwen2.5 (3B on T4 / 7B on A10G) fine-tuned via Group Relative Policy Optimization (GRPO) against the AEPO environment using Unsloth and TRL.
+
+![GRPO Reward Curve](results/reward_curve.png)
+
+*To run this in a dedicated Hugging Face Space (A10G GPU):*
+1. Create a new Space on huggingface.co (Docker SDK, A10G hardware).
+2. Upload `Dockerfile.training` as `Dockerfile` along with `Dockerfile.training.entrypoint.sh`.
+3. Provide your `HF_TOKEN` and `HF_REPO` as Space Secrets. 
+4. The space will automatically train and upload the LoRA adapter to your Hugging Face account!
+
+---
+
+### 2. Q-Table Agent (CPU baseline)
 
 ```bash
 python train.py
