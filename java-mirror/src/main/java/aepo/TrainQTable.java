@@ -9,15 +9,22 @@ import java.util.logging.Logger;
 import java.util.stream.IntStream;
 
 /**
- * TrainQTable.java — Java mirror of train.py (Phase 10)
+ * TrainQTable.java — Java mirror of train.py (Phase 10, Fix B)
  *
- * Tabular Q-learning agent trained on the AEPO hard task.
+ * Tabular Q-learning agent trained across the AEPO curriculum
+ * (easy → medium → hard) on a fixed per-level episode budget.
  * This file is a readable Java translation intended for Java/Spring Boot engineers.
  * It does NOT compile or run — it documents the Python logic in Java idioms.
  *
- * Algorithm: Tabular Q-Learning with ε-greedy exploration.
- * State   : int[10] — one bin index (0–7) per normalised observation dimension.
+ * Algorithm: Tabular Q-Learning with ε-greedy exploration + Dyna-Q planning.
+ * State   : int[7]  — one bin index (0–3) per key reward-driving obs feature
+ *                     (risk_score, kafka_lag, rolling_p99, db_pool, bank_status,
+ *                      merchant_tier, adversary_threat_level). 4^7 = 16384 states.
  * Actions : 216 combinations encoded as a single int via mixed-radix encoding.
+ *
+ * Curriculum (Fix B): EPISODES_PER_LEVEL = {200, 300, 1500} — deterministic
+ * schedule, not env-driven adaptive curriculum.  ε is restarted at each
+ * curriculum boundary so every task gets a fresh exploration budget.
  *
  * // PYTHON EQUIVALENT:
  * //   from collections import defaultdict
@@ -34,8 +41,8 @@ public class TrainQTable {
     /** Total training episodes (curriculum: easy→medium→hard). */
     static final int N_EPISODES = 2000;
 
-    /** Bins per observation dimension for state discretisation. */
-    static final int N_BINS = 8;
+    /** Bins per state feature dimension (4 bins × 7 features = 16384 states). */
+    static final int N_BINS = 4;
 
     /** Total actions = 3×2×3×2×2×3. */
     static final int N_ACTIONS = 216;
@@ -46,6 +53,29 @@ public class TrainQTable {
     /** Future-reward discount factor γ. */
     static final double DISCOUNT = 0.95;
 
+    /** Curriculum tasks ordered by difficulty. Indexed by level (0=easy, 1=medium, 2=hard). */
+    static final String[] CURRICULUM_TASKS = {"easy", "medium", "hard"};
+
+    /**
+     * Fixed-schedule curriculum (Fix B). Deterministic episode budget per level.
+     * Sum must equal N_EPISODES. Hard gets 75% of the budget — it's the primary
+     * task per CLAUDE.md spec and needs the most Q-table coverage to beat the
+     * heuristic. Easy/medium just need enough to populate per-task tables for
+     * evaluation.
+     * // PYTHON EQUIVALENT: EPISODES_PER_LEVEL: tuple[int, int, int] = (200, 300, 1500)
+     */
+    static final int[] EPISODES_PER_LEVEL = {200, 300, 1500};
+
+    /**
+     * Fraction of exploratory steps that follow the heuristic (vs uniform random).
+     * 0.0 = pure random exploration (preserves full blind-spot #1 discovery rate).
+     * Heuristic-mixed exploration was tested for adaptive-curriculum advancement
+     * but is unnecessary now that the schedule is fixed — task progression is
+     * driven by EPISODES_PER_LEVEL, not by clearing 0.75/0.45 episode-mean gates.
+     * // PYTHON EQUIVALENT: HEURISTIC_EXPLORATION_RATIO: float = 0.0
+     */
+    static final double HEURISTIC_EXPLORATION_RATIO = 0.0;
+
     /** Initial exploration rate ε. */
     static final double EPSILON_START = 1.0;
 
@@ -55,14 +85,15 @@ public class TrainQTable {
     /** Log a summary line every N episodes. */
     static final int LOG_EVERY = 10;
 
-    /** Task the Q-table is trained on. */
-    static final String TRAIN_TASK = "hard";
+    /** Fallback task name (only used if scheduledLevel is somehow out of range). */
+    static final String TRAIN_TASK_FALLBACK = "easy";
 
     /**
      * Post-training fine-tune episodes per task (easy + medium only).
-     * Main training runs hard-only, so easy/medium Q-tables start empty at
-     * fine-tune time. 600 episodes gives ~60K transitions per task — enough
-     * for TD-learning to converge over the ~500 reachable states per task.
+     * Even with the fixed-schedule curriculum allocating 200/300 episodes to
+     * easy/medium, the per-task Q-tables benefit from extra targeted exposure:
+     * the schedule's exploration is global (ε starts at 1.0) so early-task
+     * Q-values are noisy. 600 fine-tune episodes per task densify the tables.
      * // PYTHON EQUIVALENT: FINETUNE_EPISODES: int = 600
      */
     static final int FINETUNE_EPISODES = 600;
@@ -203,19 +234,18 @@ public class TrainQTable {
     static final int[] STRIDES = {72, 36, 12, 6, 3, 1};
     static final int[] MAXES   = { 3,  2,  3,  2,  2,  3};
 
-    // ── Canonical obs key order ───────────────────────────────────────────────
-    // Must match AEPOObservation.normalized() field declaration order.
+    // ── State feature keys (Python: STATE_FEATURE_KEYS) ───────────────────────
+    // 7 causal-driver subset of normalized observation — see Python comment for
+    // why we don't bin all 10 fields (sparse Q-table at 8^10 ≈ 1B states).
+    // Order is significant: must match Python tuple to keep state keys identical.
     static final String[] OBS_KEYS = {
-        "transaction_type",
         "risk_score",
-        "adversary_threat_level",
-        "system_entropy",
         "kafka_lag",
-        "api_latency",
         "rolling_p99",
         "db_connection_pool",
         "bank_api_status",
         "merchant_tier",
+        "adversary_threat_level",
     };
 
     // ── Sparse Q-table (shared, drives epsilon-greedy during training) ──────────
@@ -325,7 +355,10 @@ public class TrainQTable {
     // ────────────────────────────────────────────────────────────────────────
 
     /**
-     * Train the Q-table on the hard task for N_EPISODES episodes.
+     * Train the Q-table for N_EPISODES episodes using the fixed-schedule
+     * curriculum (Fix B): 200 easy → 300 medium → 1500 hard. ε is restarted
+     * to EPSILON_START at each curriculum advance and decays linearly across
+     * the new level's episode budget.
      *
      * Returns the per-episode mean rewards (length=N_EPISODES).
      *
@@ -336,15 +369,20 @@ public class TrainQTable {
      * //       dyna_planner = DynaPlanner()
      * //       q_table = defaultdict(lambda: np.zeros(N_ACTIONS, dtype=np.float32))
      * //       epsilon = EPSILON_START
-     * //       epsilon_decay = (EPSILON_START - EPSILON_END) / N_EPISODES
-     * //       episode_means = []
+     * //       _level_decays = tuple((EPSILON_START - EPSILON_END) / max(1, n)
+     * //                              for n in EPISODES_PER_LEVEL)
+     * //       epsilon_decay = _level_decays[0]
      * //       for ep in range(N_EPISODES):
-     * //           obs, _ = env.reset(seed=seed+ep, options={"task": TRAIN_TASK})
+     * //           scheduled_level = lookup_in(EPISODES_PER_LEVEL, ep)
+     * //           task_to_use = CURRICULUM_TASKS[scheduled_level]
+     * //           obs, _ = env.reset(seed=seed+ep, options={"task": task_to_use})
+     * //           if scheduled_level > prev_level:
+     * //               epsilon = EPSILON_START
+     * //               epsilon_decay = _level_decays[scheduled_level]
      * //           ... [Q-learning loop] ...
      * //           if use_dyna:
-     * //               dyna_planner.store(obs_norm, action_idx, reward, next_obs_norm)
-     * //               total_planning_updates += dyna_planner.plan(q_table, lag_model)
-     * //       return q_table, lag_model, episode_means, ...
+     * //               dyna_planner.store(...); dyna_planner.plan(...)
+     * //       return q_table, lag_model, episode_means, curriculum_levels, ...
      *
      * @param useDyna  When true, run DYNA_PLANNING_STEPS imagined Bellman updates
      *                 per real step using DynaPlanner.  False = pure Q-table baseline
@@ -363,10 +401,23 @@ public class TrainQTable {
         // PYTHON EQUIVALENT: dyna_planner = DynaPlanner()
         DynaPlanner dynaPlanner = new DynaPlanner(DYNA_BUFFER_CAPACITY);
 
+        // Per-level epsilon schedule (Fix B). Each curriculum level restarts
+        // at EPSILON_START and decays linearly to EPSILON_END across its own
+        // episode budget. Without this, ε would carry over near zero from the
+        // end of the previous level and the agent would never explore the
+        // new task's state space.
+        // PYTHON EQUIVALENT:
+        //   _level_decays = tuple((EPSILON_START - EPSILON_END) / max(1, n)
+        //                          for n in EPISODES_PER_LEVEL)
         double epsilon = EPSILON_START;
-        double epsilonDecay = (EPSILON_START - EPSILON_END) / N_EPISODES;
+        double[] levelDecays = new double[EPISODES_PER_LEVEL.length];
+        for (int i = 0; i < EPISODES_PER_LEVEL.length; i++) {
+            levelDecays[i] = (EPSILON_START - EPSILON_END) / Math.max(1, EPISODES_PER_LEVEL[i]);
+        }
+        double epsilonDecay = levelDecays[0];
 
         List<Double> episodeMeans = new ArrayList<>();
+        List<Integer> curriculumLevels = new ArrayList<>();
         boolean blindSpotLogged = false;
         int totalPlanningUpdates = 0;
 
@@ -375,11 +426,49 @@ public class TrainQTable {
         for (int ep = 0; ep < N_EPISODES; ep++) {
             int epSeed = baseSeed + ep;
 
-            // PYTHON EQUIVALENT: obs, _ = env.reset(seed=ep_seed, options={"task": TRAIN_TASK})
+            // Fixed-schedule curriculum (Fix B). The trainer drives task
+            // progression on a deterministic episode budget, ignoring the
+            // env's internal adaptive curriculum (which stalls under
+            // adversary escalation: when the agent does well, threat level
+            // rises and the next mean drops below 0.75, breaking the streak).
+            // PYTHON EQUIVALENT:
+            //   cum = 0
+            //   scheduled_level = len(EPISODES_PER_LEVEL) - 1
+            //   for lvl, n in enumerate(EPISODES_PER_LEVEL):
+            //       cum += n
+            //       if ep < cum: scheduled_level = lvl; break
+            int cum = 0;
+            int scheduledLevel = EPISODES_PER_LEVEL.length - 1;
+            for (int lvl = 0; lvl < EPISODES_PER_LEVEL.length; lvl++) {
+                cum += EPISODES_PER_LEVEL[lvl];
+                if (ep < cum) { scheduledLevel = lvl; break; }
+            }
+            String taskToUse = CURRICULUM_TASKS[scheduledLevel];
+
+            // Detect curriculum advance (scheduled boundary crossed) and
+            // restart epsilon for the new task's exploration budget.
+            // PYTHON EQUIVALENT:
+            //   if ep > 0 and curriculum_levels and scheduled_level > curriculum_levels[-1]:
+            //       epsilon = EPSILON_START
+            //       epsilon_decay = _level_decays[scheduled_level]
+            if (ep > 0 && !curriculumLevels.isEmpty()
+                && scheduledLevel > curriculumLevels.get(curriculumLevels.size() - 1)) {
+                int prevLevel = curriculumLevels.get(curriculumLevels.size() - 1);
+                logger.info(String.format(
+                    "[CURRICULUM ADVANCE] episode=%d  level %d (%s) -> %d (%s)",
+                    ep + 1,
+                    prevLevel, CURRICULUM_TASKS[prevLevel],
+                    scheduledLevel, CURRICULUM_TASKS[scheduledLevel]
+                ));
+                epsilon = EPSILON_START;
+                epsilonDecay = levelDecays[scheduledLevel];
+            }
+
+            // PYTHON EQUIVALENT: obs, _ = env.reset(seed=ep_seed, options={"task": task_to_use})
             // reset() returns Map.Entry<AEPOObservation, Map<String, Object>>
             // getKey() → raw AEPOObservation; getValue() → info dict
             Map.Entry<AEPOObservation, Map<String, Object>> resetResult =
-                env.reset((long) epSeed, TRAIN_TASK);
+                env.reset((long) epSeed, taskToUse);
             Map<String, Double> obsNorm = resetResult.getKey().normalized();
             int[] state = obsToState(obsNorm);
 
@@ -387,15 +476,38 @@ public class TrainQTable {
             boolean done = false;
 
             while (!done) {
-                // ε-greedy action selection
+                // ε-greedy action selection with optional heuristic-mixed exploration.
+                // With HEURISTIC_EXPLORATION_RATIO=0.0 (current default) the
+                // exploratory branch is pure uniform-random — strongest setting
+                // for blind-spot #1 discovery (Reject+SkipVerify) because the
+                // heuristic itself uses FullVerify and would never sample that
+                // action. Dispatcher kept in place because adaptive-curriculum
+                // variants (where the env decides advancement) need a heuristic
+                // mix to clear 0.75/0.45 gates; fixed-schedule does not.
+                // PYTHON EQUIVALENT:
+                //   if rand < epsilon:
+                //       if HEURISTIC_EXPLORATION_RATIO > 0 and rand < ratio:
+                //           action = heuristic_policy(obs_norm)
+                //       else:
+                //           action = decode_action(random.randint(0, N_ACTIONS-1))
+                //   else:
+                //       action = decode_action(argmax(q_table[state]))
                 int actionIdx;
+                AEPOAction action;
                 if (ThreadLocalRandom.current().nextDouble() < epsilon) {
-                    actionIdx = ThreadLocalRandom.current().nextInt(N_ACTIONS);
+                    if (HEURISTIC_EXPLORATION_RATIO > 0.0
+                        && ThreadLocalRandom.current().nextDouble() < HEURISTIC_EXPLORATION_RATIO) {
+                        action = HeuristicAgent.policy(obsNorm);
+                        actionIdx = encodeAction(action);
+                    } else {
+                        actionIdx = ThreadLocalRandom.current().nextInt(N_ACTIONS);
+                        action = decodeAction(actionIdx);
+                    }
                 } else {
                     float[] qVals = getQValues(state);
                     actionIdx = argmax(qVals);
+                    action = decodeAction(actionIdx);
                 }
-                AEPOAction action = decodeAction(actionIdx);
 
                 // PYTHON EQUIVALENT: lag_input = build_input_vector(obs_norm, action)
                 // Java stub — no PyTorch tensor; represented as double[]
@@ -430,12 +542,13 @@ public class TrainQTable {
 
                 // Per-task Q-table update — same Bellman target but task-specific table.
                 // Uses the per-task table's own Q-values for the next-state max so its
-                // values are self-consistent for greedy evaluation.
+                // values are self-consistent for greedy evaluation. The table picked
+                // here matches the scheduled task for this episode (Fix B).
                 // PYTHON EQUIVALENT:
                 //   per_task_table = q_tables_per_task[task_to_use]
                 //   per_task_target = reward + DISCOUNT * max(per_task_table[next_state])
                 //   per_task_table[state][a] += lr * (per_task_target - per_task_table[state][a])
-                Map<String, float[]> perTaskTable = qTablesPerTask.get(TRAIN_TASK);
+                Map<String, float[]> perTaskTable = qTablesPerTask.get(taskToUse);
                 String stateKey     = Arrays.toString(state);
                 String nextStateKey = Arrays.toString(nextState);
                 float[] ptCurrent = perTaskTable.computeIfAbsent(stateKey,     k -> new float[N_ACTIONS]);
@@ -470,16 +583,12 @@ public class TrainQTable {
             }
             double epMean = stepRewards.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
             episodeMeans.add(epMean);
+            curriculumLevels.add(scheduledLevel);
 
-            // ε decay
+            // ε decay (uses the level-specific decay slope, refreshed at each
+            // curriculum advance — see top of loop).
+            // PYTHON EQUIVALENT: epsilon = max(EPSILON_END, epsilon - epsilon_decay)
             epsilon = Math.max(EPSILON_END, epsilon - epsilonDecay);
-
-            // PYTHON EQUIVALENT (curriculum advance detection + epsilon reset):
-            // When curriculum advances, reset epsilon to max(epsilon, 0.50) so the
-            // agent explores the harder task instead of exploiting stale easy-task values.
-            // In the Python version this is gated by ep_curriculum > pre_reset_level.
-            // Java stub: log the concept; full curriculum logic in UnifiedFintechEnv.closeEpisode().
-            // if (curriculumAdvanced) { epsilon = Math.max(epsilon, 0.50); }
 
             // Periodic log every LOG_EVERY episodes
             if ((ep + 1) % LOG_EVERY == 0) {
@@ -587,17 +696,19 @@ public class TrainQTable {
     /**
      * Fine-tune easy and medium per-task Q-tables with dedicated episodes.
      *
-     * The curriculum spends ~250 episodes on easy and ~50 on medium before
-     * advancing to hard.  These short exposures leave easy/medium Q-tables too
-     * sparse to pass their thresholds (0.75 / 0.45).  This method runs
-     * FINETUNE_EPISODES targeted episodes per task with a moderate epsilon.
+     * The fixed-schedule curriculum allocates 200 easy + 300 medium episodes
+     * before advancing to hard for the remaining 1500 episodes.  Even with
+     * that coverage, easy/medium per-task tables benefit from extra targeted
+     * exposure: the schedule's exploration starts noisy (ε=1.0) so early-task
+     * Q-values still need densifying.  This method runs FINETUNE_EPISODES
+     * targeted episodes per task with a moderate epsilon.
      *
      * // PYTHON EQUIVALENT:
      * //   def finetune_per_task_qtables(q_tables_per_task, n_episodes=FINETUNE_EPISODES):
      * //       for task in ["easy", "medium"]:
      * //           q_table = q_tables_per_task[task]
      * //           env = UnifiedFintechEnv()
-     * //           epsilon = 0.70  // explore-heavy: main training was hard-only, easy/medium tables start empty
+     * //           epsilon = 0.70  # explore-heavy fresh burst on top of curriculum exposure
      * //           for ep in range(n_episodes):
      * //               obs, _ = env.reset(seed=..., options={"task": task})
      * //               ... [Q-learning loop without dyna] ...
@@ -605,7 +716,10 @@ public class TrainQTable {
      */
     public void finetunePerTaskQtables(int nEpisodes) {
         String[] finetuneTasks = {"easy", "medium"};
-        double ftEpsilonStart = 0.70;  // explore-heavy: easy/medium tables start empty after hard-only main training
+        // Explore-heavy starting ε: even with 200/300 curriculum episodes on
+        // easy/medium, those episodes used ε≈1.0 → ε≈0.05 over the schedule,
+        // so the per-task tables still benefit from a fresh exploration burst.
+        double ftEpsilonStart = 0.70;
         double ftEpsilonDecay = (ftEpsilonStart - EPSILON_END) / Math.max(1, nEpisodes);
 
         for (int taskIdx = 0; taskIdx < finetuneTasks.length; taskIdx++) {

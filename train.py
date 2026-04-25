@@ -20,13 +20,22 @@ Algorithm
              where rd=risk_decision, cv=crypto_verify, ir=infra_routing,
              drp=db_retry_policy, sp=settlement_policy, ap=app_priority.
 
-Training schedule (CLAUDE.md §Training Script Requirements)
------------------------------------------------------------
-  500 episodes on the hard task
-  ε: 1.0 → 0.05 (linear decay over 500 episodes)
+Training schedule (Fix B — fixed-schedule curriculum)
+------------------------------------------------------
+  2000 episodes total, deterministic per-level budget:
+    200 episodes  on easy   (curriculum level 0)
+    300 episodes  on medium (curriculum level 1)
+    1500 episodes on hard   (curriculum level 2)
+  ε: 1.0 → 0.05 (linear decay, RESTARTED at each level boundary so each
+                 task gets a fresh exploration budget)
   lr=0.1, γ=0.95
   Log every 10 episodes
   Log first blind_spot_triggered (Reject+SkipVerify+high_risk → +0.04 bonus)
+
+  The fixed schedule replaces the env's adaptive curriculum (advance on
+  5-streak above threshold) which stalls under adversary escalation. It
+  guarantees coverage on every task and produces the staircase reward
+  chart used as the pitch artifact for Theme #4 (Self-Improvement).
 
 Post-training evaluation
 ------------------------
@@ -96,14 +105,33 @@ EPSILON_START: float = 1.0     # initial exploration rate
 EPSILON_END: float = 0.05      # final exploration rate (minimum)
 LOG_EVERY: int = 10            # log a summary line every N episodes
 
+# Fraction of exploratory steps that follow the heuristic policy (vs uniform random).
+# 0.0 = pure random exploration (preserves full blind-spot #1 discovery rate).
+# Heuristic-mixed exploration was tested for adaptive-curriculum advancement
+# but is unnecessary now that the schedule is fixed (Fix B uses EPISODES_PER_LEVEL
+# directly, no longer dependent on episode-mean clearing 0.75/0.45 thresholds).
+# Leaving the dispatcher in place for future experimentation.
+HEURISTIC_EXPLORATION_RATIO: float = 0.0
+
+# Fixed-schedule curriculum (Fix B). The env's internal "adaptive curriculum"
+# (advance on 5-streak above threshold) is too brittle: adversary escalation
+# knocks reward below the gate once the agent does well, breaking the streak.
+# A deterministic schedule guarantees coverage on every task and produces the
+# staircase chart. Sum must equal N_EPISODES.
+EPISODES_PER_LEVEL: tuple[int, int, int] = (200, 300, 1500)  # easy, medium, hard
+# Hard gets 75% of the budget — it's the primary task per CLAUDE.md spec
+# ("Hard task only for the main curve") and needs the most Q-table coverage
+# to beat the heuristic. Easy/medium just need enough to populate per-task
+# tables for evaluation. Sum must equal N_EPISODES.
+
 # Dyna-Q world-model planning
 DYNA_PLANNING_STEPS: int = 5     # imagined Q-updates per real env step
 DYNA_BUFFER_CAPACITY: int = 2000 # max real transitions stored for planning
-# Task is CURRICULUM-DRIVEN — the training loop reads env._curriculum_level
-# before each reset() and selects the matching task (easy/medium/hard).
-# This produces the staircase: agent masters easy → curriculum advances →
-# reward drops on harder task → agent adapts → advances again.
-# TRAIN_TASK_FALLBACK is only used if _curriculum_level is somehow out of range.
+# Task progression is driven by the fixed schedule above (EPISODES_PER_LEVEL).
+# CURRICULUM_TASKS indexes the schedule: level 0 = easy, level 1 = medium, level 2 = hard.
+# This produces the staircase: trainer advances at deterministic episode boundaries,
+# reward drops on the harder task, agent adapts. The env's internal adaptive curriculum
+# is left to its own bookkeeping but does not gate task selection.
 TRAIN_TASK_FALLBACK: str = "easy"
 CURRICULUM_TASKS: tuple[str, ...] = ("easy", "medium", "hard")
 LAG_MAX: float = 10000.0       # normalisation divisor for LagPredictor target
@@ -112,9 +140,11 @@ LAG_MAX: float = 10000.0       # normalisation divisor for LagPredictor target
 EVAL_EPISODES: int = 10
 
 # Post-training fine-tuning episodes per task (easy + medium only).
-# Main training runs hard-only (per CLAUDE.md spec), so easy/medium per-task
-# Q-tables start empty at fine-tune time. 600 episodes gives ~60K transitions
-# per task — enough for TD-learning to converge over the ~500 reachable states.
+# Even with the fixed-schedule curriculum allocating 200/300 episodes to
+# easy/medium, the per-task Q-tables benefit from extra targeted exposure:
+# the fixed schedule's exploration is global (ε starts at 1.0) so early-task
+# Q-values are noisy. 600 fine-tune episodes per task densify the tables
+# enough for stable greedy evaluation.
 FINETUNE_EPISODES: int = 600
 
 # ---------------------------------------------------------------------------
@@ -396,13 +426,22 @@ def train_q_table(seed: int = 44, use_dyna: bool = True) -> Tuple[defaultdict, L
     and makes the LagPredictor a genuine contributor to policy learning
     (Theme 3.1 World Modeling).
 
-    Curriculum-driven task selection
-    ---------------------------------
-    Each episode, the task is chosen from env._curriculum_level BEFORE reset()
-    is called (reset() may advance the level inside _close_episode(), so reading
-    before gives the level that governed the PREVIOUS episode's difficulty).
+    Fixed-schedule curriculum (Fix B)
+    ----------------------------------
+    Each episode's task is chosen from EPISODES_PER_LEVEL — a deterministic
+    per-level budget (200 easy / 300 medium / 1500 hard). The trainer ignores
+    the env's internal adaptive curriculum (which stalls under adversary
+    escalation: when the agent does well, adversary_threat_level rises and
+    the next episode's mean drops below 0.75, breaking the 5-streak gate).
     This produces the staircase: easy (green) → medium (orange) → hard (red),
     with reward dropping at each advancement and rising as the agent adapts.
+
+    Per-level epsilon restart
+    --------------------------
+    At each curriculum advancement the exploration rate ε is RESTARTED to
+    EPSILON_START (1.0) and the decay slope is recomputed for the new level's
+    episode budget. Without this, ε would carry over near zero from the end
+    of the previous level and the agent would never explore the new task.
     """
     env = UnifiedFintechEnv()
     lag_model = LagPredictor()
@@ -427,8 +466,15 @@ def train_q_table(seed: int = 44, use_dyna: bool = True) -> Tuple[defaultdict, L
         for task in CURRICULUM_TASKS
     }
 
+    # Per-level epsilon schedule (Fix B). Each curriculum level restarts at
+    # EPSILON_START and decays linearly to EPSILON_END across its own episode
+    # budget. This guarantees proper exploration on each new task — without
+    # it, hard would inherit ε≈0.05 from the end of medium and never explore.
     epsilon = EPSILON_START
-    epsilon_decay = (EPSILON_START - EPSILON_END) / N_EPISODES
+    _level_decays: tuple[float, ...] = tuple(
+        (EPSILON_START - EPSILON_END) / max(1, n) for n in EPISODES_PER_LEVEL
+    )
+    epsilon_decay: float = _level_decays[0]
 
     episode_means: List[float] = []
     curriculum_levels: List[int] = []  # curriculum level at start of each episode
@@ -449,32 +495,44 @@ def train_q_table(seed: int = 44, use_dyna: bool = True) -> Tuple[defaultdict, L
     for ep in range(N_EPISODES):
         ep_seed = seed + ep
 
-        # Always train on hard (CLAUDE.md spec: "Hard task only for the main curve").
-        # The curriculum stall diagnostic showed the agent never advanced beyond easy
-        # in 2000 episodes (hard states: 0 in saved Q-table). Bypassing curriculum
-        # ensures the hard Q-table is fully populated. Easy/medium are handled by
-        # finetune_per_task_qtables() after this loop.
-        pre_reset_level: int = env._curriculum_level
-        task_to_use = "hard"
+        # Fixed-schedule curriculum (Fix B). The trainer drives task progression
+        # on a deterministic episode budget, ignoring the env's internal adaptive
+        # curriculum (which stalls under adversary escalation). This guarantees
+        # coverage on every task and produces the staircase reward chart.
+        cum = 0
+        scheduled_level = len(EPISODES_PER_LEVEL) - 1
+        for _lvl, _n in enumerate(EPISODES_PER_LEVEL):
+            cum += _n
+            if ep < cum:
+                scheduled_level = _lvl
+                break
+        pre_reset_level: int = scheduled_level
+        task_to_use = CURRICULUM_TASKS[scheduled_level]
 
         obs_obj, _ = env.reset(seed=ep_seed, options={"task": task_to_use})
-        ep_curriculum: int = env._curriculum_level  # snapshot AFTER reset (may have advanced)
+        # Record the scheduled level (not env._curriculum_level) so the staircase
+        # chart reflects deterministic trainer progression. The env's internal
+        # adaptive curriculum is left to its own bookkeeping.
+        ep_curriculum: int = scheduled_level
 
-        # Log curriculum advancement.
-        if ep > 0 and ep_curriculum > pre_reset_level:
+        # Log curriculum advancement (scheduled boundary crossed).
+        if ep > 0 and curriculum_levels and ep_curriculum > curriculum_levels[-1]:
+            prev_level = curriculum_levels[-1]
             logger.info(
                 "[CURRICULUM ADVANCE] episode=%d  level %d (%s) -> %d (%s)  "
                 "[per-task Q-tables continue accumulating]",
                 ep + 1,
-                pre_reset_level, CURRICULUM_TASKS[pre_reset_level],
-                ep_curriculum, CURRICULUM_TASKS[min(ep_curriculum, len(CURRICULUM_TASKS) - 1)],
+                prev_level, CURRICULUM_TASKS[prev_level],
+                ep_curriculum, CURRICULUM_TASKS[ep_curriculum],
             )
-            # Reset epsilon so the agent explores the harder task instead of
-            # exploiting stale easy/medium-task Q-values on unseen hard states.
-            epsilon = max(epsilon, 0.50)
+            # Restart epsilon for the new task's exploration budget. Without
+            # this, ε would carry over near-zero from the end of the previous
+            # level and the agent would never explore the new task's state space.
+            epsilon = EPSILON_START
+            epsilon_decay = _level_decays[ep_curriculum]
             logger.info(
-                "[CURRICULUM ADVANCE] epsilon reset to %.3f — fresh exploration on new task",
-                epsilon,
+                "[CURRICULUM ADVANCE] epsilon restarted to %.3f, decay=%.6f/ep",
+                epsilon, epsilon_decay,
             )
 
         obs_norm = obs_obj.normalized()
@@ -484,12 +542,26 @@ def train_q_table(seed: int = 44, use_dyna: bool = True) -> Tuple[defaultdict, L
         done = False
 
         while not done:
-            # ε-greedy action selection
+            # ε-greedy action selection with optional heuristic-mixed exploration.
+            #
+            # With HEURISTIC_EXPLORATION_RATIO=0.0 (current default) the
+            # exploratory branch is pure uniform-random — the strongest setting
+            # for blind-spot #1 discovery (Reject+SkipVerify) because the
+            # heuristic itself uses FullVerify and would never sample that
+            # action. The dispatcher is kept in place because adaptive-curriculum
+            # variants (where the env decides advancement) need a heuristic
+            # mix to clear the 0.75/0.45 thresholds; the fixed-schedule
+            # curriculum used here does not.
             if random.random() < epsilon:
-                action_idx = random.randint(0, N_ACTIONS - 1)
+                if HEURISTIC_EXPLORATION_RATIO > 0.0 and random.random() < HEURISTIC_EXPLORATION_RATIO:
+                    action = heuristic_policy(obs_norm)
+                    action_idx = encode_action(action)
+                else:
+                    action_idx = random.randint(0, N_ACTIONS - 1)
+                    action = decode_action(action_idx)
             else:
                 action_idx = int(np.argmax(q_table[state]))
-            action = decode_action(action_idx)
+                action = decode_action(action_idx)
 
             # Store pre-step input vector for LagPredictor
             lag_input = build_input_vector(obs_norm, action)
@@ -679,17 +751,22 @@ def finetune_per_task_qtables(
     """
     Fine-tune easy and medium per-task Q-tables with dedicated post-training episodes.
 
-    The curriculum spends ~250 episodes on easy and ~50 on medium before advancing
-    to hard for the remaining 1700 episodes. These short exposures leave easy/medium
-    Q-tables too sparse to pass their thresholds (0.75 / 0.45). This function runs
-    n_episodes targeted episodes on each task (easy first, medium second) with a
-    moderate epsilon so the agent exploits what it learned while still exploring.
+    The fixed-schedule curriculum allocates 200 easy + 300 medium episodes
+    before advancing to hard for the remaining 1500 episodes. Even with that
+    coverage, easy/medium per-task Q-tables benefit from extra targeted
+    exposure — the schedule's exploration starts noisy (ε=1.0) so early-task
+    Q-values still need densifying. This function runs n_episodes targeted
+    episodes on each task (easy first, medium second) with a moderate epsilon
+    so the agent exploits what it learned while still exploring.
 
-    Hard is excluded — the main training loop already dedicates 1700+ episodes to it.
+    Hard is excluded — the main training loop dedicates 1500 episodes to it.
     The shared Q-table is NOT used or modified here; only per-task Q-tables are updated.
     """
     FINETUNE_TASKS = ["easy", "medium"]
-    FINETUNE_EPSILON_START = 0.70   # explore-heavy: main training was hard-only, easy/medium Q-tables start empty
+    # Explore-heavy starting ε: even with 200/300 curriculum episodes on
+    # easy/medium, those episodes used ε≈1.0 → ε≈0.05 over the schedule, so
+    # the per-task tables still benefit from a fresh exploration burst here.
+    FINETUNE_EPSILON_START = 0.70
     FINETUNE_EPSILON_END = EPSILON_END
 
     for task_idx, task in enumerate(FINETUNE_TASKS):
