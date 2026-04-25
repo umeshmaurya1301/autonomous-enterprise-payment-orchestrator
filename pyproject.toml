@@ -9,11 +9,12 @@ description = "SRE/DevOps Gateway Orchestrator for UPI architectures."
 readme = "README.md"
 requires-python = ">=3.10, <3.11"
 dependencies = [
-    "openenv-core>=0.2.0",
+    "openenv>=0.1.13",
     "gymnasium>=0.29.1",
     "numpy>=1.26.4",
     "pydantic>=2.0",
-    "openai>=1.0.0"
+    "openai>=1.0.0",
+    "tomli>=2.0.0"
 ]
 
 [project.scripts]
