@@ -33,6 +33,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS frontend-build
 
+# Prevent Node.js from running out of memory during the Next.js build
+ENV NODE_OPTIONS="--max_old_space_size=4096"
+
 WORKDIR /build
 
 # Install deps in a separate layer so Docker cache is reused when only source
@@ -60,7 +63,11 @@ LABEL maintainer="Umesh Maurya <unknown1321>" \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    MALLOC_ARENA_MAX=2
 
 # ── HF Spaces mandatory: non-root user UID=1000 ──────────────────────────────
 # Hugging Face Spaces executes containers with UID 1000.  Creating a matching
@@ -113,4 +120,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 
 # ── Default command ───────────────────────────────────────────────────────────
 CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860", \
-     "--workers", "1", "--log-level", "info"]
+     "--workers", "2", "--log-level", "info"]
