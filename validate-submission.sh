@@ -89,6 +89,23 @@ if ! command -v openenv &> /dev/null; then
     pip3 install openenv-core --quiet
 fi
 
+# tomllib is stdlib in Python 3.11+; patch openenv to use tomli backport on 3.10
+PY_MINOR=$(python3 -c "import sys; print(sys.version_info.minor)" 2>/dev/null || echo "11")
+if [ "$PY_MINOR" -lt 11 ]; then
+    pip3 install tomli --quiet
+    python3 -c "
+import site, pathlib
+for d in site.getsitepackages():
+    f = pathlib.Path(d) / 'openenv' / 'cli' / '_validation.py'
+    if f.exists():
+        txt = f.read_text()
+        if 'import tomli as tomllib' not in txt:
+            txt = txt.replace('import tomllib', 'try:\n    import tomllib\nexcept ImportError:\n    import tomli as tomllib')
+            f.write_text(txt)
+        break
+" 2>/dev/null
+fi
+
 if openenv validate .; then
     pass "openenv validate PASSED"
 else
