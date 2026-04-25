@@ -562,15 +562,13 @@ class UnifiedFintechEnv(gym.Env):
     # During training, the adversary Q-table actively pressures the agent
     # (Burst mode raises lag 1.5×), making the effective easy-task difficulty
     # higher than the grader's fixed-seed evaluation. The training thresholds
-    # are calibrated so the curriculum advances when the agent has genuinely
-    # mastered the adversarially-pressured version of each task.
-    # easy→medium: agent must sustain 0.65 under adversarial lag bursts
-    # medium→hard: agent must sustain 0.38 under Spike phase + bank flicker
-    _CURRICULUM_THRESHOLDS: tuple[float, ...] = (0.55, 0.32)
-    # 2 consecutive episodes — advances curriculum faster so hard task gets more
-    # training time. Adversary Burst mode artificially inflates training difficulty
-    # vs the fixed-seed grader; lower thresholds compensate for this gap.
-    _CURRICULUM_WINDOW: int = 2
+    # Thresholds per CLAUDE.md spec:
+    # easy→medium: 5-episode rolling avg > 0.75 for 5 consecutive episodes
+    # medium→hard: 5-episode rolling avg > 0.45 for 5 consecutive episodes
+    _CURRICULUM_THRESHOLDS: tuple[float, ...] = (0.75, 0.45)
+    # 5 consecutive episodes above threshold required before advancing.
+    # Prevents premature advancement that leaves easy/medium Q-tables underfitted.
+    _CURRICULUM_WINDOW: int = 5
     _ADVERSARY_WINDOW: int = 5    # episodes before adversary reacts
     _ADVERSARY_HIGH_THRESHOLD: float = 0.6   # avg > this → threat +0.5
     _ADVERSARY_LOW_THRESHOLD: float = 0.3    # avg < this → threat -0.5

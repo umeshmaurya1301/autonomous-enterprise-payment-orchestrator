@@ -401,22 +401,22 @@ Weak error handling in `inference.py` means a zero-shot LLM produces invalid act
 
 | Priority | Issue | Effort | Impact | Risk if Skipped | Status |
 |---|---|---|---|---|---|
-| P0 | TRL + Unsloth Colab not done | 8–12h | +20 pts | Disqualification | ⬜ TODO |
-| P0 | README incomplete | 2h | +5 pts | Disqualification | ⬜ TODO |
-| P0 | External URLs blank | 30min | N/A | Automated ping fail | ⬜ TODO |
+| **P0** | **TRL + Unsloth Colab not done** | 8–12h | +20 pts | Disqualification | **✅ FIXED** |
+| **P0** | **README incomplete** | 2h | +5 pts | Disqualification | **✅ FIXED** |
+| P0 | External URLs blank (YouTube demo) | 30min | N/A | Automated ping fail | ⚠️ NEEDS VIDEO URL |
 | **P0** | **Wrong safe fallback action — hard task crashes at step ~19** | **5min** | **+10 pts** | **Trained ≈ random, all tasks FAIL** | **✅ FIXED** |
 | **P0** | **Curriculum never reaches hard — only 94/16384 states visited** | **10min** | **+8 pts** | **Blind spot never discovered** | **✅ FIXED** |
 | **P0** | **No epsilon reset at curriculum advance** | **5min** | **+5 pts** | **Stale easy-task policy on hard** | **✅ FIXED** |
 | **P0** | **N_EPISODES too low (800) for hard-task coverage** | **5min** | **+5 pts** | **Q-table fails hard task** | **✅ FIXED** |
-| P1 | LagPredictor not used by agent | 4h | +8 pts | Narrative collapses | ⬜ TODO |
-| P1 | Blind spot reproducibility | 1h | +5 pts | Credibility loss | ⬜ TODO |
-| P1 | inference.py agent mismatch | 3h | +6 pts | Scoring invalid | ⬜ TODO |
-| P2 | Always-Reject LLM exploit | 1h | +4 pts | GRPO policy collapse | ⬜ TODO |
-| P2 | P99 EMA poisoning ceiling | 2h | +3 pts | Hard task cap | ⬜ TODO |
-| P2 | Lag-crash race condition | 2h | +3 pts | Unfair episode terminations | ⬜ TODO |
-| P3 | Full observation world model | 6h | +6 pts | Novelty gap | ⬜ TODO |
-| P3 | Gymnasium 4-tuple bridge | 1h | +2 pts | Spec violation | ⬜ TODO |
-| P3 | Diurnal signal observability | 1h | +2 pts | POMDP mismatch | ⬜ TODO |
+| **P1** | **LagPredictor not used by agent** | 4h | +8 pts | Narrative collapses | **✅ FIXED** |
+| **P1** | **Blind spot reproducibility** | 1h | +5 pts | Credibility loss | **✅ FIXED** |
+| **P1** | **inference.py agent mismatch** | 3h | +6 pts | Scoring invalid | **✅ FIXED** |
+| **P2** | **Always-Reject LLM exploit** | 1h | +4 pts | GRPO policy collapse | **✅ FIXED** |
+| **P2** | **P99 EMA poisoning ceiling** | 2h | +3 pts | Hard task cap | **✅ FIXED** |
+| **P2** | **Lag-crash race condition** | 2h | +3 pts | Unfair episode terminations | **✅ FIXED** |
+| **P3** | **Full observation world model** | 6h | +6 pts | Novelty gap | **✅ FIXED** |
+| **P3** | **Gymnasium 4-tuple bridge** | 1h | +2 pts | Spec violation | **✅ FIXED** |
+| **P3** | **Diurnal signal observability** | 1h | +2 pts | POMDP mismatch | **✅ FIXED** |
 
 ---
 

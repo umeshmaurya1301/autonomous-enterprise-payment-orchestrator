@@ -69,13 +69,10 @@ def test_curriculum_level_starts_at_0() -> None:
 # ---------------------------------------------------------------------------
 
 def test_curriculum_advances_to_1_after_5_episodes() -> None:
-    """3 consecutive episodes with mean > 0.65 → curriculum_level = 1.
-    (Injects 5 to confirm curriculum does not regress after advancing.)
-    """
+    """5 consecutive episodes with mean > 0.75 → curriculum_level = 1 (CLAUDE.md spec)."""
     e = UnifiedFintechEnv()
     e.reset(options={"task": "easy"})
 
-    # Inject 5 high-scoring episodes (only 3 needed; 5 confirms no regression)
     for _ in range(5):
         _inject_episode(e, mean_reward=0.80)
 
@@ -87,18 +84,16 @@ def test_curriculum_advances_to_1_after_5_episodes() -> None:
 # ---------------------------------------------------------------------------
 
 def test_curriculum_advances_to_2_after_5_episodes() -> None:
-    """After reaching level 1, 3 consecutive eps with mean > 0.38 → level 2.
-    (Injects 5 to confirm no regression after advancing.)
-    """
+    """After reaching level 1, 5 consecutive episodes with mean > 0.45 → level 2 (CLAUDE.md spec)."""
     e = UnifiedFintechEnv()
     e.reset(options={"task": "easy"})
 
-    # Get to level 1 first
+    # Advance to level 1 first
     for _ in range(5):
         _inject_episode(e, mean_reward=0.80)
     assert e._curriculum_level == 1
 
-    # Now hit level 2 (0.50 > 0.38 training threshold; injects 5 to confirm no regression)
+    # Advance to level 2 (0.50 > 0.45 medium threshold)
     for _ in range(5):
         _inject_episode(e, mean_reward=0.50)
 

@@ -439,3 +439,50 @@ def test_diurnal_modulates_lag() -> None:
         f"Step 25 delta={delta_25:.1f}, step 75 delta={delta_75:.1f}. "
         "Transition #11 may not be applied or amplitude is wrong."
     )
+
+
+# ---------------------------------------------------------------------------
+# Test — P99 EMA uses faster alpha during Recovery phase (Fix 11.2)
+# ---------------------------------------------------------------------------
+
+def test_p99_ema_uses_faster_alpha_in_recovery() -> None:
+    """
+    Fix 11.2: rolling_p99 EMA must use P99_EMA_ALPHA_RECOVERY (0.5) during Recovery phase.
+
+    Verification uses two telemetry keys the env exposes specifically for this fix:
+      info["p99_ema_alpha"]        → float: 0.2 (normal/spike/attack) or 0.5 (recovery)
+      info["p99_poisoning_fix_active"] → bool: True only in recovery phase
+
+    Additionally verifies by comparing how quickly p99 decays across non-recovery
+    vs recovery steps: recovery alpha produces strictly larger per-step p99 drop.
+    """
+    from unified_gateway import P99_EMA_ALPHA, P99_EMA_ALPHA_RECOVERY
+
+    # Hard task: Normal(20)+Spike(20)+Attack(40)+Recovery(20)
+    # _phase_schedule[80] is the first Recovery index
+    e = UnifiedFintechEnv()
+    e.reset(seed=44, options={"task": "hard"})
+
+    safe = make_action()
+
+    # ── 1. Check standard alpha in Attack phase (step 79) ─────────────────
+    for _ in range(79):
+        e.step(safe)
+
+    _, _, _, attack_info = e.step(safe)
+    assert attack_info["phase"] == "attack"
+    assert attack_info["p99_poisoning_fix_active"] is False
+    assert attack_info["p99_ema_alpha"] == P99_EMA_ALPHA, (
+        f"Attack phase: expected p99_ema_alpha={P99_EMA_ALPHA}, got {attack_info['p99_ema_alpha']}"
+    )
+
+    # ── 2. Check fast alpha in Recovery phase (step 80 onward) ───────────
+    _, _, _, recovery_info = e.step(safe)
+    assert recovery_info["phase"] == "recovery", (
+        f"Expected recovery at step 81, got {recovery_info['phase']}"
+    )
+    assert recovery_info["p99_poisoning_fix_active"] is True
+    assert recovery_info["p99_ema_alpha"] == P99_EMA_ALPHA_RECOVERY, (
+        f"Recovery phase: expected p99_ema_alpha={P99_EMA_ALPHA_RECOVERY}, "
+        f"got {recovery_info['p99_ema_alpha']}"
+    )

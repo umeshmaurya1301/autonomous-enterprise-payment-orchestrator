@@ -64,9 +64,16 @@ def test_reward_always_in_range(task: str) -> None:
 # ---------------------------------------------------------------------------
 
 def test_done_true_on_kafka_lag_crash(env: UnifiedFintechEnv) -> None:
-    """kafka_lag > CRASH_THRESHOLD (4000) must set done=True."""
+    """kafka_lag > CRASH_THRESHOLD (4000) for 2 consecutive steps must set done=True.
+    Fix 11.1: single-step grace period — one spike is not a crash, sustained overload is.
+    """
     _force_obs(env, kafka_lag=4500.0)
     env._rolling_lag = 0.0
+    # Step 1: lag > 4000 → grace (streak=1), episode continues
+    _, _, done_step1, _ = env.step(make_action())
+    assert done_step1 is False, "Grace step should not terminate episode"
+    # Step 2: lag still > 4000 → streak=2, crash fires
+    _force_obs(env, kafka_lag=4500.0)
     _, tr, done, info = env.step(make_action())
     assert done is True
     assert tr.value == 0.0
@@ -129,10 +136,17 @@ def test_fraud_catastrophe_reward_is_zero(env: UnifiedFintechEnv) -> None:
 # ---------------------------------------------------------------------------
 
 def test_crash_reward_is_zero(env: UnifiedFintechEnv) -> None:
-    """kafka_lag > 4000 must produce reward=0.0."""
+    """kafka_lag > 4000 for 2 consecutive steps must produce reward=0.0.
+    Fix 11.1: grace period means the crash fires on the second sustained step.
+    """
     _force_obs(env, kafka_lag=4001.0)
     env._rolling_lag = 0.0
-    _, tr, _, _ = env.step(make_action())
+    # Step 1: grace — reward is NOT 0.0 yet
+    env.step(make_action())
+    # Step 2: crash fires — reward must be 0.0
+    _force_obs(env, kafka_lag=4001.0)
+    _, tr, done, _ = env.step(make_action())
+    assert done is True
     assert tr.value == 0.0
 
 
@@ -318,10 +332,19 @@ def test_blind_spot_triggered_flag(env: UnifiedFintechEnv) -> None:
 # ---------------------------------------------------------------------------
 
 def test_termination_reason_crash(env: UnifiedFintechEnv) -> None:
-    """kafka_lag > 4000 must set info['termination_reason'] = 'crash'."""
+    """kafka_lag > 4000 for 2 consecutive steps → info['termination_reason'] = 'crash'.
+    Fix 11.1: single spike gives streak=1 (grace), second spike fires the crash.
+    """
     _force_obs(env, kafka_lag=5000.0)
     env._rolling_lag = 0.0
-    _, _, _, info = env.step(make_action())
+    # Step 1: grace — termination_reason is None
+    _, _, _, info1 = env.step(make_action())
+    assert info1["termination_reason"] is None, "Grace step should not crash"
+    assert info1["crash_grace_active"] is True
+    # Step 2: sustained overload — crash fires
+    _force_obs(env, kafka_lag=5000.0)
+    _, _, done, info = env.step(make_action())
+    assert done is True
     assert info["termination_reason"] == "crash"
 
 
@@ -346,3 +369,111 @@ def test_termination_reason_none_on_normal_step(env: UnifiedFintechEnv) -> None:
     env._rolling_lag = 0.0
     _, _, _, info = env.step(make_action(risk_decision=1, crypto_verify=0))
     assert info["termination_reason"] is None
+
+
+# ---------------------------------------------------------------------------
+# Test 25 — reject spam penalty (Issue 6 fix)
+# ---------------------------------------------------------------------------
+
+def test_reject_spam_penalty_fires_after_5_consecutive_rejects(env: UnifiedFintechEnv) -> None:
+    """6+ consecutive Reject decisions must trigger -0.15 infra_penalty (reject_spam_active)."""
+    _force_obs(env, kafka_lag=50.0, rolling_p99=50.0, risk_score=30.0)
+    env._rolling_lag = 0.0
+    env._rolling_p99 = 50.0
+
+    # Step 6 times with Reject — reject_spam fires on step 6 (counter > 5)
+    for _ in range(5):
+        env.step(make_action(risk_decision=1))
+
+    _, _, _, info = env.step(make_action(risk_decision=1))
+    assert info["reject_spam_active"] is True
+    assert info["reward_breakdown"]["infra_penalty"] <= -0.15, (
+        "reject_spam_active must debit -0.15 under infra_penalty"
+    )
+
+
+def test_reject_spam_resets_on_non_reject(env: UnifiedFintechEnv) -> None:
+    """A single non-Reject decision must clear the consecutive_rejects counter."""
+    _force_obs(env, kafka_lag=50.0, rolling_p99=50.0, risk_score=30.0)
+    env._rolling_lag = 0.0
+
+    for _ in range(6):
+        env.step(make_action(risk_decision=1))
+
+    # Approve once — resets streak
+    _force_obs(env, kafka_lag=50.0, rolling_p99=50.0, risk_score=30.0)
+    _, _, _, info = env.step(make_action(risk_decision=0))
+    assert info["reject_spam_active"] is False
+    assert info["consecutive_rejects"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Test 26 — throughput bonus (Issue 6 fix)
+# ---------------------------------------------------------------------------
+
+def test_throughput_bonus_fires_on_approve_low_risk_healthy_lag(env: UnifiedFintechEnv) -> None:
+    """Approve + risk_score < 40 + kafka_lag < 1200 must award +0.03 throughput bonus."""
+    _force_obs(env, kafka_lag=100.0, rolling_p99=50.0, risk_score=20.0)
+    env._rolling_lag = 0.0
+    env._rolling_p99 = 50.0
+    env._kafka_lag = 100.0
+
+    _, _, _, info = env.step(make_action(risk_decision=0))  # Approve
+    assert info["throughput_bonus_active"] is True
+    assert info["reward_breakdown"]["bonus"] >= 0.03, (
+        f"Expected throughput bonus ≥ 0.03, got {info['reward_breakdown']['bonus']}"
+    )
+
+
+def test_throughput_bonus_does_not_fire_on_high_risk(env: UnifiedFintechEnv) -> None:
+    """Approve + risk_score ≥ 40 must NOT trigger throughput bonus."""
+    _force_obs(env, kafka_lag=100.0, rolling_p99=50.0, risk_score=50.0)
+    env._rolling_lag = 0.0
+    env._kafka_lag = 100.0
+
+    _, _, _, info = env.step(make_action(risk_decision=0))  # Approve high-risk
+    assert info["throughput_bonus_active"] is False
+
+
+def test_throughput_bonus_does_not_fire_on_high_lag(env: UnifiedFintechEnv) -> None:
+    """Approve + risk_score < 40 but kafka_lag ≥ 1200 must NOT trigger throughput bonus."""
+    _force_obs(env, kafka_lag=1500.0, rolling_p99=50.0, risk_score=20.0)
+    env._rolling_lag = 0.0
+    env._kafka_lag = 1500.0
+
+    _, _, _, info = env.step(make_action(risk_decision=0))
+    assert info["throughput_bonus_active"] is False
+
+
+# ---------------------------------------------------------------------------
+# Test 27 — CircuitBreaker half-open mode (uncovered lines 1405-1411)
+# ---------------------------------------------------------------------------
+
+def test_circuit_breaker_enters_half_open_after_cb_half_open_after_steps(env: UnifiedFintechEnv) -> None:
+    """After CB_HALF_OPEN_AFTER consecutive CircuitBreaker steps, CB enters half-open mode.
+    Half-open: reduced penalty (-0.10) and probe checks lag against recovery threshold.
+    """
+    from unified_gateway import CB_HALF_OPEN_AFTER, CB_HALF_OPEN_PENALTY, CB_LAG_RECOVERY_THRESHOLD
+
+    # Put lag well below recovery threshold so the half-open probe closes the breaker
+    _force_obs(env, kafka_lag=500.0, rolling_p99=50.0, risk_score=10.0)
+    env._rolling_lag = 0.0
+    env._kafka_lag = 500.0
+
+    # Step CB_HALF_OPEN_AFTER times with CircuitBreaker to reach half-open
+    for _ in range(CB_HALF_OPEN_AFTER):
+        _force_obs(env, kafka_lag=500.0, rolling_p99=50.0, risk_score=10.0)
+        env._kafka_lag = 500.0
+        env.step(make_action(infra_routing=2, risk_decision=1))  # CircuitBreaker + Reject
+
+    # One more step in half-open with lag < CB_LAG_RECOVERY_THRESHOLD → breaker closes
+    _force_obs(env, kafka_lag=500.0, rolling_p99=50.0, risk_score=10.0)
+    env._kafka_lag = 500.0
+    _, typed_reward, _, info = env.step(make_action(infra_routing=2, risk_decision=1))
+
+    # Breaker should have closed (counter reset to 0) — bonus should be awarded
+    cb_steps = info.get("circuit_breaker_steps", env._cb_consecutive_steps)
+    # After closing, cb_consecutive_steps resets to 0
+    assert env._cb_consecutive_steps == 0, (
+        f"Breaker should have closed (cb_steps=0), got {env._cb_consecutive_steps}"
+    )

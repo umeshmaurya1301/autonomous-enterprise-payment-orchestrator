@@ -20,10 +20,14 @@ import torch
 
 from dynamics_model import (
     LagPredictor,
+    MultiObsPredictor,
     build_input_vector,
+    build_full_obs_target_vector,
     BATCH_SIZE,
     INPUT_DIM,
     OUTPUT_DIM,
+    MULTI_OBS_OUTPUT_DIM,
+    MULTI_OBS_BATCH_SIZE,
 )
 from unified_gateway import AEPOAction
 
@@ -262,3 +266,116 @@ def test_train_step_returns_float_at_batch_size(model: LagPredictor):
     assert result is not None, "train_step() returned None with full batch"
     assert isinstance(result, float), f"Expected float, got {type(result)}"
     assert result >= 0.0, f"MSE loss must be non-negative, got {result}"
+
+
+# ---------------------------------------------------------------------------
+# MultiObsPredictor tests (Fix 10.1 — full observation world model)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def multi_model() -> MultiObsPredictor:
+    """Fresh MultiObsPredictor with empty replay buffer."""
+    return MultiObsPredictor()
+
+
+def test_multi_obs_forward_shape(multi_model: MultiObsPredictor) -> None:
+    """Forward pass on (1, 16) batch must return shape (1, 10)."""
+    x = torch.rand(1, INPUT_DIM)
+    out = multi_model(x)
+    assert out.shape == (1, MULTI_OBS_OUTPUT_DIM), (
+        f"Expected (1, {MULTI_OBS_OUTPUT_DIM}), got {out.shape}"
+    )
+
+
+def test_multi_obs_output_in_unit_interval(multi_model: MultiObsPredictor) -> None:
+    """Sigmoid output must guarantee all 10 values in (0, 1) for any input."""
+    for _ in range(50):
+        x = torch.rand(1, INPUT_DIM)
+        out = multi_model(x)
+        assert float(out.min()) > 0.0, "Sigmoid output below 0"
+        assert float(out.max()) < 1.0, "Sigmoid output above 1"
+
+
+def test_build_full_obs_target_vector_shape_and_range() -> None:
+    """build_full_obs_target_vector must return a (10,) float32 tensor with values in [0,1]."""
+    obs_norm = _make_obs_normalized()
+    target = build_full_obs_target_vector(obs_norm)
+
+    assert isinstance(target, torch.Tensor), "Must return torch.Tensor"
+    assert target.shape == (MULTI_OBS_OUTPUT_DIM,), (
+        f"Expected ({MULTI_OBS_OUTPUT_DIM},), got {target.shape}"
+    )
+    assert target.dtype == torch.float32, f"Expected float32, got {target.dtype}"
+    assert float(target.min()) >= 0.0
+    assert float(target.max()) <= 1.0
+
+
+def test_multi_obs_predict_single_returns_dict(multi_model: MultiObsPredictor) -> None:
+    """predict_single must return a dict with exactly 10 keys, all values in (0, 1)."""
+    obs = _make_obs_normalized()
+    action = _make_action()
+    x = build_input_vector(obs, action)
+    result = multi_model.predict_single(x)
+
+    assert isinstance(result, dict), f"Expected dict, got {type(result)}"
+    assert len(result) == MULTI_OBS_OUTPUT_DIM, (
+        f"Expected {MULTI_OBS_OUTPUT_DIM} keys, got {len(result)}"
+    )
+    expected_keys = {
+        "transaction_type", "risk_score", "adversary_threat_level",
+        "system_entropy", "kafka_lag", "api_latency", "rolling_p99",
+        "db_connection_pool", "bank_api_status", "merchant_tier",
+    }
+    assert set(result.keys()) == expected_keys
+    for k, v in result.items():
+        assert 0.0 < v < 1.0, f"predict_single['{k}'] = {v} outside (0, 1)"
+
+
+def test_multi_obs_store_and_train_step(multi_model: MultiObsPredictor) -> None:
+    """store_transition + train_step: buffer grows, loss returned at MULTI_OBS_BATCH_SIZE."""
+    obs = _make_obs_normalized()
+    action = _make_action()
+    x = build_input_vector(obs, action)
+    target = build_full_obs_target_vector(obs)
+
+    assert multi_model.buffer_size() == 0
+    assert multi_model.train_step() is None, "Should return None below batch size"
+
+    for _ in range(MULTI_OBS_BATCH_SIZE):
+        multi_model.store_transition(x, target)
+
+    assert multi_model.buffer_size() == MULTI_OBS_BATCH_SIZE
+    loss = multi_model.train_step()
+    assert loss is not None, "train_step() must return float at full batch"
+    assert isinstance(loss, float)
+    assert loss >= 0.0, f"Weighted MSE loss must be non-negative, got {loss}"
+
+
+def test_multi_obs_weighted_mse_loss_shape(multi_model: MultiObsPredictor) -> None:
+    """weighted_mse_loss must return a scalar tensor."""
+    pred = torch.rand(8, MULTI_OBS_OUTPUT_DIM)
+    target = torch.rand(8, MULTI_OBS_OUTPUT_DIM)
+    loss = multi_model.weighted_mse_loss(pred, target)
+    assert loss.shape == torch.Size([]), f"Expected scalar, got shape {loss.shape}"
+    assert float(loss.item()) >= 0.0
+
+
+def test_multi_obs_mse_decreases_over_training() -> None:
+    """MultiObsPredictor loss must trend down over 50 gradient steps."""
+    torch.manual_seed(99)
+    random.seed(99)
+    model = MultiObsPredictor()
+
+    obs = _make_obs_normalized(kafka_lag=0.3)
+    action = _make_action()
+    x = build_input_vector(obs, action)
+    target = build_full_obs_target_vector(obs)
+
+    for _ in range(400):
+        model.store_transition(x, target)
+
+    losses: list[float] = [l for _ in range(50) if (l := model.train_step()) is not None]
+    assert len(losses) >= 20
+    assert sum(losses[-10:]) / 10 < sum(losses[:10]) / 10, (
+        "MultiObsPredictor MSE did not decrease — check weighted_mse_loss or optimizer"
+    )

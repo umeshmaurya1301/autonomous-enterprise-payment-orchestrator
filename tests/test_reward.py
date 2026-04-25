@@ -54,17 +54,21 @@ def test_baseline_reward_is_0_8(env: UnifiedFintechEnv) -> None:
 # ---------------------------------------------------------------------------
 
 def test_multiple_penalties_stack(env: UnifiedFintechEnv) -> None:
-    """SLA breach (-0.30) + CircuitBreaker (-0.50) must stack and clamp to 0.0."""
+    """SLA breach (-0.30) + CircuitBreaker (-0.50) must stack and clamp to 0.0.
+    Uses risk_decision=Reject to prevent the throughput bonus (+0.03) from firing,
+    which would push the clamped result above 0.0.
+    """
     _force_obs(env, kafka_lag=100.0, rolling_p99=1000.0, risk_score=10.0)
     env._rolling_lag = 0.0
     env._rolling_p99 = 1000.0
     env._api_latency = 1000.0
-    _, typed_reward, _, info = env.step(make_action(infra_routing=2))
+    # risk_decision=1 (Reject): throughput bonus only fires on Approve of low-risk traffic
+    _, typed_reward, _, info = env.step(make_action(infra_routing=2, risk_decision=1))
     bd = info["reward_breakdown"]
     # Both penalties applied
     assert bd["sla_penalty"] == -0.30
     assert bd["infra_penalty"] <= -0.50
-    # Final clamped to 0.0 minimum
+    # Final clamped to 0.0 minimum (0.8 - 0.30 - 0.50 = 0.0, no throughput bonus)
     assert typed_reward.value == 0.0
 
 
