@@ -266,7 +266,10 @@ api_key*
 results/*.pkl
 results/*.pt
 results/*.pth
+results/*.png
 results/checkpoints/
+docs/**/*.docx
+*.docx
 
 # Model weights — never commit raw weights
 *.pt
