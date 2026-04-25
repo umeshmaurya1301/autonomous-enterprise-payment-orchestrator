@@ -176,6 +176,49 @@ Coverage measures lines executed, not behavioral correctness. A test that calls 
 
 ---
 
+### 2.9 Training Convergence Failure — All Three Tasks FAIL [DISCOVERED Apr 25 2026] ✅ FIXED
+
+**Discovered during:** Live training run, April 25 2026.
+
+**Observed output:**
+```
+task=easy    random=0.5144  heuristic=0.7609  trained=0.6517  threshold=0.75  [FAIL]
+task=medium  random=0.4418  heuristic=0.5276  trained=0.3145  threshold=0.45  [FAIL]
+task=hard    random=0.1946  heuristic=0.2455  trained=0.1897  threshold=0.30  [FAIL]
+```
+
+**Additional signal:**
+```json
+{ "total_occurrences": 0, "first_discovery": null }   ← blind_spot_events.json
+```
+
+The trained agent fails all three grader thresholds. On the hard task, it performs **below random** (0.1897 vs 0.1946). The blind spot (`Reject+SkipVerify+risk>80`) was **never triggered in 800 episodes**. The narrative centerpiece of the pitch — "Episode 3, Step 42, the agent discovered what the heuristic missed" — was non-reproducible.
+
+**Four root causes identified and fixed:**
+
+**Root Cause A — Wrong safe default action** (`train.py:make_trained_policy`)
+The fallback `AEPOAction` for Q-table states never visited used `infra_routing=0` (Normal routing). With only 94 of 16,384 hard-task states ever visited (0.57% coverage), 99.4% of hard-task steps defaulted to Normal → no throttling → Kafka lag grew unchecked → crash by step ~19. This is why the hard trained score equalled random.
+
+**Root Cause B — Curriculum never reached hard fast enough**
+`_CURRICULUM_THRESHOLDS = (0.65, 0.38)` combined with the adversary's Burst mode (1.5× lag multiplier) inflated training difficulty ~20% above the fixed-seed grader. The agent rarely sustained the 0.65 threshold on easy, spending ~600 of 800 episodes on easy/medium and reaching hard with only ~100 episodes left.
+
+**Root Cause C — No epsilon reset at curriculum advance**
+When the agent advanced from easy → hard, epsilon had decayed to ~0.35. On a completely new, harder task it exploited stale easy-task Q-values on unseen hard states instead of exploring the throttle actions that prevent crashes.
+
+**Root Cause D — N_EPISODES too low for hard-task Q-table coverage**
+800 episodes × ~30 steps/hard episode (crashes early) = ~3,000 hard transitions → 94 unique state-space cells visited. Attack phase (where `risk_score > 80` occurs) was barely reached, making blind spot discovery mathematically impossible.
+
+**Fixes applied (all four simultaneously):**
+- `train.py`: `infra_routing=0 → infra_routing=1` (Throttle) in safe default action
+- `train.py`: `N_EPISODES: 800 → 2000`
+- `train.py`: `epsilon = max(epsilon, 0.50)` on every curriculum advancement
+- `unified_gateway.py`: `_CURRICULUM_THRESHOLDS (0.65, 0.38) → (0.55, 0.32)`, `_CURRICULUM_WINDOW 3 → 2`
+- **Java mirrors updated:** `UnifiedFintechEnv.java`, `TrainQTable.java`, `InferenceClient.java`
+
+**Status: ✅ Fixed. Re-run `python train.py` to verify.**
+
+---
+
 ## 3. Disqualification Risks
 
 ### 3.1 CRITICAL — TRL + Unsloth Colab Notebook Not Done
@@ -356,20 +399,24 @@ Weak error handling in `inference.py` means a zero-shot LLM produces invalid act
 
 ## 7. Fix Priority Matrix
 
-| Priority | Issue | Effort | Impact | Risk if Skipped |
-|---|---|---|---|---|
-| P0 | TRL + Unsloth Colab not done | 8–12h | +20 pts | Disqualification |
-| P0 | README incomplete | 2h | +5 pts | Disqualification |
-| P0 | External URLs blank | 30min | N/A | Automated ping fail |
-| P1 | LagPredictor not used by agent | 4h | +8 pts | Narrative collapses |
-| P1 | Blind spot reproducibility | 1h | +5 pts | Credibility loss |
-| P1 | inference.py agent mismatch | 3h | +6 pts | Scoring invalid |
-| P2 | Always-Reject LLM exploit | 1h | +4 pts | GRPO policy collapse |
-| P2 | P99 EMA poisoning ceiling | 2h | +3 pts | Hard task cap |
-| P2 | Lag-crash race condition | 2h | +3 pts | Unfair episode terminations |
-| P3 | Full observation world model | 6h | +6 pts | Novelty gap |
-| P3 | Gymnasium 4-tuple bridge | 1h | +2 pts | Spec violation |
-| P3 | Diurnal signal observability | 1h | +2 pts | POMDP mismatch |
+| Priority | Issue | Effort | Impact | Risk if Skipped | Status |
+|---|---|---|---|---|---|
+| P0 | TRL + Unsloth Colab not done | 8–12h | +20 pts | Disqualification | ⬜ TODO |
+| P0 | README incomplete | 2h | +5 pts | Disqualification | ⬜ TODO |
+| P0 | External URLs blank | 30min | N/A | Automated ping fail | ⬜ TODO |
+| **P0** | **Wrong safe fallback action — hard task crashes at step ~19** | **5min** | **+10 pts** | **Trained ≈ random, all tasks FAIL** | **✅ FIXED** |
+| **P0** | **Curriculum never reaches hard — only 94/16384 states visited** | **10min** | **+8 pts** | **Blind spot never discovered** | **✅ FIXED** |
+| **P0** | **No epsilon reset at curriculum advance** | **5min** | **+5 pts** | **Stale easy-task policy on hard** | **✅ FIXED** |
+| **P0** | **N_EPISODES too low (800) for hard-task coverage** | **5min** | **+5 pts** | **Q-table fails hard task** | **✅ FIXED** |
+| P1 | LagPredictor not used by agent | 4h | +8 pts | Narrative collapses | ⬜ TODO |
+| P1 | Blind spot reproducibility | 1h | +5 pts | Credibility loss | ⬜ TODO |
+| P1 | inference.py agent mismatch | 3h | +6 pts | Scoring invalid | ⬜ TODO |
+| P2 | Always-Reject LLM exploit | 1h | +4 pts | GRPO policy collapse | ⬜ TODO |
+| P2 | P99 EMA poisoning ceiling | 2h | +3 pts | Hard task cap | ⬜ TODO |
+| P2 | Lag-crash race condition | 2h | +3 pts | Unfair episode terminations | ⬜ TODO |
+| P3 | Full observation world model | 6h | +6 pts | Novelty gap | ⬜ TODO |
+| P3 | Gymnasium 4-tuple bridge | 1h | +2 pts | Spec violation | ⬜ TODO |
+| P3 | Diurnal signal observability | 1h | +2 pts | POMDP mismatch | ⬜ TODO |
 
 ---
 
@@ -1028,6 +1075,104 @@ async def step_env(action: AEPOAction):
 
 ---
 
+## 9.5 Training Convergence Fixes [APPLIED Apr 25 2026] ✅
+
+These four bugs caused all three grader thresholds to fail on the first live training run. All are now fixed. Reference: Audit finding 2.9.
+
+---
+
+### Fix 9.5.A — Wrong Safe Default Action in `make_trained_policy` ✅ FIXED
+
+**File:** `train.py:314` — `make_trained_policy()`
+
+**Problem:** The fallback `AEPOAction` for Q-table states never visited used `infra_routing=0` (Normal routing). On the hard task, 99.4% of states were unseen (94 of 16,384 visited). Normal routing = no throttling → Kafka lag grows unchecked → crash by step ~19. This is why `hard trained (0.19) ≈ random (0.19)`.
+
+**Fix applied:**
+```python
+# Before
+infra_routing=0,    # Normal
+
+# After
+infra_routing=1,    # Throttle — Normal causes crash on unseen hard states
+```
+
+**Java mirrors updated:** `InferenceClient.java` (safe fallback comment), `TrainQTable.java` (epsilon reset comment).
+
+---
+
+### Fix 9.5.B — Curriculum Thresholds Too High for Adversary-Pressured Training ✅ FIXED
+
+**File:** `unified_gateway.py:569` — `_CURRICULUM_THRESHOLDS`, `_CURRICULUM_WINDOW`
+
+**Problem:** `_CURRICULUM_THRESHOLDS = (0.65, 0.38)` with adversary Burst mode (1.5× lag multiplier) inflated training difficulty ~20% above the fixed-seed grader. The agent spent ~600 of 800 episodes on easy/medium, reaching hard with only ~100 episodes. Hard Q-table: 94 states, 0.57% coverage. Blind spot never found because Attack phase (risk > 80) requires reaching hard task step 40+.
+
+**Fix applied:**
+```python
+# Before
+_CURRICULUM_THRESHOLDS: tuple[float, ...] = (0.65, 0.38)
+_CURRICULUM_WINDOW: int = 3
+
+# After
+_CURRICULUM_THRESHOLDS: tuple[float, ...] = (0.55, 0.32)
+_CURRICULUM_WINDOW: int = 2
+```
+
+**Java mirror updated:** `UnifiedFintechEnv.java` — `CURRICULUM_THRESHOLDS`, `CURRICULUM_WINDOW`.
+
+---
+
+### Fix 9.5.C — No Epsilon Reset at Curriculum Advancement ✅ FIXED
+
+**File:** `train.py:449` — inside curriculum advancement detection block
+
+**Problem:** When advancing from easy → hard, epsilon had decayed to ~0.35. On a new, harder task the agent exploited stale easy-task Q-values instead of exploring the throttle actions critical to preventing crashes and reaching Attack phase.
+
+**Fix applied:**
+```python
+# After curriculum snapshot and log:
+epsilon = max(epsilon, 0.50)
+logger.info(
+    "[CURRICULUM ADVANCE] epsilon reset to %.3f — fresh exploration on new task",
+    epsilon,
+)
+```
+
+**Java mirror updated:** `TrainQTable.java` — comment block explaining the equivalent reset logic.
+
+---
+
+### Fix 9.5.D — N_EPISODES Too Low for Hard-Task Q-Table Coverage ✅ FIXED
+
+**File:** `train.py:90` — `N_EPISODES` constant
+
+**Problem:** 800 episodes split across curriculum → hard task received ~100-150 episodes. At ~30-40 steps/episode (early crash), that is ~4,000 transitions covering 94 of 16,384 possible states. Attack phase (where `risk_score > 80` occurs) was statistically unreachable in the time budget, making blind spot discovery impossible.
+
+**Fix applied:**
+```python
+# Before
+N_EPISODES: int = 800
+
+# After
+N_EPISODES: int = 2000
+```
+
+**Runtime impact:** Training time increases from ~4s to ~10s on 2 vCPU — well within the 20-minute limit.
+
+**Java mirror updated:** `TrainQTable.java` — `N_EPISODES = 2000`.
+
+---
+
+**Expected outcomes after fixes (re-run `python train.py` to verify):**
+
+| Task | Before | Expected After | Threshold |
+|---|---|---|---|
+| easy | 0.6517 FAIL | ~0.76+ | ≥ 0.75 |
+| medium | 0.3145 FAIL | ~0.45+ | ≥ 0.45 |
+| hard | 0.1897 FAIL | ~0.30+ | ≥ 0.30 |
+| blind_spot_occurrences | 0 | > 0 | — |
+
+---
+
 ## 10. Delta Fixes — First Place Gap
 
 ---
@@ -1332,9 +1477,18 @@ Work through this in order. Do not skip P0 items.
 - [ ] **Mini-blog or YouTube video** created and linked (< 2 minutes for video)
 - [ ] **HF Space live** and responding to `POST /reset` with HTTP 200
 
+### P0 — Training convergence (COMPLETED Apr 25 2026)
+
+- [x] **Safe default action fixed** — `infra_routing=0 → 1` (Throttle) prevents hard-task crash cascade
+- [x] **Curriculum thresholds lowered** — `(0.65, 0.38) → (0.55, 0.32)`, window `3 → 2`
+- [x] **Epsilon reset on curriculum advance** — `max(epsilon, 0.50)` ensures hard-task exploration
+- [x] **N_EPISODES increased** — `800 → 2000` for adequate hard-task Q-table coverage
+- [x] **Java mirrors updated** — `UnifiedFintechEnv.java`, `TrainQTable.java`, `InferenceClient.java`
+- [ ] **Verify fix** — re-run `python train.py` and confirm all three tasks PASS thresholds
+
 ### P1 — Complete for credibility and narrative integrity
 
-- [ ] **Blind spot reproducibility** — fix random seed, log event, verify it reappears on fresh `python train.py`
+- [ ] **Blind spot reproducibility** — verify blind_spot_events.json shows > 0 after N_EPISODES=2000 run
 - [ ] **inference.py agent** — clarify or resolve Q-table vs LLM mismatch
 - [ ] **Dyna-Q integration** — LagPredictor drives Q-table updates via planning loop
 - [ ] **Blind spot causal chain** — document exactly why SkipVerify saves Kafka lag (if the link is real, state the mechanism; if it's a reward bonus, say that clearly)
@@ -1360,15 +1514,17 @@ Work through this in order. Do not skip P0 items.
 
 | State | Score | Placement |
 |---|---|---|
-| As documented (P0 TODOs missing) | 61/100 | Disqualified or heavy penalty |
-| P0 completed only | 72/100 | Top 10 |
-| P0 + P1 completed | 80/100 | Top 5, weak podium |
-| P0 + P1 + P2 completed | 86/100 | Podium contender |
-| P0 + P1 + P2 + P3 completed | 92/100 | First place candidate |
+| Before Apr 25 fixes (all tasks FAIL, blind spot = 0) | 48/100 | Would not pass judge review |
+| Training convergence fixed (Fixes 9.5.A–D) ✅ | 61/100 | Baseline restored |
+| + P0 Colab/README/URLs completed | 72/100 | Top 10 |
+| + P1 completed (Dyna-Q proof, blind spot trace) | 80/100 | Top 5, weak podium |
+| + P2 completed (exploit blocks, EMA fix) | 86/100 | Podium contender |
+| + P3 completed (MultiObsPredictor, diurnal) | 92/100 | First place candidate |
 
 ---
 
-> **Document End** · AEPO Red Team Audit & Fix Guide v1.0
+> **Document End** · AEPO Red Team Audit & Fix Guide v1.1
 > **Author:** Red Team Review (Umesh Maurya)
-> **Date:** April 25, 2026
-> **Next action:** Start with Fix 8.1 (Colab). Everything else depends on this existing.
+> **Original date:** April 25, 2026
+> **Updated:** April 25, 2026 — added Section 2.9 and Fix 9.5 (training convergence failure, 4 bugs diagnosed and fixed)
+> **Next action:** Re-run `python train.py` to confirm all three tasks PASS, then start Fix 8.1 (Colab).
