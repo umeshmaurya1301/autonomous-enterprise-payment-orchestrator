@@ -1,0 +1,57 @@
+# Dockerfile.training — Dedicated GRPO Training HF Space
+# ==========================================================
+# Deploy this as a SEPARATE HF Space (hardware: A10G) to run
+# train_grpo_hf.py on the Space's GPU without touching the
+# production AEPO server Space.
+#
+# Create the training Space:
+#   1. huggingface.co → New Space
+#   2. Name: aepo-grpo-training  |  SDK: Docker  |  Hardware: A10G (24GB)
+#   3. Add secrets: HF_TOKEN, HF_REPO
+#   4. Upload this file as Dockerfile
+#   5. The Space will clone the AEPO repo, train, push the LoRA adapter,
+#      then serve a status page so you can check progress.
+
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3.11 python3.11-dev python3-pip git curl && \
+    ln -sf /usr/bin/python3.11 /usr/bin/python && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ── Clone AEPO repo ────────────────────────────────────────────────────────────
+ARG REPO_URL=https://github.com/umeshmaurya1301/autonomous-enterprise-payment-orchestrator.git
+RUN git clone --depth 1 "${REPO_URL}" .
+
+# ── Install AEPO runtime deps first (cached layer) ────────────────────────────
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# ── Install GRPO training extras ──────────────────────────────────────────────
+# Unsloth nightly wheels for CUDA 12.1 — matches the nvidia/cuda base image.
+# xformers and flash-attn are optional; Unsloth falls back gracefully.
+RUN pip install \
+    "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git" \
+    "trl>=0.15.0" \
+    peft \
+    accelerate \
+    bitsandbytes \
+    datasets \
+    matplotlib \
+    huggingface_hub
+
+# ── Training entrypoint ───────────────────────────────────────────────────────
+# Runs train_grpo_hf.py; after completion, starts a minimal HTTP server on
+# port 7860 that serves the results directory so the judge / user can
+# download grpo_reward_curve.png directly from the Space UI.
+COPY Dockerfile.training.entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 7860
+CMD ["/entrypoint.sh"]
