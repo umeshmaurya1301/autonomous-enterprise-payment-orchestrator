@@ -39,7 +39,7 @@ frontend/out/
 # Local dev docs and scratch files
 docs/
 scratch/
-LOCAL_TESTING.md
+docs/LOCAL_TESTING.md
 DASHBOARD_GUIDE.md
 *.md
 !README.md

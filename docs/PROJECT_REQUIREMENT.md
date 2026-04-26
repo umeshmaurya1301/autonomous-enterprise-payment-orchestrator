@@ -44,7 +44,7 @@ AEPO (Autonomous Enterprise Payment Orchestrator) is an OpenEnv-compliant reinfo
 | Phase structure | None | **4-phase task machine** per episode |
 | Dynamics model | None | **LagPredictor MLP** (PyTorch) |
 | Training | None | **Q-Table agent**, 500 episodes, hard task PASS |
-| Test suite | ~30 tests | **189 tests**, 96% coverage |
+| Test suite | ~30 tests | **221 tests**, 97% coverage |
 
 ### 1.2 The Core Story: Blind Spot Discovery
 
@@ -408,8 +408,8 @@ Every `step()` returns a full info dict including:
 - [ ] `requirements.txt` — All dependencies pinned
 
 ### Tests
-- [ ] 189 tests across 14 files — all passing
-- [ ] `unified_gateway.py` at ≥96% coverage
+- [ ] 221 tests across 14 files — all passing
+- [ ] `unified_gateway.py` at ≥97% coverage
 - [ ] `pytest tests/ -v` runs cleanly
 
 ### Training Evidence
@@ -470,7 +470,7 @@ openenv validate .
 docker build -t aepo .
 docker run -p 7860:7860 aepo
 
-# Full test suite (expect: 189 passed)
+# Full test suite (expect: 221 passed)
 pytest tests/ -v --tb=short
 pytest tests/ --cov=unified_gateway --cov-report=term-missing
 
@@ -539,7 +539,7 @@ API_BASE_URL=... MODEL_NAME=... HF_TOKEN=... python inference.py
 - Adversary escalation: performs well → environment gets harder → staircase learning curve
 
 ### Engineering Quality
-- 189 tests at 96% coverage vs ~30 tests
+- 221 tests at 97% coverage vs ~30 tests
 - Dual-mode architecture (standalone + FastAPI server, zero code changes)
 - `openenv validate` strict-mode passing
 

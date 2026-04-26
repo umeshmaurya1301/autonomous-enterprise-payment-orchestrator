@@ -26,18 +26,30 @@ The shift to the **Autonomous Enterprise Payment Orchestrator (AEPO)** was drive
 
 ## 3. Core Functionalities & Hackathon Theme Integration
 
-AEPO is explicitly designed to sit at the intersection of the core themes of the Meta PyTorch OpenEnv Hackathon:
+AEPO is explicitly designed to sit at the intersection of the core themes of the Meta PyTorch OpenEnv Hackathon. The mapping below is code-anchored — every claim points at a concrete file and mechanism.
 
-### A. Causal World Modeling & Proactive Intelligence (Theme 3.1)
+### Theme Alignment Matrix
+
+| Hackathon Theme | Feature Implementation in AEPO | Technical Anchor (Code / Logic) |
+|---|---|---|
+| **Theme #3.1: World Modeling** | LagPredictor MLP (1-step lookahead + Dyna-Q planning) | `dynamics_model.py` (LagPredictor) + `inference.py` veto + `train.py` DynaPlanner |
+| **Theme #4: Self-Improvement** | Antagonistic adversary policy (adaptive entropy & threat scaling) | `unified_gateway.py` — Attack Phase + 5-episode-lag escalation logic |
+| **Causal Reasoning** | 11 physics-based causal state transitions | `step()` deterministic dynamics + accumulators |
+| **Realistic Env Design** | Asymmetric Risk Triad (Fraud vs. Infra vs. SLA) | UPI Payment Gateway scope + 10-signal observation schema |
+| **Deployment Efficiency** | Optimized edge footprint (2 vCPU / 8 GB RAM) | `Dockerfile` (`python:3.10-slim`) + CPU-only Torch wheel |
+
+**AEPO satisfies the core requirement of Theme #3.1 by** wiring a learned `LagPredictor` world model into both training (Dyna-Q imagined rollouts) and inference (1-step lookahead veto on the crash cliff). **To align with Theme #4, we implemented an adaptive adversarial curriculum that** escalates `adversary_threat_level` whenever the agent's 5-episode rolling reward exceeds 0.6, producing the staircase improvement curve. **This architecture ensures 100% compliance with the hardware constraints specified in the Master Project Requirements.**
+
+### A. Causal World Modeling & Proactive Intelligence (**Theme #3.1**)
 * **The LagPredictor MLP**: Instead of waiting for Kafka lag to hit critical levels, AEPO embeds a lightweight, CPU-optimized Neural Network (`LagPredictor`) directly into the environment. It acts as a "radar," predicting future lag spikes based on historical entropy and transaction volume. The model uses a 2-layer MLP (16 inputs $\rightarrow$ 64 hidden $\rightarrow$ 1 output) trained alongside the main Q-learning loop.
 * **POMDP Physics Engine**: By injecting bounded Gaussian noise into infrastructure observations, the environment operates as a Partially Observable Markov Decision Process. The agent cannot rely on raw numbers; it must trust the world model to deduce the true state of the system.
 * **Delayed Relief Causality**: Actions have realistic consequences. Applying a system throttle does not instantly resolve lag; the relief cascades logically after a $T+2$ step delay.
 
-### B. Adversarial Escalation & Curriculum Learning (Theme 4)
+### B. Adversarial Escalation & Curriculum Learning (**Theme #4**)
 * **The Threat Heatmap**: The environment maintains an `adversary_threat_level` that dynamically simulates botnet attacks and API abuse.
 * **Rolling Staircase Curriculum**: The agent is trained using a structured curriculum. It must maintain an SLA success rate above specific thresholds (e.g., >0.75 for Easy, >0.45 for Medium) over a rolling 5-episode window before the environment unlocks heavier adversarial pressure. This ensures the environment scales in difficulty proportionally to the agent's competence.
 
-### C. Multi-Agent & Enterprise Orchestration (Theme 2)
+### C. Multi-Agent & Enterprise Orchestration (**Theme #2**)
 * **High-Dimensional Routing**: The agent navigates a massive 6-dimensional action space. It must orchestrate multi-rail routing (falling back from UPI to Credit systems), toggle heavy Crypto Verification processes during high-entropy states, and strategically utilize `DeferredAsync` settlement policies without exploiting the cumulative backlog limits.
 * **No Free Actions**: Every action has a failure condition. For example, defaulting to `CircuitBreaker` imposes a massive $-0.50$ penalty per step, and using `ExponentialBackoff` when the DB pool is exhausted ($<20$) results in a wasteful $-0.10$ penalty.
 

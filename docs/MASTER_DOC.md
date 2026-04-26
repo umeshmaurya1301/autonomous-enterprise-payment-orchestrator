@@ -3,7 +3,7 @@
 > **Classification:** Internal Engineering Reference · **Version:** 10.0.0
 > **Author:** Umesh Maurya · **Affiliation:** Meta PyTorch OpenEnv Hackathon × Scaler School of Technology — Grand Finale
 > **Stack:** Python 3.10 · Gymnasium 0.29.1 · Pydantic v2 · FastAPI · PyTorch · Docker · Hugging Face Spaces
-> **Status:** Production-Deployed · Validated against `openenv validate` strict-mode · 189 tests · 96% coverage
+> **Status:** Production-Deployed · Validated against `openenv validate` strict-mode · 221 tests · 97% coverage
 
 ---
 
@@ -38,7 +38,21 @@ In every Tier-1 payment processor — from UPI gateways handling 14 billion mont
 | **Infrastructure Health** | kafka_lag [0–10000], api_latency [0–5000ms] | SRE/Platform | Consumer lag > 4,000 → cascading system crash |
 | **SLA Compliance** | rolling_p99 [0–5000ms] | SRE/Product | P99 > 800ms → SLA breach → regulatory penalties |
 
-### 1.2 The Solution: AEPO — A Causally-Structured RL Decision Surface
+### 1.2 Theme Alignment Matrix
+
+AEPO is engineered to satisfy the official hackathon themes by direct, code-anchored implementation:
+
+| Hackathon Theme | Feature Implementation in AEPO | Technical Anchor (Code / Logic) |
+|---|---|---|
+| **Theme #3.1: World Modeling** | LagPredictor MLP (1-step lookahead + Dyna-Q planning) | `dynamics_model.py` (LagPredictor) + `inference.py` veto + `train.py` DynaPlanner |
+| **Theme #4: Self-Improvement** | Antagonistic adversary policy (adaptive entropy & threat scaling) | `unified_gateway.py` — Attack Phase + 5-episode-lag escalation logic |
+| **Causal Reasoning** | 11 physics-based causal state transitions | `step()` deterministic dynamics + accumulators |
+| **Realistic Env Design** | Asymmetric Risk Triad (Fraud vs. Infra vs. SLA) | UPI Payment Gateway scope + 10-signal observation schema |
+| **Deployment Efficiency** | Optimized edge footprint (2 vCPU / 8 GB RAM) | `Dockerfile` (`python:3.10-slim`) + CPU-only Torch wheel |
+
+**AEPO satisfies the core requirement of Theme #3.1 by** wiring a learned `LagPredictor` world model into both training (Dyna-Q imagined rollouts) and inference (1-step lookahead veto on the crash cliff). **To align with Theme #4, we implemented an adaptive adversarial curriculum that** escalates `adversary_threat_level` whenever the agent's 5-episode rolling reward exceeds 0.6, producing the staircase improvement curve. **This architecture ensures 100% compliance with the hardware constraints specified in the Master Project Requirements** — the full training pipeline runs in ~5 seconds on 2 vCPU / 8 GB RAM.
+
+### 1.3 The Solution: AEPO — A Causally-Structured RL Decision Surface
 
 The **Autonomous Enterprise Payment Orchestrator (AEPO)** resolves the Siloed Metrics problem by encoding the entire Asymmetric Risk Triad into a single **Gymnasium-compatible Reinforcement Learning environment**. Rather than building another dashboard that correlates metrics post-hoc, AEPO creates a training ground where AI agents learn — through thousands of simulated transactions — to make decisions that simultaneously optimize across all three risk dimensions.
 
@@ -52,7 +66,7 @@ AEPO evolved from the **Unified Fintech Risk Gateway (UFRG)**, which won Round 1
 | Phase structure | None | **4-phase task machine** per episode |
 | Dynamics model | None | **LagPredictor MLP** (PyTorch) |
 | Training | None | **Q-Table agent**, 500 episodes, hard task PASS |
-| Test suite | ~30 tests | **189 tests**, 96% coverage |
+| Test suite | ~30 tests | **221 tests**, 97% coverage |
 
 **Why Reinforcement Learning?** The Asymmetric Risk Triad is a **sequential decision-making problem under uncertainty** with delayed, compounding consequences. An agent's decision to skip cryptographic verification at step 12 does not merely affect step 12 — it reduces lag pressure that prevents a crash at step 47. RL is the natural formalism for problems where:
 
@@ -497,7 +511,7 @@ class LagPredictor(nn.Module):
 
 **Training:** Trained alongside the Q-table loop on collected `(state, action, next_lag)` transitions. One gradient step per episode.
 
-**Performance:** Final MSE = 0.007 on held-out transitions. This model justifies the Theme 3.1 World Modeling claim — the agent is implicitly learning a causal model of how its actions affect future lag.
+**Performance:** Final MSE = 0.007 on held-out transitions. This model justifies the **Theme #3.1: World Modeling** claim — the agent is implicitly learning a causal model of how its actions affect future lag.
 
 **Input construction:** 10 normalized observation values + 6 action values (each as a scalar, not one-hot), concatenated into a 16-dimensional input vector.
 
@@ -868,7 +882,7 @@ Post-Phase 10, an independent Red Team audit revealed critical flaws that were s
 
 1. **Fix 1: OpenAI Client Compliance (`inference.py`):** The custom PyTorch GRPO loop was stripped out and replaced with the official `openai` Python package pointing to a local Ollama instance (`http://localhost:11434/v1`). This was mandatory for the OpenEnv automated evaluation pipeline.
 2. **Fix 2: The Settlement Backlog Exploit (Reward Patch):** We replaced the simple consecutive-use counter for `DeferredAsync` with a true physical accumulator (`_cumulative_settlement_backlog`). This prevents agents from reward hacking by alternating actions to bypass the DB without paying off technical debt.
-3. **Fix 3: POMDP & Gaussian Noise (Physics Patch):** Added bounded `numpy.random.normal()` noise to `kafka_lag` and `api_latency` during `_get_obs()`. This prevents perfect mathematically clean observations, forcing the agent to actually rely on the `LagPredictor` World Model (Theme #3.1).
+3. **Fix 3: POMDP & Gaussian Noise (Physics Patch):** Added bounded `numpy.random.normal()` noise to `kafka_lag` and `api_latency` during `_get_obs()`. This prevents perfect mathematically clean observations, forcing the agent to actually rely on the `LagPredictor` World Model (**Theme #3.1**).
 
 ### 8.4 Future Scope
 

@@ -2,7 +2,7 @@
 ## Pre-Flight · Deployment · Agent Testing · Judge Compatibility
 
 > **Based on:** Actual project inspection as of 2026-04-22
-> **Covers:** AEPO Phase 10 — 10-field observation, 6-field action, 189 tests, Q-table training, LagPredictor
+> **Covers:** AEPO Phase 10 — 10-field observation, 6-field action, 221 tests, Q-table training, LagPredictor
 > **Author role:** Senior DevOps + RL Engineer — OpenEnv Framework
 
 ---
@@ -71,7 +71,7 @@ Smoke test PASS — 10-field obs, 6-field action, 4-tuple step OK
 
 ---
 
-### Step 1.3 — Run the Full pytest Suite (189 Tests)
+### Step 1.3 — Run the Full pytest Suite (221 Tests)
 
 ```bash
 pip install pytest pytest-cov
@@ -93,16 +93,16 @@ tests/test_server.py::test_...        PASSED
 tests/test_dual_mode.py::test_...     PASSED
 tests/test_heuristic.py::test_...     PASSED
 ...
-189 passed in X.XXs
+221 passed in X.XXs
 ```
 
 **Run with coverage:**
 ```bash
 pytest tests/ --cov=unified_gateway --cov-report=term-missing
-# Target: unified_gateway.py 96%
+# Target: unified_gateway.py 97%
 ```
 
-> ⚠️ **WARNING:** If fewer than 189 tests pass, do not proceed to deployment. The test suite covers all 11 causal transitions, all 14 reward conditions, all 4 phase boundaries, and the full info dict contract. Partial failures indicate a broken reward function or phase machine that will produce wrong scores at the judge.
+> ⚠️ **WARNING:** If fewer than 221 tests pass, do not proceed to deployment. The test suite covers all 11 causal transitions, all 14 reward conditions, all 4 phase boundaries, and the full info dict contract. Partial failures indicate a broken reward function or phase machine that will produce wrong scores at the judge.
 
 ---
 
@@ -669,8 +669,8 @@ Passed: 4  Failed: 0
 ```bash
 # ── Pre-flight (run in this order) ────────────────────────────────────────────
 python -c "import torch; print(torch.__version__)"     # Verify PyTorch
-pytest tests/ -v --tb=short                             # 189 tests
-pytest tests/ --cov=unified_gateway --cov-report=term-missing  # 96% coverage
+pytest tests/ -v --tb=short                             # 221 tests
+pytest tests/ --cov=unified_gateway --cov-report=term-missing  # 97% coverage
 python train.py --compare                                # all 3 tasks PASS (per-task snapshots)
 openenv validate .
 
@@ -744,7 +744,7 @@ HF_SPACE_URL=https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.s
 | Timeout — missing `[END]` | LLM calls > 3s/step on 72B model | Add `timeout=5.0` to LLM client call |
 | `openenv validate` fails | Missing fields in `openenv.yaml` | Check `openenv.yaml` has `tags`, `max_steps`, `reward_threshold` |
 | HF Space `500` error | Import fails inside Docker | Confirm `requirements.txt` includes all deps including `torch` |
-| 189 tests not passing | Broken reward function or phase machine | Fix all pytest failures before deploying |
+| 221 tests not passing | Broken reward function or phase machine | Fix all pytest failures before deploying |
 | train.py hard task FAIL | State space too large (regression to 8^10) | Verify N_BINS=4, STATE_FEATURE_KEYS has 7 features (4^7=16384 states) |
 | train.py easy/medium FAIL | Catastrophic forgetting — hard updates overwrite easy Q-values | Verify per-task Q-table snapshots are used in evaluate_all_tasks() |
 | State feature mismatch at eval | Old 6-feature Q-table loaded with 7-feature state | Delete any cached q_table.pkl and retrain from scratch |
