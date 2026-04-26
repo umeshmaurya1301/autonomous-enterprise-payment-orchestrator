@@ -528,6 +528,23 @@ def train_q_table(seed: int = 44, use_dyna: bool = True) -> Tuple[defaultdict, L
                 prev_level, CURRICULUM_TASKS[prev_level],
                 ep_curriculum, CURRICULUM_TASKS[ep_curriculum],
             )
+            # Curriculum knowledge transfer: seed the new per-task Q-table from
+            # the EASY table. Easy teaches baseline-correct reflexes (Challenge
+            # on high risk, FullVerify, tier-matched app_priority) on a clean
+            # Normal-only distribution. Medium and hard inherit those reflexes
+            # and only need to learn phase-specific adaptations on top.
+            # Both medium and hard seed from EASY (not chained) so attack-phase
+            # learning is not contaminated by Spike-phase noise from medium.
+            new_task = CURRICULUM_TASKS[ep_curriculum]
+            easy_table = q_tables_per_task["easy"]
+            seeded_states = 0
+            for state, row in easy_table.items():
+                q_tables_per_task[new_task][state] = row.copy()
+                seeded_states += 1
+            logger.info(
+                "[CURRICULUM ADVANCE] seeded '%s' Q-table with %d states from 'easy'",
+                new_task, seeded_states,
+            )
             # Restart epsilon for the new task's exploration budget. Without
             # this, ε would carry over near-zero from the end of the previous
             # level and the agent would never explore the new task's state space.
@@ -845,19 +862,21 @@ def evaluate_all_tasks(q_tables_per_task: Dict[str, defaultdict]) -> dict[str, d
         "medium": MediumGrader(),
         "hard":   HardGrader(),
     }
-    # Per-task Q-confidence thresholds (Fix A continuation).
+    # Per-task Q-confidence thresholds.
     #
-    # Empirical sweep on the saved Q-tables (10 eval eps each):
-    #     T=0   easy=0.42 medium=0.10 hard=0.36
-    #     T=8   easy=0.42 medium=0.51 hard=0.28
-    #     T=∞   easy=0.76 medium=0.53 hard=0.25
+    # Easy and medium per-task tables have sparse state coverage (~200–600
+    # episodes each) so their argmax actions are unreliable — empirically
+    # 0.16 reward vs 0.76 heuristic. Pinning to ∞ means the trained policy
+    # always falls through to heuristic_policy() for easy/medium, which is
+    # the correct behaviour: these tasks pass via the heuristic baseline.
     #
-    # Hard wants T=0 (Q-table actions help: +0.11 over heuristic).
-    # Easy/medium want T=∞ (Q-table actions HURT: 600-episode finetune from
-    # empty produced Q-values whose argmax picks systematically bad actions;
-    # noise survives because state coverage is sparse and bootstrap targets
-    # propagate that noise).
-    # Per-task thresholding lets each task use its best policy.
+    # Hard (1700 curriculum + 600 fine-tune episodes) has dense enough
+    # coverage that the Q-table argmax beats heuristic (0.33 vs 0.25).
+    # T=0 means "trust the Q-table for any seen state, heuristic otherwise."
+    #
+    # The curriculum seeding (medium and hard seeded from easy at advancement)
+    # still benefits hard: it inherits baseline-correct Q-values for the
+    # first ~100 hard episodes, reducing the initial dip at advancement.
     Q_CONF_THRESHOLD_PER_TASK: dict[str, float] = {
         "easy":   float("inf"),
         "medium": float("inf"),
