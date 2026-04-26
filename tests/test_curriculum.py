@@ -215,3 +215,44 @@ def test_curriculum_level_in_info_dict() -> None:
         assert info["curriculum_level"] in (0, 1, 2)
         if done:
             break
+
+
+# ---------------------------------------------------------------------------
+# Test 10 — Adversary reset contract (P1 audit fix, 2026-04-26)
+# ---------------------------------------------------------------------------
+# These three tests lock in the contract documented in unified_gateway.py
+# next to self._adversary_threat_level. Graders rely on this contract for
+# reproducible, history-independent scoring.
+
+def test_adversary_threat_level_starts_at_0_on_init() -> None:
+    """A new UnifiedFintechEnv() instance must start at adversary_threat_level=0.0."""
+    e = UnifiedFintechEnv()
+    assert e._adversary_threat_level == 0.0, (
+        "Adversary contract broken: __init__ must start at 0.0 so graders "
+        "see baseline difficulty regardless of training history."
+    )
+
+
+def test_adversary_threat_level_persists_across_reset() -> None:
+    """reset() must NOT clear adversary_threat_level — escalation persists."""
+    e = UnifiedFintechEnv()
+    e.reset(options={"task": "easy"})
+    e._adversary_threat_level = 3.5  # simulate escalation from prior episodes
+    e.reset(seed=99, options={"task": "hard"})
+    assert e._adversary_threat_level == 3.5, (
+        "Adversary contract broken: reset() must preserve adversary_threat_level "
+        "so 5-episode lag escalation can fire across the staircase curriculum."
+    )
+
+
+def test_adversary_threat_level_independent_across_env_instances() -> None:
+    """Each new UnifiedFintechEnv() must restart at 0.0, independent of prior instance."""
+    e1 = UnifiedFintechEnv()
+    e1.reset(options={"task": "easy"})
+    e1._adversary_threat_level = 7.5
+
+    e2 = UnifiedFintechEnv()
+    assert e2._adversary_threat_level == 0.0, (
+        "Adversary contract broken: a fresh env must start at 0.0 — "
+        "graders must NOT inherit the adversary state of any previous env."
+    )

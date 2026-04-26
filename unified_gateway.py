@@ -201,6 +201,16 @@ CB_DRAIN_PER_STEP: float = 500.0
 #
 # Amplitude set conservatively (100 units) so it cannot by itself trigger
 # the crash threshold (4000) or add more than 2.5% to the max lag range.
+#
+# CRASH BOUND CHECK (P1 audit fix, 2026-04-26):
+# Worst-case single-step lag_delta when stacked with the adversary's Burst
+# multiplier (1.5×) and the highest base phase delta (1000 in spike burst):
+#   1000 × 1.5 + DIURNAL_AMPLITUDE  =  1500 + 100  =  1600 units/step
+# CircuitBreaker drains 500 units/step, leaving 1100/step net under worst
+# adversarial conditions.  Crash threshold is 4000 → 4 consecutive worst-case
+# bursts could overwhelm CB.  Probability: 0.20^4 = 0.16%.
+# Verified empirically: tests/test_phases.py runs all 30 grader-seed episodes
+# with max-defence policy and asserts kafka_lag stays below 4000 throughout.
 DIURNAL_AMPLITUDE: float = 100.0   # max lag units added/subtracted per step by sine
 
 
@@ -419,6 +429,18 @@ class UnifiedFintechEnv(gym.Env):
         self._bank_status: float = 0.0
         self._system_entropy: float = 0.0
         self._merchant_tier: float = 0.0
+        # ADVERSARY RESET CONTRACT (P1 audit fix, 2026-04-26)
+        # ---------------------------------------------------
+        # adversary_threat_level is set to 0.0 here in __init__ — NOT in reset().
+        # Within one env instance: level persists across reset() calls so the
+        #   5-episode-lag escalation rule (rolling_5ep_avg > 0.6 → +0.5/episode)
+        #   can fire across the staircase curriculum.
+        # Across env instances: each new UnifiedFintechEnv() starts at 0.0,
+        #   guaranteeing every grader run begins at baseline difficulty.
+        # Graders create a fresh env per grade_agent() call (graders.py:86),
+        # so grader scores are deterministic on a fixed seed AND independent
+        # of whatever training history preceded the grader run.
+        # Verified by tests/test_curriculum.py and tests/test_graders.py.
         self._adversary_threat_level: float = 0.0
 
         # ── Backward-compat aliases (tests may reference these) ────────────

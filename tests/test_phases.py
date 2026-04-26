@@ -254,3 +254,48 @@ def test_phase_in_info_dict() -> None:
     # First step should be "normal"
     _, _, _, info0 = e2.step(make_action(infra_routing=1))
     assert info0["phase"] == "normal"
+
+
+# ---------------------------------------------------------------------------
+# Test 9 — Diurnal + adversary lag bound (P1 audit fix, 2026-04-26)
+# ---------------------------------------------------------------------------
+# Audit BS-1 (Clock-Adversary Resonance): verify that even with the
+# strongest defensive policy (Reject+SkipVerify+CircuitBreaker), the
+# combined diurnal + adversary lag pressure cannot push kafka_lag past
+# the 4000 crash threshold across all 30 grader-seed episodes.
+#
+# Theoretical worst-case single-step lag delta:
+#   Spike burst: 1000 × 1.5 (adv) + 100 (diurnal) = 1600
+#   Attack:       400 × 1.5 (adv) + 100 (diurnal) =  700
+#   CircuitBreaker drain:                          - 500
+#   Net spike:                                    +1100/step
+# 4-consecutive-burst probability: 0.20^4 = 0.16% (statistically rare,
+# never observed on grader seeds 42/43/44).
+
+def test_diurnal_plus_adversary_bound_holds_on_grader_seeds() -> None:
+    """Max-defence policy must prevent crashes on all grader-seed episodes."""
+    def max_defence(_obs: AEPOObservation) -> AEPOAction:
+        return AEPOAction(
+            risk_decision=1, crypto_verify=1,
+            infra_routing=2,  # CircuitBreaker — drains 500 lag/step
+            db_retry_policy=0, settlement_policy=0, app_priority=2,
+        )
+
+    for task, base_seed in [("easy", 42), ("medium", 43), ("hard", 44)]:
+        env = UnifiedFintechEnv()
+        for ep in range(10):
+            obs, _ = env.reset(seed=base_seed + ep, options={"task": task})
+            done = False
+            while not done:
+                obs, _, done, info = env.step(max_defence(obs))
+                assert info["raw_obs"]["kafka_lag"] < 4000.0, (
+                    f"Diurnal+adversary bound VIOLATED on task={task} "
+                    f"ep={ep} step={info['step_in_episode']}: "
+                    f"kafka_lag={info['raw_obs']['kafka_lag']:.0f} >= 4000. "
+                    f"This means crashes are unavoidable for some grader episode "
+                    f"— a P1 audit blocker."
+                )
+                # If max-defence policy ever crashed, fail explicitly.
+                assert info.get("termination_reason") != "crash", (
+                    f"Max-defence policy crashed on task={task} ep={ep}"
+                )
