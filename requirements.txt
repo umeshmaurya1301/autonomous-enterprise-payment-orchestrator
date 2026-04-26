@@ -10,3 +10,7 @@ openenv>=0.1.13
 # Phase 9: LagPredictor MLP — CPU-only wheel (~170 MB, no CUDA dependency)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.2.0+cpu
+
+# Tests + coverage (README: `pytest tests/ --cov=unified_gateway ...`)
+pytest>=9.0.0
+pytest-cov>=4.0.0
