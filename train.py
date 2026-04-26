@@ -762,13 +762,17 @@ def finetune_per_task_qtables(
     episodes on each task (easy first, medium second) with a moderate epsilon
     so the agent exploits what it learned while still exploring.
 
-    Hard is excluded — the main training loop dedicates 1500 episodes to it.
+    Hard is included because curriculum episodes crash early (~step 41), leaving
+    only ~105 states covered. Fine-tuning densifies the hard Q-table post-training.
     The shared Q-table is NOT used or modified here; only per-task Q-tables are updated.
     """
-    FINETUNE_TASKS = ["easy", "medium"]
+    FINETUNE_TASKS = ["easy", "medium", "hard"]
     # Explore-heavy starting ε: even with 200/300 curriculum episodes on
     # easy/medium, those episodes used ε≈1.0 → ε≈0.05 over the schedule, so
     # the per-task tables still benefit from a fresh exploration burst here.
+    # Hard is included because its episodes crash early (~step 41), leaving only
+    # ~105 states in the Q-table. 600 fine-tune episodes with ε=0.70 densify
+    # the hard table without introducing the instability of higher Dyna-Q steps.
     FINETUNE_EPSILON_START = 0.70
     FINETUNE_EPSILON_END = EPSILON_END
 

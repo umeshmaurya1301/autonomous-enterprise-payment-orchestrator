@@ -32,6 +32,7 @@ import asyncio
 import os
 import pickle
 import re
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
@@ -125,6 +126,18 @@ Output ONLY the six integers. No explanation. Example: 0 1 0 1 0 2
 
 # normalized kafka_lag above this triggers model-based infra planning
 LAG_OVERRIDE_THRESHOLD: float = 0.30  # = 3000 / 10000 raw
+
+# ── Time-budget guard rails (OpenEnv spec: inference < 20 min on 2 vCPU/8 GB) ──
+# OpenAI client default timeout is 600s (10 min). One stuck call would burn half
+# our budget, so we cap each LLM request aggressively. On timeout, get_action
+# falls back to the heuristic policy so the episode keeps progressing.
+LLM_CALL_TIMEOUT_SEC: float = 5.0      # max wait per chat.completions.create
+# Per-task wall-clock cap. 3 tasks × 5 min = 15 min worst case, leaving 5 min
+# headroom for cold-start (HF Space wake-up), dynamics-model load, and grader
+# computation. If a single task exceeds this budget, we end its episode early
+# with the rewards collected so far — far better than failing all three tasks
+# because one task's LLM was slow.
+TASK_WALL_BUDGET_SEC: float = 300.0    # 5 min/task
 
 _INFRA_LABELS: Dict[int, str] = {0: "Normal", 1: "Throttle", 2: "CircuitBreaker"}
 
@@ -519,18 +532,33 @@ def get_action(
         f"merchant_tier={norm['merchant_tier']:.2f}"
     )
 
-    response = llm_client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": user_prompt},
-        ],
-        max_tokens=20,
-        temperature=0.0,
-    )
-
-    reply: str = response.choices[0].message.content or ""
-    return parse_llm_action(reply)
+    # ── Time-budget safety: timeout/network errors fall back to heuristic ────
+    # The LLM call is capped at LLM_CALL_TIMEOUT_SEC per request (configured on
+    # the OpenAI client). Any timeout, rate-limit, network blip, or malformed
+    # response would otherwise abort the entire task with reward=0. Heuristic
+    # fallback keeps the episode making forward progress — degraded score is
+    # still infinitely better than zero score on a 100-step episode.
+    try:
+        response = llm_client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": user_prompt},
+            ],
+            max_tokens=20,
+            temperature=0.0,
+        )
+        reply: str = response.choices[0].message.content or ""
+        return parse_llm_action(reply)
+    except Exception:
+        # Recurse with heuristic mode — reuses the existing 3-blind-spot policy.
+        return get_action(
+            llm_client=None,
+            obs=obs,
+            agent_mode="heuristic",
+            qtable_policy=None,
+            current_task=current_task,
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -635,6 +663,8 @@ async def main() -> None:
         llm_client = OpenAI(
             base_url=API_BASE_URL,
             api_key=HF_TOKEN,
+            timeout=LLM_CALL_TIMEOUT_SEC,   # cap each request at 5s (was 600s default)
+            max_retries=0,                  # heuristic fallback handles failures, not retries
         )
 
     # ── Load Q-table (only needed for qtable mode) ────────────────────
@@ -643,7 +673,12 @@ async def main() -> None:
         qtable_policy = _load_qtable_policy()
         if qtable_policy is None:
             print("[QTABLE] Falling back to LLM agent.", flush=True)
-            llm_client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+            llm_client = OpenAI(
+                base_url=API_BASE_URL,
+                api_key=HF_TOKEN,
+                timeout=LLM_CALL_TIMEOUT_SEC,
+                max_retries=0,
+            )
 
     # ── Load LagPredictor for model-based infra planning ───────────────
     lag_predictor: "LagPredictor | None" = _load_lag_predictor()
@@ -662,6 +697,10 @@ async def main() -> None:
             current_step = 0
             task_score: float = 0.0
             success = "false"
+            # Wall-clock guard: cap each task at TASK_WALL_BUDGET_SEC. If a slow
+            # LLM provider stretches one task, we still finish the others within
+            # the spec's 20-min total runtime budget.
+            task_start_ts: float = time.monotonic()
 
             print(f"[START] task={task} env=aepo model={MODEL_NAME}", flush=True)
 
@@ -670,6 +709,21 @@ async def main() -> None:
                 obs: AEPOObservation = await http_reset(http, task)
 
                 while not done:
+                    # ── Wall-clock budget check (per-task) ─────────────────────
+                    if time.monotonic() - task_start_ts > TASK_WALL_BUDGET_SEC:
+                        # Episode aborted by budget — emit a final [STEP] so the
+                        # grader sees a clean done=true without reward=0 (we keep
+                        # the rewards collected up to this point).
+                        print(
+                            f"[STEP] step={current_step + 1} "
+                            f"action=null "
+                            f"reward=0.00 "
+                            f"done=true "
+                            f'error="task_wall_budget_exceeded"',
+                            flush=True,
+                        )
+                        done = True
+                        break
                     # ── Decide action (3-way: llm / qtable / heuristic) ───────
                     action: AEPOAction = get_action(
                         llm_client, obs,

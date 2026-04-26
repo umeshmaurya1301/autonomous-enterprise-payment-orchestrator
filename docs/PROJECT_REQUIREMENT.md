@@ -311,6 +311,33 @@ The Colab notebook must:
 - All fields on a single line — no newlines within a line
 - Each task score must be in [0, 1]
 
+### 8.1 Time-Budget Resilience (Spec: inference < 20 min on 2 vCPU/8 GB)
+
+> Added 2026-04-26. Hardens `inference.py` against slow LLM providers, network blips, and rate-limit storms that would otherwise zero a task or burn the entire 20-minute budget on a single stuck call.
+
+**Three guard rails wired into `inference.py`:**
+
+| Guard | Constant | Value | Where it acts |
+|---|---|---|---|
+| Per-call LLM timeout | `LLM_CALL_TIMEOUT_SEC` | 5.0 s | OpenAI client `timeout=` (default would be 600 s) |
+| OpenAI built-in retries | `max_retries` | 0 | Disables silent re-tries — heuristic fallback handles failures |
+| Per-task wall budget | `TASK_WALL_BUDGET_SEC` | 300.0 s | Loop guard — ends a task early so the other two still run |
+
+**Failure-mode behavior:**
+
+| Failure | Before fix | After fix |
+|---|---|---|
+| LLM call hangs | Single call burns ≤ 600 s of budget | Aborts at 5 s, falls back to heuristic for that step |
+| LLM timeout / 503 / rate limit | Exception → task aborted with reward = 0 | `except Exception` → heuristic action, episode continues |
+| LLM returns malformed completion | `parse_llm_action` exception bubbles up | Same fallback path — heuristic completes the step |
+| One task drags past 5 minutes | Eats budget for remaining tasks | Per-task budget breaks loop, emits `error="task_wall_budget_exceeded"` `[STEP]`, moves on |
+
+**Worst-case math:** 3 tasks × 5 min/task = 15 min, leaving 5 min headroom for HF Space cold-start, dynamics-model load, and grader computation. Spec ceiling of 20 min is never breached even if every LLM call times out.
+
+**Why heuristic fallback specifically:** the heuristic policy is deterministic, in-process, and produces non-catastrophic actions on every observation (zero LLM latency, zero network risk). Heuristic-mixed scores are degraded vs full-LLM, but degraded > zero on a 100-step episode.
+
+**Spec compliance:** All three guards are passive — they only activate on failure. Healthy LLM runs see no behavior change. The `[START]/[STEP]/[END]` format is preserved on every code path, including the budget-exceeded path.
+
 ---
 
 ## 9. Deployment Requirements
@@ -430,8 +457,12 @@ pytest tests/ --cov=unified_gateway --cov-report=term-missing
 # Training (expect: hard task ~0.67, PASS)
 python train.py
 
-# Inference dry run
+# Inference dry run (heuristic agent — no LLM required)
 DRY_RUN=true python inference.py
+
+# Inference smoke test against a real LLM with strict time budgets active
+# (5 s per LLM call, 5 min per task, 20 min total — see Section 8.1)
+API_BASE_URL=... MODEL_NAME=... HF_TOKEN=... python inference.py
 ```
 
 ### Disqualification Checklist

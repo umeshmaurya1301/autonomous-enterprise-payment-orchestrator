@@ -21,7 +21,6 @@ You are **not a assistant who says yes**. You are a technical mentor who pushes 
 - **Umesh Maurya** — Backend Engineer, ~3.5 years, specializing in UPI switches, Card Management Systems (CMS), Kafka-based event-driven architectures
 - **Primary language: Java/Spring Boot.** Python is a second language for this project
 - **Context:** Competing onsite in Bangalore, Grand Finale, Top 800 from 31,000+ registrations
-- **Implication:** Every Python file you write MUST have a Java mirror. See the Java Mirror Rule below
 
 ---
 
@@ -50,36 +49,17 @@ If Umesh uses wrong terminology in a prompt, correct him before proceeding.
 
 ---
 
-## THE JAVA MIRROR RULE — MANDATORY, NO EXCEPTIONS
+## JAVA MIRROR RULE — RETIRED (2026-04-26)
 
-**Every Python file in this project has a corresponding Java mirror in `/java-mirror/src/main/java/aepo/`.**
+**The Java mirror requirement is no longer in force.** Decision recorded by Umesh on 2026-04-26. The `/java-mirror/` folder has been removed from the repository.
 
-### Rules:
-1. **Any time you write or modify a Python file, you MUST update the corresponding Java mirror in the same response.** Not after. Not "I'll do Java next." Same response.
-2. **Same class names, same method names, same variable names** wherever Java syntax allows
-3. **Where Python libraries have no Java equivalent**, write a stub with a `// PYTHON EQUIVALENT:` comment block explaining exactly what the Python does
-4. **Java does not need to compile or run.** It needs to be readable to a Java developer who thinks in Spring Boot
-5. **If you forget the Java mirror, Umesh should call you out.** You have failed your primary constraint
+- Do **NOT** create or recreate any files under `/java-mirror/`.
+- Treat Python as the single language of record. Java explanations are unnecessary in code comments or chat.
+- All effort previously spent maintaining mirrors is redirected to: spec compliance, test coverage, inference time-budget, and pitch artifacts.
 
-### Mapping table — use these consistently:
+If a future conversation asks for Java code for this project, reply that the Java mirror was retired and continue in Python only.
 
-| Python | Java equivalent |
-|---|---|
-| `pydantic BaseModel` | Java `record` or POJO with constructor validation |
-| `gymnasium.Env` | Abstract class `GymEnv` with `reset()`, `step()`, `state()` |
-| `numpy.ndarray` | `double[]` or `List<Double>` |
-| `random.uniform(a, b)` | `ThreadLocalRandom.current().nextDouble(a, b)` |
-| `@app.post("/step")` FastAPI | `@PostMapping("/step")` Spring Boot |
-| `dict` return type | `Map<String, Object>` or a typed DTO record |
-| `Optional[X]` | `Optional<X>` |
-| `clamp(val, 0.0, 1.0)` | `Math.min(1.0, Math.max(0.0, val))` |
-| `dataclass` | Java `record` |
-| `Enum` | Java `enum` |
-| `List[float]` | `List<Double>` |
-| `np.float32` | `float` (note: Java float is 32-bit) |
-| `EMA formula` | Same formula in Java, comment the alpha |
-
-### Folder structure:
+### Folder structure (Python-only):
 ```
 /unified_gateway.py              ← SUBMISSION FILE
 /dynamics_model.py               ← SUBMISSION FILE
@@ -88,20 +68,7 @@ If Umesh uses wrong terminology in a prompt, correct him before proceeding.
 /inference.py                    ← SUBMISSION FILE
 /server/app.py                   ← SUBMISSION FILE
 /tests/                          ← SUBMISSION FILES
-/java-mirror/
-  └── src/main/java/aepo/
-      ├── UnifiedFintechEnv.java
-      ├── AEPOObservation.java
-      ├── AEPOAction.java
-      ├── DynamicsModel.java
-      ├── Graders.java
-      ├── HeuristicAgent.java
-      ├── RewardCalculator.java
-      └── server/
-          └── AEPOController.java
 ```
-
-**Delete `/java-mirror/` before final submission.**
 
 ---
 
@@ -655,7 +622,6 @@ Before declaring any file "done", verify:
 □ results/reward_curve.png exists and shows improvement
 □ All 3 graders produce scores in [0.0, 1.0]
 □ README has observation table, action table, baseline scores, architecture diagram
-□ /java-mirror/ DELETED
 □ No API keys or HF tokens hardcoded anywhere
 □ All tests passing: pytest tests/ -v
 □ Coverage ≥ 80% on unified_gateway.py
