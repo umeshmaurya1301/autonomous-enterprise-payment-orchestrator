@@ -24,7 +24,7 @@ tags:
 [![Tests](https://img.shields.io/badge/Tests-189%20passed-brightgreen)](#)
 [![Coverage](https://img.shields.io/badge/Coverage-96%25-brightgreen)](#)
 
-*[🔥 OpenEnv HF Space](https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space)* · *[🧠 TRL+Unsloth GRPO Colab](https://colab.research.google.com/github/umeshmaurya1301/autonomous-enterprise-payment-orchestrator/blob/main/AEPO_Unsloth_GRPO.ipynb)* · **[✍️ Writeup](https://huggingface.co/spaces/unknown1321/autonomous-enterprise-payment-orchestrator/blob/main/WRITEUP.md)**
+*[🔥 OpenEnv HF Space](https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space)* · *[🧠 TRL+Unsloth GRPO Colab](https://colab.research.google.com/github/umeshmaurya1301/autonomous-enterprise-payment-orchestrator/blob/main/AEPO_Unsloth_GRPO.ipynb)* · **[✍️ Blog Post](https://huggingface.co/spaces/unknown1321/autonomous-enterprise-payment-orchestrator/blob/main/BLOG.md)**
 
 ---
 
