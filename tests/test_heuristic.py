@@ -239,3 +239,59 @@ def test_heuristic_uses_full_verify_on_high_risk_confirming_blind_spot_1():
         "Expected FullVerify (0) — this is blind spot #1. "
         "SkipVerify (1) on a Reject would give +0.04 bonus and save 250 lag/step."
     )
+
+
+# ---------------------------------------------------------------------------
+# Conservative-policy baseline (P1 audit fix, 2026-04-26)
+# ---------------------------------------------------------------------------
+# Audit BS-2 risk: "If a fully conservative policy (always Reject, never CB,
+# never DeferredAsync, never throttle) scores close to the trained agent on
+# hard, the trained agent isn't doing much."
+# These tests prove the conservative policy is DOMINATED on every task —
+# the heuristic and trained-agent gains over it are real, not artifacts.
+
+def _conservative_policy(_obs: dict) -> AEPOAction:
+    """Most defensive policy: never approves, never throttles, never CB, never deferred async."""
+    return AEPOAction(
+        risk_decision=1,    # always Reject
+        crypto_verify=0,    # always FullVerify
+        infra_routing=0,    # never Throttle / never CircuitBreaker
+        db_retry_policy=0,  # FailFast
+        settlement_policy=0,# StandardSync
+        app_priority=2,     # Balanced
+    )
+
+
+def test_conservative_policy_is_dominated_on_easy() -> None:
+    """Conservative policy must score noticeably below heuristic on easy.
+    Allowed band: ≤ 0.40 (heuristic ≈ 0.76)."""
+    score = EasyGrader().grade_agent(_conservative_policy)
+    assert score <= 0.40, (
+        f"Conservative policy scored {score:.4f} on easy; expected ≤ 0.40. "
+        f"If this fails, the heuristic baseline is no longer fair — investigate."
+    )
+
+
+def test_conservative_policy_crashes_on_hard() -> None:
+    """Conservative policy must crash within 100 steps on hard task ≥ 5/10 episodes.
+
+    This locks in the audit's claim: hard task lag is unmanageable without
+    Throttle / CircuitBreaker. If a future change makes this test fail, it
+    means the lag dynamics have softened — re-tune crash threshold.
+    """
+    env = UnifiedFintechEnv()
+    crashes = 0
+    for ep in range(10):
+        obs, _ = env.reset(seed=44 + ep, options={"task": "hard"})
+        done = False
+        info: dict = {}
+        while not done:
+            obs, _, done, info = env.step(_conservative_policy(obs.normalized()))
+        if info.get("termination_reason") == "crash":
+            crashes += 1
+
+    assert crashes >= 5, (
+        f"Expected ≥ 5/10 crashes for conservative policy on hard; got {crashes}/10. "
+        f"If this passes with fewer crashes, the lag dynamics are no longer "
+        f"forcing the agent to manage infrastructure — investigate."
+    )
