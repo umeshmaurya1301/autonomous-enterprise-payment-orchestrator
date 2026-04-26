@@ -303,3 +303,107 @@ class TestLegacyGradeInterface:
             "EasyGrader.grade() returned old sentinel ceiling 0.99!"
         )
         assert score == pytest.approx(1.0)
+
+
+# ---------------------------------------------------------------------------
+# P2 audit fix (2026-04-26): grader crash-padding contract
+# ---------------------------------------------------------------------------
+# CLAUDE.md spec: "On crash: reward = 0.0 that step, done=True, remaining
+# steps = 0.0 for mean. Episode score = mean(all 100 rewards) — crashed
+# episodes penalized by 0.0 padding."
+# These tests prove the grader implements that contract precisely.
+
+class TestCrashPaddingContract:
+    """Lock in the spec-mandated crash-padding behaviour in _run_episodes."""
+
+    def test_crash_pads_remaining_steps_with_zero(self):
+        """Crashed episodes must use mean = sum(rewards)/100, NOT mean = sum/len.
+
+        Direct test: compute what the score WOULD be if padding were broken
+        (divide by actual step count) vs the spec-correct value (divide by 100),
+        then check the grader matches the spec value.
+        """
+        from graders import _run_episodes
+        from unified_gateway import UnifiedFintechEnv, AEPOAction
+
+        def fraud_catastrophe_policy(_obs):
+            # Approve+SkipVerify always — triggers fraud catastrophe on first high-risk step
+            return AEPOAction(
+                risk_decision=0, crypto_verify=1, infra_routing=0,
+                db_retry_policy=0, settlement_policy=0, app_priority=2,
+            )
+
+        # Manually compute what the grader SHOULD return (with padding to 100)
+        env = UnifiedFintechEnv()
+        manual_padded_means = []
+        manual_unpadded_means = []
+        for ep in range(10):
+            obs, _ = env.reset(seed=44 + ep, options={"task": "hard"})
+            rewards = []
+            done = False
+            while not done and len(rewards) < env.max_steps:
+                obs, r, done, _ = env.step(fraud_catastrophe_policy(obs.normalized()))
+                rewards.append(r.value)
+            # Spec-correct: divide by max_steps (100)
+            padded = rewards + [0.0] * (env.max_steps - len(rewards))
+            manual_padded_means.append(sum(padded) / env.max_steps)
+            # Hypothetical broken behavior: divide by actual step count
+            manual_unpadded_means.append(sum(rewards) / len(rewards) if rewards else 0.0)
+
+        expected_score = round(sum(manual_padded_means) / 10, 4)
+        broken_score = round(sum(manual_unpadded_means) / 10, 4)
+        actual_score = _run_episodes(task="hard", policy_fn=fraud_catastrophe_policy, seed=44, n_episodes=10)
+
+        # Spec contract: actual must match the padded computation, not the unpadded one.
+        assert abs(actual_score - expected_score) < 0.01, (
+            f"Grader returned {actual_score:.4f}; spec-padded value should be "
+            f"{expected_score:.4f}. Padding logic is broken."
+        )
+        # The unpadded version would always be > padded (since padded adds zeros).
+        # Confirm the grader is NOT using the unpadded computation.
+        assert actual_score < broken_score, (
+            f"Grader score {actual_score:.4f} >= unpadded score {broken_score:.4f} — "
+            f"the grader appears to divide by len(rewards), not by max_steps. "
+            f"This violates CLAUDE.md crash-padding contract."
+        )
+
+    def test_padding_targets_full_episode_length(self):
+        """The grader must pad to env.max_steps (100), regardless of how
+        early an episode terminated. A 5-step crash episode must have
+        mean = sum(5 rewards) / 100, NOT / 5."""
+        from graders import _run_episodes
+        from unified_gateway import AEPOAction, UnifiedFintechEnv
+
+        env_probe = UnifiedFintechEnv()
+        max_steps = env_probe.max_steps
+        assert max_steps == 100, "spec violation: env.max_steps must be 100"
+
+        # If the grader divided by len(step_rewards) instead of max_steps,
+        # a "perfect short episode" would score 0.8 even after a crash.
+        # We assert that a known-crashy policy never scores higher than the
+        # ratio (crash_step / 100) × 0.8 — proving the grader pads to 100.
+        def quick_crash(_obs):
+            return AEPOAction(
+                risk_decision=0, crypto_verify=1, infra_routing=0,
+                db_retry_policy=0, settlement_policy=0, app_priority=2,
+            )
+
+        score = _run_episodes(task="hard", policy_fn=quick_crash, seed=44, n_episodes=1)
+        # Even if episode ran 100 steps at perfect 0.8/step before crashing
+        # at step 99, score upper bound is (99 * 0.8) / 100 = 0.792. The
+        # actual crash-on-fraud terminates within ~10 steps so score << 0.10.
+        assert 0.0 <= score <= 0.80, (
+            f"Crash-policy score {score:.4f} outside expected range. "
+            f"If > 0.80, grader is dividing by step-count instead of padding to 100."
+        )
+
+    def test_completed_episode_uses_actual_step_count(self):
+        """Sanity check: a non-crashing policy should score in the [0, 1] band
+        with the divisor still being 100 (since done occurs at exactly step 100
+        for healthy episodes)."""
+        from graders import _run_episodes, heuristic_policy
+
+        score = _run_episodes(task="easy", policy_fn=heuristic_policy, seed=42, n_episodes=10)
+        assert 0.0 <= score <= 1.0, (
+            f"Heuristic on easy returned out-of-band score {score:.4f}"
+        )

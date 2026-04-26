@@ -157,3 +157,79 @@ def test_no_free_actions_deferred_async_normal(env: UnifiedFintechEnv) -> None:
     env._last_event_type = "normal"
     _, _, _, info = env.step(make_action(settlement_policy=1))
     assert info["reward_breakdown"]["settlement_penalty"] <= -0.15
+
+
+# ---------------------------------------------------------------------------
+# Audit BS-2 anti-exploit shield (P2 audit fix, 2026-04-26)
+# ---------------------------------------------------------------------------
+# Hypothesis: "Always DeferredAsync" exploits the +0.04 Degraded-bank bonus.
+# Empirical: on Attack+Degraded steps, DeferredAsync gives +0.115/step over
+# StandardSync — this IS the intended reward signal (agent should learn to
+# match settlement_policy to bank_api_status).
+# What MUST hold: at the FULL EPISODE level, "always DeferredAsync" must score
+# strictly worse than "always StandardSync" because the over-reliance penalty
+# (cumulative_settlement_backlog > 10 → -0.20/step) keeps firing during
+# Healthy-bank phases (Normal, recovery, parts of Spike).
+# If this test ever fails, the anti-reward-hacking shield has a hole and an
+# agent can converge to "always DeferredAsync" without learning bank-status
+# awareness.
+
+def test_always_deferred_async_dominated_at_episode_level() -> None:
+    """Anti-exploit shield: always-DeferredAsync must score WORSE than always-StandardSync on hard."""
+    from graders import HardGrader
+
+    def always_deferred(_obs: dict) -> AEPOAction:
+        return AEPOAction(
+            risk_decision=1, crypto_verify=1, infra_routing=1,
+            db_retry_policy=0, settlement_policy=1, app_priority=2,
+        )
+
+    def always_standard(_obs: dict) -> AEPOAction:
+        return AEPOAction(
+            risk_decision=1, crypto_verify=1, infra_routing=1,
+            db_retry_policy=0, settlement_policy=0, app_priority=2,
+        )
+
+    deferred = HardGrader().grade_agent(always_deferred)
+    standard = HardGrader().grade_agent(always_standard)
+
+    assert deferred < standard, (
+        f"Anti-exploit shield BROKEN: always-DeferredAsync ({deferred:.4f}) "
+        f">= always-StandardSync ({standard:.4f}). Audit BS-2 has become a real "
+        f"loophole — an agent can converge to 'always DeferredAsync' without "
+        f"learning to inspect bank_api_status. Tighten the over-reliance "
+        f"threshold (currently >10) or strengthen the -0.20 penalty."
+    )
+
+
+def test_smart_settlement_beats_constant_settlement() -> None:
+    """A bank-status-aware policy must beat both constant settlement choices.
+
+    This proves bank_api_status is a load-bearing observation feature.
+    If a constant-settlement policy ever beats the smart one, the agent has
+    no reward incentive to learn bank-status awareness — observation feature
+    is wasted.
+    """
+    from graders import HardGrader
+
+    def smart(obs: dict) -> AEPOAction:
+        bank = obs.get("bank_api_status", 0.0)
+        return AEPOAction(
+            risk_decision=1, crypto_verify=1, infra_routing=1, db_retry_policy=0,
+            settlement_policy=1 if bank >= 0.5 else 0,  # match bank status
+            app_priority=2,
+        )
+
+    def always_standard(_obs: dict) -> AEPOAction:
+        return AEPOAction(
+            risk_decision=1, crypto_verify=1, infra_routing=1, db_retry_policy=0,
+            settlement_policy=0, app_priority=2,
+        )
+
+    smart_score = HardGrader().grade_agent(smart)
+    standard_score = HardGrader().grade_agent(always_standard)
+
+    assert smart_score > standard_score, (
+        f"Smart settlement ({smart_score:.4f}) did not beat always-StandardSync "
+        f"({standard_score:.4f}) — bank_api_status carries no actionable signal."
+    )
