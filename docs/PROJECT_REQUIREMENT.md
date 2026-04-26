@@ -535,7 +535,7 @@ API_BASE_URL=... MODEL_NAME=... HF_TOKEN=... python inference.py
 - Trained hard task score 0.6650 vs heuristic 0.2955: **the agent learned something its creator missed**
 
 ### Anti-Reward-Hacking Design
-- Every shortcut defeated: always CircuitBreaker → −0.30/step; always DeferredAsync → −0.15/−0.20
+- Every shortcut defeated: always CircuitBreaker → −0.50 penalty → 0.30/step net reward (base 0.8 − 0.50); always DeferredAsync → −0.15/−0.20
 - Adversary escalation: performs well → environment gets harder → staircase learning curve
 
 ### Engineering Quality

@@ -540,10 +540,72 @@ python inference.py
 
 ```
 [START] task=hard env=ufrg model=Qwen/Qwen2.5-72B-Instruct
-[STEP] step=1 action={"risk_decision":1,"crypto_verify":1,...} reward=0.84 done=false error=null
+[STEP]  step=1 action={"risk_decision":1,"crypto_verify":1,...} reward=0.84 done=false error=null
 ...
-[END] success=true steps=100 score=0.67 rewards=0.84,0.80,...
+[END]   success=true steps=100 score=0.67 rewards=0.84,0.80,...
 ```
+
+---
+
+### 🧠 LLM Action Protocol
+
+This section documents the exact interface between `inference.py` and the LLM so judges can verify live demo correctness and reproduce results without reading code.
+
+#### System Prompt (sent once per episode, constant)
+
+```
+You are the autonomous control agent for the Autonomous Enterprise Payment Orchestrator (AEPO).
+
+Every turn you receive ten real-time signals (all normalized to [0.0, 1.0]):
+  transaction_type        — payment channel (0=P2P, 0.5=P2M, 1=AutoPay)
+  risk_score              — fraud risk signal (0=no risk, 1=maximum risk; >0.8 is HIGH RISK)
+  adversary_threat_level  — adversary escalation pressure [0, 1]
+  system_entropy          — system entropy index (>0.7 triggers latency spike)
+  kafka_lag               — Kafka consumer lag (>0.4 = lag building; >1.0 = CRASH)
+  api_latency             — downstream bank API latency [0, 1]
+  rolling_p99             — smoothed P99 SLA latency (>0.16 = SLA breach risk)
+  db_connection_pool      — DB pool utilization (>0.8 = pressure; <0.2 = spare)
+  bank_api_status         — bank status (0=Healthy, 0.5=Degraded, 1=Unknown)
+  merchant_tier           — merchant tier (0=Small, 1=Enterprise; 0.5=UNKNOWN)
+
+You must output EXACTLY six integers separated by spaces on a single line:
+  risk_decision crypto_verify infra_routing db_retry_policy settlement_policy app_priority
+
+Allowed values:
+  risk_decision     : 0=Approve   1=Reject       2=Challenge
+  crypto_verify     : 0=FullVerify  1=SkipVerify
+  infra_routing     : 0=Normal    1=Throttle     2=CircuitBreaker
+  db_retry_policy   : 0=FailFast  1=ExponentialBackoff
+  settlement_policy : 0=StandardSync  1=DeferredAsyncFallback
+  app_priority      : 0=UPI       1=Credit       2=Balanced
+
+Output ONLY the six integers. No explanation. Example: 0 1 0 1 0 2
+```
+
+#### User Message (per step)
+
+```
+transaction_type=0.00 risk_score=0.92 adversary_threat_level=0.30 system_entropy=0.45
+kafka_lag=0.31 api_latency=0.10 rolling_p99=0.08 db_connection_pool=0.65
+bank_api_status=0.00 merchant_tier=1.00
+```
+
+#### Expected LLM Response
+
+```
+1 1 0 0 0 1
+```
+
+This maps to: `risk_decision=Reject, crypto_verify=SkipVerify, infra_routing=Normal, db_retry_policy=FailFast, settlement_policy=StandardSync, app_priority=Credit`
+
+#### Parsing and Fallback (`parse_llm_action` in `inference.py`)
+
+1. Strip markdown fences, strip whitespace
+2. Extract the first 6 integers found anywhere in the response via regex `\d+`
+3. Pass to `AEPOAction(...)` — Pydantic v2 validates all 6 field ranges on construction
+4. **On any failure** (timeout, parse error, out-of-range integer, network error): fall back to `AEPOAction(risk_decision=1, crypto_verify=1, infra_routing=0, db_retry_policy=0, settlement_policy=0, app_priority=2)` — this is the "Reject + SkipVerify + Normal" safe conservative action that never triggers fraud catastrophe and avoids all catastrophic penalties
+
+The fallback is intentionally Reject+SkipVerify (not Reject+FullVerify) because Blind Spot #1 shows SkipVerify is equally safe when rejecting and saves 250 lag units per step.
 
 ---
 
