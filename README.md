@@ -64,17 +64,17 @@ AEPO is engineered to satisfy the official hackathon themes by direct, code-anch
 
 | Hackathon Theme | Feature Implementation in AEPO | Technical Anchor (Code / Logic) |
 |---|---|---|
-| **Theme #3.1: World Modeling** | LagPredictor MLP (1-step lookahead predictive modeling + Dyna-Q planning) | `dynamics_model.py` (LagPredictor) + `inference.py` integrated veto check + `train.py` DynaPlanner |
+| **Theme #3.1: World Modeling** | LagPredictor MLP (1-step predictive modeling + Dyna-Q planning) | `dynamics_model.py` (LagPredictor) + `inference.py` `_model_based_infra_override` (pick lowest-predicted-lag `infra_routing`) + `train.py` `DynaPlanner` |
 | **Theme #4: Self-Improvement** | Antagonistic adversary policy (adaptive entropy & threat scaling) | `unified_gateway.py` — Attack Phase + 5-episode-lag escalation logic |
 | **Causal Reasoning** | 11 physics-based causal state transitions | `step()` function deterministic dynamics + accumulators |
 | **Realistic Env Design** | Asymmetric Risk Triad (Fraud vs. Infra vs. SLA) | UPI Payment Gateway simulation scope, 10-signal observation schema |
 | **Deployment Efficiency** | Optimized edge footprint (2 vCPU / 8 GB RAM) | `Dockerfile` (`python:3.10-slim`) + CPU-only Torch wheel |
 
-**AEPO satisfies the core requirement of Theme #3.1 by** wiring a learned `LagPredictor` world model into both training (Dyna-Q imagined rollouts) and inference (1-step lookahead veto on the crash cliff).
+**AEPO satisfies the core requirement of Theme #3.1 by** wiring a learned `LagPredictor` world model into both training (Dyna-Q imagined rollouts) and inference (model-based `infra_routing` override when `kafka_lag` is in the danger band — see `_model_based_infra_override` in `inference.py`).
 
 **To align with Theme #4, we implemented an adaptive adversarial curriculum that** escalates `adversary_threat_level` automatically once the agent's 5-episode rolling reward exceeds 0.6, producing the staircase improvement curve.
 
-**This architecture ensures 100% compliance with the hardware constraints specified in the Master Project Requirements** — the full training pipeline runs in ~5 seconds on 2 vCPU / 8 GB RAM with a CPU-only Torch wheel inside `python:3.10-slim` (spec budget: < 20 minutes).
+**This architecture meets the project hardware spec** — core env + `pytest` + `train.py` (2000 curriculum episodes + fine-tune + eval) and `inference.py` dry-runs all fit comfortably inside a **&lt; 20 minute** wall-clock budget on 2 vCPU / 8 GB (CPU-only PyTorch in `python:3.10-slim`). Exact run time depends on machine load; the graders and HF Space are sized for the same class of hardware.
 
 ---
 
@@ -128,11 +128,11 @@ The shift from the initial Unified Fintech Risk Gateway (UFRG) to the Autonomous
 
 ## 📈 Training Results — Before vs After
 
-The Q-table is trained via a **curriculum-driven loop** (easy → medium → hard, auto-advancing at `_CURRICULUM_THRESHOLDS=(0.65, 0.38)` over 3-episode windows). Each task stage's Q-table is snapshotted separately — evaluation uses the task-appropriate snapshot, eliminating catastrophic forgetting. State vector includes 7 features (see below). All scores are mean per-step rewards over 10 evaluation episodes, padded to 100 steps for early terminations.
+The Q-table is trained via a **fixed-schedule curriculum** (200 easy → 300 medium → 1500 hard episodes, deterministic level boundaries with ε restarted per level) plus **600 per-task fine-tune episodes** that densify the easy and medium tables without contaminating the hard one. Each task keeps its own per-task Q-table — evaluation uses the task-appropriate table, eliminating catastrophic forgetting. State vector includes 7 features (`4^7 = 16,384` reachable states). All scores are mean per-step rewards over 10 evaluation episodes, padded to 100 steps for early terminations.
 
 ### Baseline Policy Improvement Curve
 
-All numbers below are reproduced by `python train.py --compare` (seed-pinned: easy=42, medium=43, hard=44; 500 training episodes; 10 evaluation episodes per task).
+All numbers below are reproduced by `python train.py --compare` (seed-pinned: easy=42, medium=43, hard=44; `TRAINING_SEED=44`; 2000 training episodes + 600 fine-tune per non-hard task; 10 evaluation episodes per task). The `Conservative` column is computed by the new public `conservative_policy` in `graders.py`.
 
 | Task | Random | **Conservative**¹ | Heuristic (3 blind spots) | Trained Q-Table | Threshold | Pass? |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -144,10 +144,10 @@ All numbers below are reproduced by `python train.py --compare` (seed-pinned: ea
 
 #### Why is Conservative ≪ Heuristic?
 
-The conservative policy *never throttles*. On hard task, **10/10 episodes crash within the first ~10 steps** because `kafka_lag > 4000` is unavoidable without throttling once spike+attack phases stack. After the crash, the remaining ~90 steps are padded with reward 0.0 (per CLAUDE.md episode-score rule), giving:
+The conservative policy *never throttles*. On the hard task, **10/10 episodes crash within the first 12–14 steps** (empirically verified — see `tests/test_heuristic.py::test_conservative_policy_crashes_on_hard`) because `kafka_lag > 4000` is unavoidable without throttling once Spike → Attack phases stack. After the crash the remaining ~87 steps are padded with reward 0.0 (per grader + CLAUDE.md episode-score rule), giving:
 
 ```
-Conservative score ≈ (0.8 × ~10 crash-free steps) / 100 padded steps  ≈  0.08
+Conservative score ≈ (0.8 × ~12 crash-free steps) / 100 padded steps  ≈  0.08
 ```
 
 This proves three things at once:
@@ -155,7 +155,7 @@ This proves three things at once:
 2. **The heuristic is fair** — it's not a rigged baseline; it actually solves the lag-management half of the problem.
 3. **The trained Q-table's 2.25× gain is real policy refinement** — both heuristic and Q-table avoid the crash trap, so the gap is from blind-spot exploitation (Reject+SkipVerify, tier-matched priority, pool-aware retry), not from accident avoidance.
 
-> **Why per-task snapshots?** Curriculum training causes catastrophic forgetting — hard-task Q-updates overwrite the easy-optimal policy. Per-task snapshots preserve the policy that was optimal at each curriculum stage. The staircase story remains: **hard task 2.25× improvement over heuristic**.
+> **Why per-task Q-tables?** Curriculum training causes catastrophic forgetting — a single global Q-table would let hard-task updates overwrite easy-optimal values. Each task keeps a **dedicated** `q_tables_per_task[task]`; evaluation in `train.py` always scores with the table that saw that task’s transitions. The staircase story remains: **hard task 2.25× improvement over heuristic**.
 
 > **Pre-fix scores (6-feature state, no snapshots):** easy=0.7123 FAIL · medium=0.6277 PASS · hard=0.2708 FAIL. Root cause: state space didn't distinguish easy vs hard adversary levels, and hard-task updates overwrote easy-learned values.
 
@@ -165,14 +165,14 @@ The training curve shows three distinct phases:
 
 ![AEPO Training Staircase Curve](results/reward_curve.png)
 
-*The training curve shows three distinct phases:*
-- **Phase 1 (ep 0–180)**: Exploration — random actions dominate, ~0.25
-- **Phase 2 (ep 200–350)**: Learning — Q-table converges, passes threshold
-- **Phase 3 (ep 400–500)**: Exploitation — greedy policy stabilises at ~0.67
+*The training curve shows three schedule-driven phases (fixed curriculum in `train.py`: 100 easy → 200 medium → 1500 hard episodes):*
+- **Phase 1 (ep 0–99)**: Easy task — ε starts high, reward mean rises from random baseline
+- **Phase 2 (ep 100–299)**: Medium task — reward dip then recovery as the agent adapts
+- **Phase 3 (ep 300–1999)**: Hard task — long convergence; mean stabilises around **~0.67** on the hard grader
 
 ### Key Learning Discovery: Blind Spot #1
 
-> **Found at episode 3, step 42**: `Reject + SkipVerify` on `risk_score > 80` → `+0.04` bonus
+> **First recorded occurrence at training episode 335, step 41** (see `results/blind_spot_events.json`, seed `TRAINING_SEED=44`): `Reject + SkipVerify` on high `risk_score` → `+0.04` bonus
 >
 > The heuristic always uses `FullVerify` when rejecting high-risk transactions — correct but suboptimal. Full crypto verification adds ~150ms latency and contributes to Kafka lag. The trained agent discovered that **Reject + SkipVerify is equally safe and 250 lag-units cheaper per step.** This is not a rule we programmed — it's something the agent learned.
 
@@ -180,12 +180,12 @@ The training curve shows three distinct phases:
 
 | Metric | Value |
 |---|---|
-| Training time | **~5 seconds** on 2 vCPU (spec: < 20 min) |
-| Q-table states (7 features) | 4^7 = 16,384 reachable |
+| End-to-end `train.py` | Fits **&lt; 20 min** on 2 vCPU class hardware (varies with load) |
+| Q-table states (7 features × 4 bins) | 4^7 = 16,384 reachable discretised states |
 | LagPredictor replay buffer | 2000 transitions |
-| LagPredictor final MSE loss | 0.007 |
-| Blind spot #1 first triggered | Episode 3, Step 42 |
-| Curriculum thresholds | easy→medium: 0.65 · medium→hard: 0.38 (3-ep window) |
+| LagPredictor final MSE loss | ~0.007 (typical after full run) |
+| Blind spot #1 first logged | **Episode 335, step 41** — see `results/blind_spot_events.json` |
+| Task schedule (trainer) | **100** easy + **200** medium + **1500** hard episodes (not gated by in-env rolling rewards) |
 
 ---
 
@@ -209,6 +209,9 @@ The agent observes **ten real-time signals** across risk, infrastructure, and bu
 | Business | `merchant_tier` | `{0, 1}` | `0/1` | Small → UPI optimal; Enterprise → Credit optimal |
 
 All 10 values are stored raw with Pydantic Field constraints. The agent always receives `.normalized()` values in `[0.0, 1.0]`.
+
+> **Naming note** — the Pydantic field on `AEPOObservation` is called `channel` (raw range `[0, 2]`); `.normalized()` exposes it as `transaction_type` for the agent. This rename is deliberate — `channel` is the database column name, `transaction_type` is what the policy reasons about. The two names refer to the same scalar.
+> **Threshold mapping** — when the LLM prompt or info dict mentions `>0.16 = SLA breach risk`, that is `0.16 × 5000 = 800ms` raw `rolling_p99` (the contracted SLA). Any normalised threshold in this README divides the raw value by the column's `Normalised` factor.
 
 ### Action Space (6 Decisions)
 
@@ -420,7 +423,7 @@ model.store_transition(x, next_lag_normalized)
 loss = model.train_step()                             # MSE on mini-batch
 ```
 
-**Final MSE loss after 500 episodes: 0.007** — the model accurately predicts Kafka lag evolution, making the "world model" claim technically defensible.
+**Final MSE loss after a full `train.py` run: ~0.007** — the model predicts next-step `kafka_lag` well enough for Dyna-Q and the inference-time infra override, making the "world model" claim code-backed.
 
 ### How the World Model is Actually USED (load-bearing, not decoration)
 
@@ -469,7 +472,7 @@ Training: Qwen2.5 (3B on T4 / 7B on A10G) fine-tuned via Group Relative Policy O
 
 > **Reward curve:** `results/grpo_reward_curve.png` is produced by Cell 11 of the notebook after `trainer.train()` completes on the GPU runtime. Run the notebook end-to-end on Colab T4 (~25 min) or HF Space A10G (~35 min), then commit the PNG. The Q-table baseline curve below is from `train.py` and is **not** the GRPO curve.
 
-![Q-table Baseline Reward Curve (train.py, 500 episodes)](results/reward_curve.png)
+![Q-table baseline reward curve (`train.py`, 2000-episode curriculum)](results/reward_curve.png)
 
 *To run this in a dedicated Hugging Face Space (A10G GPU):*
 1. Create a new Space on huggingface.co (Docker SDK, A10G hardware).
@@ -483,37 +486,36 @@ Training: Qwen2.5 (3B on T4 / 7B on A10G) fine-tuned via Group Relative Policy O
 
 ```bash
 python train.py
+# Or full comparison table:  python train.py --compare
 ```
 
-This runs **500 episodes on the hard task** and produces:
+This runs the **2000-episode** fixed curriculum in `train.py` (`N_EPISODES`, 100 easy → 200 medium → 1500 hard), then fine-tunes easy/medium per-task tables, then prints evaluation. It produces:
 
-1. `results/reward_curve.png` — per-episode training curve with rolling mean
-2. Printed comparison table: random vs heuristic vs trained on all 3 tasks
-3. A log entry when blind spot #1 is first triggered
+1. `results/reward_curve.png` — per-episode training curve
+2. `results/reward_staircase.png` — curriculum staircase vs reward
+3. `results/lag_predictor.pt` and `results/multi_obs_predictor.pt` — world-model weights for `inference.py`
+4. `results/blind_spot_events.json` — all blind-spot #1 events (167 at seed 44)
+5. Printed text table: `random` / `conservative` / `heuristic` / `trained` (conservative = `graders.conservative_policy`)
 
-**Expected output (abridged) — curriculum-driven with per-task snapshots:**
+**Log lines to expect (wording matches `logger.info` / `print` in `train.py` — not fictional placeholders).** Run `python train.py` locally to see the full float values and exact timings; shape is always:
 
+```text
+[INFO] [CURRICULUM ADVANCE] episode=101  level 0 (easy) -> 1 (medium)  [per-task Q-tables continue accumulating]
+[INFO] [CURRICULUM ADVANCE] seeded 'medium' Q-table with <N> states from 'easy'
+[INFO] [CURRICULUM ADVANCE] epsilon restarted to 1.000, decay=<(1.0−0.05)/episodes in current level> per ep
+...
+INFO [main] [BLIND SPOT #1 DISCOVERED] episode=335 step=41 reward=0.2987 | Reject+SkipVerify+high_risk ... Kafka lag raw=... risk_score raw=... Verifiable: results/blind_spot_events.json
+INFO [main] episode=10/2000  recent_mean=...  epsilon=...  lag_model_loss=...  world_model_loss=...  planning_updates=...  dyna_buffer=...  elapsed=...s
+INFO [main] Training complete — 2000 episodes in <T>s (<rate> eps/s) | Q-table states=<M> | Planning Updates Performed=...
+INFO [main] [PER-TASK Q-TABLE] task='easy' states visited during training: <E>
+INFO [main] [PER-TASK Q-TABLE] task='medium' states visited during training: <M2>
+INFO [main] [PER-TASK Q-TABLE] task='hard' states visited during training: <H>
+INFO [main] [BLIND SPOT SUMMARY] First discovery: episode=335 step=41 | Total occurrences: 167 | Saved to: <path>/blind_spot_events.json
+--- Evaluation: Random vs Heuristic vs Trained ...
+Task           random  conservative  heuristic    trained  ...
 ```
-[CURRICULUM] ep=0 training easy (threshold=0.65, window=3)
-[CURRICULUM ADVANCE] easy→medium at episode 176
-[SNAPSHOT] Saved easy Q-table snapshot (16384 states visited)
-[CURRICULUM ADVANCE] medium→hard at episode 248
-[SNAPSHOT] Saved medium Q-table snapshot
 
-[BLIND SPOT #1 DISCOVERED] episode=3 step=42 reward=0.8800 |
-  Reject+SkipVerify+high_risk → +0.04 bonus, saves 250 lag/step.
-  The trained agent found what the heuristic missed.
-
-episode=350/500  recent_mean=0.4055  curriculum=hard  epsilon=0.335
-episode=500/500  recent_mean=0.5884  curriculum=hard  epsilon=0.050
-
-[EVAL] Using per-task Q-table snapshots (eliminates catastrophic forgetting)
-Task           Random    Heuristic    Trained   Threshold   Pass?
-------------------------------------------------------------------------
-easy           0.4977       0.7623     0.76+        0.75    PASS  ✅
-medium         0.5467       0.3940     0.63+        0.45    PASS  ✅
-hard           0.2507       0.2955     0.6650        0.30    PASS  ✅
-```
+> At `TRAINING_SEED=44`, the first JSON event matches the `[BLIND SPOT #1 DISCOVERED]` line (see [`results/blind_spot_events.json`](results/blind_spot_events.json): episode **335**, step **41**).
 
 ### Heuristic Baseline (3 Deliberate Blind Spots)
 
@@ -560,7 +562,7 @@ The heuristic does **not** trigger fraud catastrophes (Reject on high-risk) and 
 | **#2 App priority** | Always Balanced | Match to merchant_tier | `+0.02/step` |
 | **#3 DB retry** | Always ExponentialBackoff | FailFast when pool < 20 | Avoids `−0.10/step` |
 
-> See `graders.py:heuristic_policy` for the source. Verified by `tests/test_heuristic.py` (5 tests). The `blind_spot_triggered` flag in `info` confirms the heuristic **never** fires it (0/100 episodes), while the trained Q-table fires it on ~84% of high-risk steps.
+> See `graders.py:heuristic_policy` for the source. Verified by `tests/test_heuristic.py` (12 tests, including conservative baseline vs heuristic). The `blind_spot_triggered` flag in `info` confirms the heuristic **never** sets it (by design); a trained Q-table can fire it on high-risk / Reject+SkipVerify steps, as in `results/blind_spot_events.json`.
 
 ---
 
@@ -574,8 +576,8 @@ The heuristic does **not** trigger fraud catastrophes (Reject on high-risk) and 
 ### Local Setup
 
 ```bash
-git clone https://github.com/umeshmaurya1301/unified-fintech-risk-gateway.git
-cd unified-fintech-risk-gateway
+git clone https://github.com/umeshmaurya1301/autonomous-enterprise-payment-orchestrator.git
+cd autonomous-enterprise-payment-orchestrator
 pip install -r requirements.txt
 ```
 
@@ -590,7 +592,7 @@ pytest tests/ -v
 
 ```bash
 python train.py
-# Runs in ~5 seconds on CPU. Produces results/reward_curve.png
+# 2000 curriculum episodes + fine-tune + eval; produces results/*.png, *.pt, blind_spot_events.json
 ```
 
 ### Start the Server
@@ -698,7 +700,7 @@ Every turn you receive ten real-time signals (all normalized to [0.0, 1.0]):
   system_entropy          — system entropy index (>0.7 triggers latency spike)
   kafka_lag               — Kafka consumer lag (>0.4 = lag building; >1.0 = CRASH)
   api_latency             — downstream bank API latency [0, 1]
-  rolling_p99             — smoothed P99 SLA latency (>0.16 = SLA breach risk)
+  rolling_p99             — smoothed P99 SLA latency (>0.16 norm = 800ms raw = SLA breach risk; raw max 5000ms)
   db_connection_pool      — DB pool utilization (>0.8 = pressure; <0.2 = spare)
   bank_api_status         — bank status (0=Healthy, 0.5=Degraded, 1=Unknown)
   merchant_tier           — merchant tier (0=Small, 1=Enterprise; 0.5=UNKNOWN)
@@ -754,47 +756,40 @@ autonomous-enterprise-payment-orchestrator/
 ├── Dockerfile             # Single-stage container, port 7860
 │
 ├── unified_gateway.py     # Core env: AEPOObservation, AEPOAction, UnifiedFintechEnv
-│                          # 10-field obs, 6-action, 8 causal transitions, 4-phase machine
-├── dynamics_model.py      # LagPredictor — 2-layer MLP for world modeling (Theme 3.1)
-├── graders.py             # Per-task graders + heuristic_policy + random_policy
-├── train.py               # Q-table training script — 500 eps, blind spot logging
-├── inference.py           # HTTP client agent — LLM or dry-run heuristic
+│                          # 10-field obs, 6-action, 11 causal transitions, 4-phase machine
+├── dynamics_model.py      # LagPredictor + MultiObsPredictor — 2-layer MLPs for Theme 3.1
+├── graders.py             # Per-task graders + random / heuristic / conservative policies
+├── train.py               # Q-table + Dyna-Q training — 2000 eps, blind spot logging
+├── inference.py           # HTTP client agent — LLM, Q-table, or heuristic with model-based override
 │
 ├── server/
 │   └── app.py             # FastAPI: /reset /step /state (dual-mode contract)
 │
 ├── results/
-│   └── reward_curve.png   # Generated by train.py — staircase improvement curve
+│   ├── reward_curve.png         # Per-episode training curve (staircase shape)
+│   ├── reward_staircase.png     # Adversary-vs-reward staircase plot
+│   ├── lag_predictor.pt         # LagPredictor weights — used by inference.py override
+│   ├── multi_obs_predictor.pt   # 10-dim world model weights
+│   ├── qtable.pkl               # Per-task Q-tables for AGENT_MODE=qtable
+│   └── blind_spot_events.json   # 167 blind-spot-#1 events captured during training
 │
 ├── tests/
-│   ├── test_observation.py  # 7 tests — AEPOObservation field validation + normalization
-│   ├── test_action.py       # 6 tests — AEPOAction valid/invalid combinations
-│   ├── test_reset.py        # 10 tests — reset() contract, throttle queue, seed determinism
-│   ├── test_step.py         # 24 tests — reward branches, crash, done, info dict
-│   ├── test_causal.py       # 8 tests — all 8 causal state transitions
-│   ├── test_phases.py       # 8 tests — phase machine boundaries and dynamics
-│   ├── test_reward.py       # 8 tests — reward components, stacking, clamping
-│   ├── test_curriculum.py   # 9 tests — adaptive curriculum, adversary escalation
-│   ├── test_graders.py      # 16 tests — grader interface, determinism, thresholds
-│   ├── test_heuristic.py    # 7 tests — heuristic scores, blind spots untouched
-│   ├── test_dynamics.py     # 11 tests — LagPredictor forward, train, buffer
-│   ├── test_server.py       # 10 tests — FastAPI endpoints, full episode, dual-mode
-│   ├── test_dual_mode.py    # 3 tests — standalone vs server identical rewards
-│   └── test_foundation.py   # 18 tests — core env API surface
-│   (total: 182 tests, 97% coverage on unified_gateway.py)
-│
-└── java-mirror/
-    └── src/main/java/aepo/
-        ├── UnifiedFintechEnv.java
-        ├── AEPOObservation.java
-        ├── AEPOAction.java
-        ├── DynamicsModel.java
-        ├── Graders.java
-        ├── HeuristicAgent.java
-        ├── RewardCalculator.java
-        ├── TrainQTable.java
-        └── server/AEPOController.java
-    (readable Java mirror for Spring Boot engineers — NOT submitted)
+│   ├── test_observation.py             # 14 tests — AEPOObservation validation + normalization
+│   ├── test_action.py                  # 12 tests — AEPOAction valid/invalid combinations
+│   ├── test_reset.py                   # 10 tests — reset() contract, throttle queue, seed determinism
+│   ├── test_step.py                    # 32 tests — reward branches, crash, done, info dict
+│   ├── test_causal.py                  # 13 tests — core causal transitions; CB / bank flap / diurnal in test_phases, test_step
+│   ├── test_phases.py                  #  9 tests — phase machine boundaries + diurnal/adversary bound
+│   ├── test_reward.py                  # 10 tests — reward components, stacking, clamping, anti-exploit
+│   ├── test_curriculum.py              # 12 tests — curriculum advance + adversary reset contract
+│   ├── test_graders.py                 # 29 tests — grader interface, determinism, crash padding
+│   ├── test_heuristic.py               # 12 tests — heuristic + conservative policies, blind spots untouched
+│   ├── test_dynamics.py                # 18 tests — LagPredictor forward, train, buffer
+│   ├── test_server.py                  # 12 tests — FastAPI endpoints, full episode, dual-mode
+│   ├── test_dual_mode.py               #  4 tests — standalone vs server identical rewards
+│   ├── test_foundation.py              # 27 tests — core env API surface
+│   └── test_world_model_integration.py #  7 tests — DynaPlanner + inference override wiring
+│   (total: 221 tests, 97% coverage on unified_gateway.py)
 ```
 
 ---
@@ -808,9 +803,10 @@ autonomous-enterprise-payment-orchestrator/
 │  ┌──────────────────────┐      ┌──────────────────────────────────────┐ │
 │  │  Phase Machine        │      │           step() Engine              │ │
 │  │  (fixed at reset)     │      │                                      │ │
-│  │                       │      │  ① Causal transitions (8 rules)      │ │
+│  │                       │      │  ① Causal transitions (11 rules)     │ │
 │  │  easy:                │      │     lag→latency, throttle relief,    │ │
-│  │    Normal × 100       │─────▶│     bank coupling, entropy spike...  │ │
+│  │    Normal × 100       │─────▶│     bank coupling, entropy spike,    │ │
+│  │                       │      │     CB FSM, bank flapping, diurnal…  │ │
 │  │  medium:              │      │  ② Reward: 0.8 + bonuses - penalties │ │
 │  │    Normal40 → Spike60 │      │  ③ Crash gate: lag>4000 → done=True  │ │
 │  │  hard:                │      │  ④ Fraud gate: Approve+Skip+High →   │ │
@@ -819,7 +815,7 @@ autonomous-enterprise-payment-orchestrator/
 │  └──────────────────────┘      └──────────────────────────────────────┘ │
 │                                                                          │
 │  AEPOObservation (10 fields, Pydantic)    AEPOAction (6 fields, Pydantic)│
-│  ├─ transaction_type  [0, 2]             ├─ risk_decision  {0,1,2}      │
+│  ├─ channel → transaction_type  [0,2]   ├─ risk_decision  {0,1,2}      │
 │  ├─ risk_score        [0, 100]           ├─ crypto_verify  {0,1}        │
 │  ├─ adversary_threat  [0, 10]            ├─ infra_routing  {0,1,2}      │
 │  ├─ system_entropy    [0, 100]           ├─ db_retry_policy{0,1}        │
@@ -850,20 +846,21 @@ autonomous-enterprise-payment-orchestrator/
 │  Net:   Linear(16→64) → ReLU → Linear(64→1) → Sigmoid                 │
 │  Output: predicted next kafka_lag ∈ (0.0, 1.0)                        │
 │  Trains in parallel: store_transition() + train_step() each episode    │
-│  Final MSE: 0.007 after 500 episodes                                   │
+│  Final MSE: ~0.007 after full `train.py` run                                   │
 └─────────────────────────────────────────────────────────────────────────┘
            │                              │
            ▼                              ▼
 ┌──────────────────┐          ┌───────────────────────────────────────────┐
 │  train.py        │          │  inference.py                             │
 │                  │          │                                           │
-│  Q-Table training│          │  HTTP client → POST /reset + POST /step  │
-│  500 eps, hard   │          │  LLM or dry-run heuristic                │
-│  ε: 1.0→0.05     │          │                                           │
-│  6-feature state │          │  [START] task=hard env=ufrg              │
-│  4096 states     │          │  [STEP]  step=1 reward=0.84              │
+│  Q-Table + Dyna-Q│          │  HTTP client → POST /reset + POST /step  │
+│  2000 eps,       │          │  LLM or Q-table or heuristic (DRY_RUN)   │
+│  curriculum      │          │  + LagPredictor 1-step infra override    │
+│  ε: 1.0→0.05     │          │                                          │
+│  7-feature state │          │  [START] task=hard env=aepo              │
+│  16,384 states   │          │  [STEP]  step=1 reward=0.84              │
 │                  │          │  [END]   success=true score=0.67         │
-│  hard: 0.67 PASS │          │                                           │
+│  hard: 0.67 PASS │          │                                          │
 └──────────────────┘          └───────────────────────────────────────────┘
 ```
 
@@ -875,6 +872,6 @@ _Built for the Meta PyTorch OpenEnv Hackathon × Scaler School of Technology_
 
 **OpenEnv** · **Pydantic v2** · **Gymnasium 0.29.1** · **FastAPI** · **PyTorch** · **Docker**
 
-`openenv validate` ✅ · 182 tests · 97% coverage · Hard task 2.25× heuristic improvement
+`openenv validate` ✅ · 221 tests · 97% coverage on `unified_gateway.py` · Hard task 2.25× heuristic improvement
 
 </div>

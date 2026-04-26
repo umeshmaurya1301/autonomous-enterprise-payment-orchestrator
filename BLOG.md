@@ -11,7 +11,7 @@
 
 | Hackathon Theme | Feature Implementation in AEPO | Technical Anchor (Code / Logic) |
 |---|---|---|
-| **Theme #3.1: World Modeling** | LagPredictor MLP (1-step lookahead predictive modeling) | `dynamics_model.py` (LagPredictor) + `inference.py` integrated veto check |
+| **Theme #3.1: World Modeling** | LagPredictor MLP (1-step lookahead predictive modeling) | `dynamics_model.py` (LagPredictor) + `inference.py` model-based action override |
 | **Theme #4: Self-Improvement** | Antagonistic Adversary Policy (adaptive entropy & threat scaling) | `unified_gateway.py` — Attack Phase + 5-episode-lag escalation logic |
 | **Causal Reasoning** | 11 physics-based causal state transitions | `step()` function deterministic dynamics + accumulators |
 | **Realistic Env Design** | Asymmetric Risk Triad (Fraud vs. Infra vs. SLA) | UPI Payment Gateway simulation scope, 10-signal observation schema |
@@ -59,19 +59,18 @@ The environment implements **11 causal state transitions** that make today's act
 
 Once `rolling_p99` breaches its threshold, the EMA cannot recover within a single episode. A greedy "fix it now" policy always loses — the agent must hedge and plan.
 
-### The LagPredictor: a learned world model with inference-time veto
+### The LagPredictor: a learned world model with inference-time action override
 
-`dynamics_model.py` defines a 2-layer PyTorch MLP — `16 inputs (10 obs + 6 action one-hot) → 1 output (next normalized kafka_lag)`. It is trained alongside the Q-table on collected `(state, action, next_kafka_lag)` transitions.
+`dynamics_model.py` defines a 2-layer PyTorch MLP — **16 inputs (10 normalised observation scalars + 6 normalised action scalars, each value scaled by its own maximum into `[0, 1]`) → 1 output (next normalised `kafka_lag`)**. It is trained alongside the Q-table on collected `(state, action, next_kafka_lag)` transitions, sampled from a 2,000-step replay buffer.
 
-This is not a side-model. It is wired directly into `inference.py` as a **1-step lookahead veto**:
+This is not a side-model. It is wired directly into both training and inference:
 
-1. The policy proposes an action.
-2. LagPredictor simulates the resulting `kafka_lag` for the next step.
-3. If the predicted lag exceeds a danger threshold, the action is **rejected before commit** and a safer fallback is substituted.
+- **Training (`train.py`)** — A `DynaPlanner` runs five imagined Bellman updates per real environment step (`DYNA_PLANNING_STEPS = 5`), uses `LagPredictor` to predict the **next** normalised `kafka_lag` for a sampled past `(obs, action)`, then **substitutes only that** into the stored `next_obs` (the other nine dimensions stay from the real transition). This is the conservative Dyna-Q pattern in the code, not a full unrolled simulator of all ten fields.
+- **Inference (`inference.py:_model_based_infra_override`)** — Whenever the live `kafka_lag` is in the danger band, the agent enumerates the three `infra_routing` choices (`Normal`, `Throttle`, `CircuitBreaker`), asks `LagPredictor` to predict the next-step lag for each, and **substitutes the choice with the lowest predicted lag**. Crucially, only `infra_routing` is overridden — the rest of the proposed action (`risk_decision`, `crypto_verify`, `db_retry_policy`, `settlement_policy`, `app_priority`) passes through unchanged.
 
-The agent literally *imagines* the consequence before acting. That is the **Theme #3.1** claim, and it is enforced by 7 integration tests locking the world-model wiring (`test_lag_predictor_integration.py`).
+The agent literally *imagines* the next-step lag for each infra option before committing — and picks the one the world model says will keep the system alive. That is the **Theme #3.1** claim. It is enforced by 7 integration tests in `tests/test_world_model_integration.py` that verify both the Dyna-Q wiring and the inference-time override (e.g. `test_dyna_planner_invokes_lag_predictor_forward`, `test_infra_override_evaluates_all_three_infra_routes`, `test_infra_override_preserves_non_infra_fields`).
 
-**Final MSE: 0.007** on held-out transitions — accurate enough that the veto fires on real catastrophes, not noise.
+**Final lag-MSE: ~0.007** on held-out transitions — accurate enough that the override picks the genuinely safer action instead of being driven by prediction noise.
 
 ---
 
@@ -117,7 +116,7 @@ AEPO ships with a hand-coded **heuristic baseline** — what an experienced SRE 
 
 Heuristic score on the hard task: **0.2955**. Barely above the 0.30 threshold.
 
-After 500 episodes of Q-learning, at **Episode 3, Step 42**, the agent did something that looked wrong:
+After the curriculum run in `train.py` (2000 scheduled episodes, seed 44), the **first** logged blind-spot event is at **Episode 335, Step 41** (see `results/blind_spot_events.json`). The agent did something that looked wrong to a human SRE:
 
 > **Reject + Skip Verification** on a high-risk transaction.
 
@@ -137,7 +136,7 @@ This is logged with `info["blind_spot_triggered"] = True` and tracked across 167
 
 ## Results
 
-All numbers are reproduced by `python train.py --compare` (seed-pinned: easy=42, medium=43, hard=44; 500 training episodes; 10 evaluation episodes per task).
+All numbers in the table are from `python train.py --compare` (seed-pinned: easy=42, medium=43, hard=44; **2000** curriculum episodes + per-task fine-tune; 10 evaluation episodes per task; see `TRAINING_SEED=44` in `train.py`).
 
 | Task | Random | Heuristic (Human SRE) | Trained Q-Table | Threshold | Status |
 |---|---|---|---|---|---|
@@ -160,12 +159,12 @@ The agent cannot find a degenerate policy that scores well. It must learn the ge
 
 ## Compliance: Production-Grade RL on 2 vCPU / 8 GB RAM
 
-**This architecture ensures 100% compliance with the hardware constraints specified in the Master Project Requirements.** The full training pipeline runs in **~5 seconds** on the OpenEnv evaluator hardware (2 vCPU / 8 GB) — well inside the < 20-minute spec budget — using a CPU-only Torch wheel inside a `python:3.10-slim` Docker image.
+**This architecture is designed to stay within the project hardware envelope.** End-to-end `train.py` + `pytest` + `inference.py` dry-runs are expected to complete **well inside the 20-minute** wall-clock cap on 2 vCPU / 8 GB class machines (CPU-only PyTorch in `python:3.10-slim`). Exact minutes vary with load.
 
 ### Q-Table baseline (default)
 
 - 7 discretized features, 4 bins each → 16,384 states
-- ε-greedy: 1.0 → 0.05 over 500 episodes
+- ε-greedy: 1.0 → 0.05 with per-level restarts (100 easy + 200 medium + 1500 hard episodes in the default schedule)
 - Tabular Q-learning, lr=0.1, γ=0.95
 - Trains the LagPredictor MLP in parallel on collected transitions
 
@@ -182,7 +181,7 @@ A Qwen2.5-3B model (4-bit quantized via Unsloth) is fine-tuned using **Group Rel
 - Pydantic v2 observation/action schemas, all values clipped + normalized to `[0.0, 1.0]`
 - Dual-mode: `unified_gateway.py` runs identically standalone (`train.py`) and behind FastAPI (`server/app.py`) — no code changes between modes
 - Deterministic graders, fixed seeds (easy=42, medium=43, hard=44)
-- 80%+ test coverage on `unified_gateway.py`
+- High line coverage on `unified_gateway.py` (as reported by `pytest --cov=unified_gateway` — **~97%** in CI-style runs; run locally to confirm)
 
 ---
 
