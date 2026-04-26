@@ -112,8 +112,8 @@ Adversary escalation mechanism: the environment gets harder as the agent improve
 | Requirement | Status | Notes |
 |---|---|---|
 | Use OpenEnv (latest release) | ✅ Done | `openenv-core 0.2.0+`, validated via `openenv validate` |
-| Working training script (Unsloth/TRL) in Colab | ✅ Done | `AEPO_Unsloth_GRPO.ipynb` using TRL + Unsloth for GRPO |
-| Evidence of training (loss & reward plots) | ✅ Done | `results/reward_curve.png` committed to repo and embedded in README |
+| Working training script (Unsloth/TRL) in Colab | ✅ Code Shipped · ⏳ E2E Run Pending | `AEPO_Unsloth_GRPO.ipynb` — TRL `GRPOTrainer` + Unsloth `FastLanguageModel`, Qwen2.5-7B (A10G) / 3B (T4) auto-detect. Code shipped; E2E run on Colab/HF-Space A10G must produce `results/grpo_reward_curve.png` before submission (see §7.4). |
+| Evidence of training (loss & reward plots) | ✅ Done (Q-table) · ⏳ Pending (GRPO) | `results/reward_curve.png` (Q-table, 500 episodes) committed and embedded in README. `results/grpo_reward_curve.png` produced by the notebook's Section 5; commit after Colab/A10G run. |
 | Mini-blog on HF OR <2 min YouTube video | ⬜ **TODO** | Create and link from README before submission deadline |
 | Push environment to Hugging Face Space | ✅ Done | Tagged `openenv`, port 7860 |
 | README with motivation, env description, results | ✅ Done | README updated with embedded reward curve, baselines, and Colab link. Writeup link pending. |
@@ -257,17 +257,35 @@ Every `step()` returns a full info dict including:
 
 2-layer MLP: 16 inputs (10 obs normalized + 6 action scalars) → 1 output (next `kafka_lag` normalized). Final MSE = 0.007 on held-out transitions. Trains alongside the Q-table loop on collected `(state, action, next_lag)` transitions.
 
-### 7.4 TRL + Unsloth Colab Notebook ⬜ TODO — Required for Submission
+### 7.4 TRL + Unsloth Colab Notebook · ✅ Code Shipped · ⏳ E2E Run Pending
 
-> ⚠️ This is a mandatory deliverable for Round 2.
+> ⚠️ Mandatory Round-2 deliverable. This section is the **single source of truth** for notebook status — §4 and §10 mirror it.
 
-The Colab notebook must:
-- Use **Unsloth** for efficient GRPO or PPO-style RL training
-- Connect to the **AEPO OpenEnv environment** (via HF Space or local Docker)
-- Train an LLM agent — suggested: Qwen2.5-3B or Gemma-3-1B as base
-- Produce **reward curves** showing improvement over training steps
-- Show **before/after comparison**: untrained vs trained agent on at least one AEPO task
-- Be **re-runnable by judges**
+**Artifact:** `AEPO_Unsloth_GRPO.ipynb` (repo root, 16 cells). Implements GRPO end-to-end against the in-process AEPO env.
+
+| Sub-deliverable | Status | Evidence / Action |
+|---|---|---|
+| Notebook uses **Unsloth** | ✅ Done | `FastLanguageModel.from_pretrained(..., load_in_4bit=True, fast_inference=True)` — Cell 3 |
+| Notebook uses **TRL GRPO** | ✅ Done | `from trl import GRPOConfig, GRPOTrainer` — Cell 3, training in Cell 9 |
+| Connects to AEPO env | ✅ Done | `from unified_gateway import UnifiedFintechEnv, AEPOAction` — Cells 1, 5 |
+| Hardware-aware: Qwen2.5-7B on A10G ≥22 GB; falls back to 3B on T4 | ✅ Done | `_vram_gb` branch — Cell 3, Cell 7, Cell 9 |
+| Reward function (`env_reward_func`) parses 6-int completion → `AEPOAction` → `env.step()` → float reward; logs Blind Spot #1 hits | ✅ Done | Cell 5 (FIX-1..FIX-4 documented inline) |
+| Dataset deterministically reconstructable: `(seed_val, task_name)` columns forwarded to reward func | ✅ Done | Cell 7 — 50% hard / 33% medium / 17% easy split |
+| Reward curve plot — saves `results/grpo_reward_curve.png` | ✅ Code Shipped · ⏳ Run Pending | Cell 11 — runs only after `trainer.train()` completes on a GPU runtime |
+| Before / after eval table (heuristic vs GRPO) on all 3 task tiers | ✅ Code Shipped · ⏳ Run Pending | Cell 13 |
+| LoRA adapter saved + optionally pushed to HF Hub | ✅ Code Shipped | Cell 15 — gated on `HF_TOKEN` env var |
+| Re-runnable by judges | ✅ Done | Cell 1 auto-detects HF Space vs Colab vs local; clones repo on Colab; installs all extras |
+| Notebook URL added to README | ⏳ Pending | Add an **"Open in Colab"** badge linking to the GitHub raw URL once the repo is public |
+
+**E2E run procedure (must execute on a GPU runtime — cannot run on the dev laptop):**
+
+1. Open `AEPO_Unsloth_GRPO.ipynb` on Colab (T4 free, ~25 min) or on the HF Space A10G (~35 min).
+2. Run all cells top-to-bottom. Cells 1, 3 install deps and load the model.
+3. Cell 9 (`trainer.train()`) is the long step.
+4. Cell 11 writes `results/grpo_reward_curve.png` — **download and commit this file**.
+5. Cell 13 prints the heuristic-vs-GRPO score table — paste into the README under §8.
+6. Re-export the notebook **with outputs intact** (`File → Download .ipynb`); overwrite the repo copy and commit.
+7. Flip the three ⏳ rows above to ✅ in this section, in §4, and in §10. Single source of truth.
 
 **Reference recipes:**
 - Qwen2.5 (3B) GRPO: https://github.com/unslothai/notebooks/blob/main/nb/Qwen2.5_%283B%29-GRPO.ipynb
@@ -399,12 +417,14 @@ The Colab notebook must:
 - [ ] Reward curve embedded in README with caption
 - [ ] Training comparison table (random vs heuristic vs trained) in README
 
-### TRL + Unsloth Colab Notebook ✅ Done
-- [x] Colab notebook using Unsloth + TRL (GRPO or PPO)
-- [x] Connects to AEPO environment
-- [x] Produces reward plots from an actual training run
-- [x] Plots committed to repo and linked from README
-- [x] Notebook link in README
+### TRL + Unsloth Colab Notebook · ✅ Code Shipped · ⏳ E2E Run Pending
+*(Mirrors §7.4 — single source of truth lives there. Update both sections together.)*
+- [x] Colab notebook using Unsloth + TRL GRPO — `AEPO_Unsloth_GRPO.ipynb`
+- [x] Connects to AEPO environment (in-process import of `UnifiedFintechEnv`)
+- [ ] **Reward plot from an actual training run** — `results/grpo_reward_curve.png` (run Cell 9 + 11 on Colab/A10G, commit the PNG)
+- [ ] **Plot committed to repo and linked from README** (see §7.4 procedure step 4–5)
+- [ ] **Notebook link in README** — add Open-in-Colab badge to the GitHub raw URL
+- [ ] **Notebook re-exported with outputs intact and committed** — `jupyter nbconvert --to notebook --execute` is **not** acceptable; must show real GPU outputs
 
 ### Writeup ⬜ Required for Round 2
 - [ ] Mini-blog on Hugging Face OR <2 minute YouTube video
@@ -534,7 +554,7 @@ API_BASE_URL=... MODEL_NAME=... HF_TOKEN=... python inference.py
 | HF Space (live environment) | *(add URL before submission)* |
 | GitHub repo | *(add URL before submission)* |
 | Mini-blog / video writeup | *(⬜ Required — add URL before submission)* |
-| Training Colab notebook | *(⬜ Required — add URL before submission)* |
+| Training Colab notebook | Local: `AEPO_Unsloth_GRPO.ipynb` · Colab badge URL: *(add public GitHub raw URL — see §7.4 step 7)* |
 | Competition dashboard | https://www.scaler.com/school-of-technology/meta-pytorch-hackathon/dashboard |
 
 ### OpenEnv

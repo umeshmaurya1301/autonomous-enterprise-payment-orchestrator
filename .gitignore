@@ -68,7 +68,7 @@ dmypy.json
 
 # Jupyter
 .ipynb_checkpoints/
-*.ipynb
+# *.ipynb — AEPO_Unsloth_GRPO.ipynb is a required submission artifact; do not ignore
 
 # PyInstaller
 *.manifest

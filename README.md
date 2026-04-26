@@ -24,7 +24,7 @@ tags:
 [![Tests](https://img.shields.io/badge/Tests-189%20passed-brightgreen)](#)
 [![Coverage](https://img.shields.io/badge/Coverage-96%25-brightgreen)](#)
 
-*[🔥 OpenEnv HF Space](https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space)* · *[🧠 TRL Colab Training Notebook](AEPO_Unsloth_GRPO.ipynb)* · **[📹 Demo & Writeup](https://youtu.be/PLACEHOLDER)**
+*[🔥 OpenEnv HF Space](https://unknown1321-autonomous-enterprise-payment-orchestrator.hf.space)* · *[🧠 TRL+Unsloth GRPO Colab](https://colab.research.google.com/github/umeshmaurya1301/autonomous-enterprise-payment-orchestrator/blob/main/AEPO_Unsloth_GRPO.ipynb)* · **[📹 Demo & Writeup](https://youtu.be/PLACEHOLDER)**
 
 ---
 
@@ -394,9 +394,11 @@ loss = model.train_step()                             # MSE on mini-batch
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/umeshmaurya1301/autonomous-enterprise-payment-orchestrator/blob/main/AEPO_Unsloth_GRPO.ipynb)
 
-Training: Qwen2.5 (3B on T4 / 7B on A10G) fine-tuned via Group Relative Policy Optimization (GRPO) against the AEPO environment using Unsloth and TRL.
+Training: Qwen2.5 (3B on T4 / 7B on A10G) fine-tuned via Group Relative Policy Optimization (GRPO) against the AEPO environment using Unsloth and TRL. The notebook reuses the in-process `UnifiedFintechEnv` so the GRPO reward signal is byte-identical to the live env that judges hit.
 
-![GRPO Reward Curve](results/reward_curve.png)
+> **Reward curve:** `results/grpo_reward_curve.png` is produced by Cell 11 of the notebook after `trainer.train()` completes on the GPU runtime. Run the notebook end-to-end on Colab T4 (~25 min) or HF Space A10G (~35 min), then commit the PNG. The Q-table baseline curve below is from `train.py` and is **not** the GRPO curve.
+
+![Q-table Baseline Reward Curve (train.py, 500 episodes)](results/reward_curve.png)
 
 *To run this in a dedicated Hugging Face Space (A10G GPU):*
 1. Create a new Space on huggingface.co (Docker SDK, A10G hardware).
