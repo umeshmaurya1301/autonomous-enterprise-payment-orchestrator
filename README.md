@@ -401,6 +401,41 @@ loss = model.train_step()                             # MSE on mini-batch
 
 **Final MSE loss after 500 episodes: 0.007** — the model accurately predicts Kafka lag evolution, making the "world model" claim technically defensible.
 
+### How the World Model is Actually USED (load-bearing, not decoration)
+
+A common audit objection: *"You trained a LagPredictor, but does anything consume it?"* Both training and inference do.
+
+#### 1. Training time — Dyna-Q planning (`train.py`)
+
+After every real `env.step()`, `DynaPlanner.plan()` performs **5 imagined Bellman updates** using `LagPredictor.forward()` to predict next kafka_lag for sampled past transitions. This multiplies sample efficiency *without* extra environment steps — the trained Q-table sees ~6× more learning signal per real step.
+
+```python
+# train.py — inside the episode loop
+dyna_planner.store(obs_norm, action_idx, reward, next_obs_norm)
+total_planning_updates += dyna_planner.plan(q_table, lag_model, n_steps=5)
+```
+
+Locked by `tests/test_world_model_integration.py::test_dyna_planner_invokes_lag_predictor_forward` — counts the exact number of `forward()` calls per planning step. If a future change disables Dyna-Q, this test fails.
+
+#### 2. Inference time — Model-based action override (`inference.py`)
+
+When live `kafka_lag` exceeds `LAG_OVERRIDE_THRESHOLD`, `_model_based_infra_override()` queries the LagPredictor for **all three `infra_routing` options** (Normal, Throttle, CircuitBreaker) and selects the one with the lowest predicted next-step lag. The world model directly overrides the policy when it matters most — at the crash cliff.
+
+```python
+# inference.py — inside run_episode()
+if kafka_lag_high:
+    action = _model_based_infra_override(lag_predictor, obs, action, step)
+    # Logs [MODEL-PLAN] override:Normal->Throttle pred=[N:0.42 T:0.18 CB:0.31]
+```
+
+Locked by 4 tests in `test_world_model_integration.py`:
+- `test_infra_override_skipped_below_threshold` — no-op when lag is safe
+- `test_infra_override_evaluates_all_three_infra_routes` — exactly 3 forward passes
+- `test_infra_override_can_change_infra_routing` — selects best predicted choice
+- `test_infra_override_preserves_non_infra_fields` — only infra_routing is touched
+
+> **The pitch story:** The world model is not just trained — it is queried at every high-lag step in the live demo. When you see `[MODEL-PLAN]` in the inference output, that's the LagPredictor making a real-time intervention that the rule-based heuristic cannot.
+
 ---
 
 ## 🏋️ Training the Agent
