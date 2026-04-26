@@ -32,6 +32,7 @@ import asyncio
 import os
 import pickle
 import re
+import sys
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -161,13 +162,13 @@ def _load_lag_predictor() -> "LagPredictor | None":
         print(
             f"[MODEL-PLAN] weights not found at {_LAG_PREDICTOR_PATH} — "
             "model-based planning disabled. Run train.py first.",
-            flush=True,
+            flush=True, file=sys.stderr,
         )
         return None
     model = LagPredictor()
     model.load_state_dict(torch.load(_LAG_PREDICTOR_PATH, map_location="cpu", weights_only=True))
     model.eval()
-    print(f"[MODEL-PLAN] LagPredictor loaded from {_LAG_PREDICTOR_PATH}", flush=True)
+    print(f"[MODEL-PLAN] LagPredictor loaded from {_LAG_PREDICTOR_PATH}", flush=True, file=sys.stderr)
     return model
 
 
@@ -186,7 +187,7 @@ def _load_qtable_policy() -> "Callable | None":
         print(
             f"[QTABLE] {_QTABLE_PATH} not found — run `python train.py` first. "
             "Falling back to LLM agent.",
-            flush=True,
+            flush=True, file=sys.stderr,
         )
         return None
 
@@ -196,7 +197,7 @@ def _load_qtable_policy() -> "Callable | None":
     print(
         f"[QTABLE] Loaded Q-table snapshots from {_QTABLE_PATH} "
         f"(tasks: {list(snapshots.keys())})",
-        flush=True,
+        flush=True, file=sys.stderr,
     )
 
     # — Replicate obs_to_state + decode_action from train.py (no import needed) —
@@ -301,7 +302,7 @@ def _model_based_infra_override(
             f"override: {_INFRA_LABELS[action.infra_routing]}"
             f"->{_INFRA_LABELS[best_infra]} "
             f"pred=[N:{preds[0]:.3f} T:{preds[1]:.3f} CB:{preds[2]:.3f}]",
-            flush=True,
+            flush=True, file=sys.stderr,
         )
         return AEPOAction(
             risk_decision=action.risk_decision,
@@ -655,7 +656,7 @@ async def main() -> None:
         "qtable":    "Q-table agent (results/qtable.pkl — reproduces training scores)",
         "heuristic": "Heuristic agent (3-blind-spot baseline — do NOT use for scoring)",
     }.get(AGENT_MODE, f"Unknown agent mode: {AGENT_MODE!r}")
-    print(f"[AGENT] {_agent_banner}", flush=True)
+    print(f"[AGENT] {_agent_banner}", flush=True, file=sys.stderr)
 
     # ── Build the LLM client (only needed for llm mode) ─────────────────
     llm_client: "OpenAI | None" = None
@@ -715,7 +716,7 @@ async def main() -> None:
                         # grader sees a clean done=true without reward=0 (we keep
                         # the rewards collected up to this point).
                         print(
-                            f"[STEP] step={current_step + 1} "
+                            f"[STEP]  step={current_step + 1} "
                             f"action=null "
                             f"reward=0.00 "
                             f"done=true "
@@ -754,7 +755,7 @@ async def main() -> None:
 
                     # ── Spec-required stdout log (OpenEnv grader reads this) ──
                     print(
-                        f"[STEP] step={current_step} "
+                        f"[STEP]  step={current_step} "
                         f"action={action.model_dump_json()} "
                         f"reward={reward:.2f} "
                         f"done={done_str} "
@@ -804,7 +805,7 @@ async def main() -> None:
                     # Wrap in double-quotes so the grader sees a single token
                     _quoted_err: str = '"' + _sanitized_err.replace('"', "'") + '"'
                     print(
-                        f"[STEP] step=1 "
+                        f"[STEP]  step=1 "
                         f"action=null "
                         f"reward=0.00 "
                         f"done=true "
@@ -819,7 +820,7 @@ async def main() -> None:
 
                 # C2 FIX: score uses :.2f (2 decimal places) per OpenEnv spec
                 print(
-                    f"[END] success={success} "
+                    f"[END]   success={success} "
                     f"steps={total_steps} "
                     f"score={task_score:.2f} "
                     f"rewards={rewards_csv}",
