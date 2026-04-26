@@ -91,7 +91,7 @@ RUN sed -e '/^--extra-index-url/d' -e '/^torch==/d' requirements.txt \
 # ── Application source ────────────────────────────────────────────────────────
 # Copy only the files needed at runtime — .venv, java-mirror, node_modules,
 # tests, and docs are excluded via .dockerignore.
-COPY unified_gateway.py dynamics_model.py graders.py inference.py openenv.yaml ./
+COPY aepo_types.py unified_gateway.py dynamics_model.py graders.py inference.py openenv.yaml ./
 COPY server/ ./server/
 
 # Pre-trained artefacts — needed by inference.py (Q-table, MLP weights).
