@@ -59,6 +59,11 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 from pydantic import BaseModel, Field
+from aepo_types import (  # shared contract — imported by both server and client
+    AEPOObservation, AEPOAction, UFRGObservation, UFRGAction,
+    CHANNEL_MAX, RISK_MAX, ADV_THREAT_MAX, ENTROPY_MAX, LAG_MAX,
+    LATENCY_MAX, P99_MAX, DB_POOL_MAX, BANK_STATUS_MAX, MERCHANT_TIER_MAX,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,16 +71,9 @@ logger = logging.getLogger(__name__)
 # Named constants — observation bounds
 # ---------------------------------------------------------------------------
 
-CHANNEL_MAX: float = 2.0        # channel {0, 1, 2}
-RISK_MAX: float = 100.0         # risk_score [0, 100]
-ADV_THREAT_MAX: float = 10.0    # adversary_threat_level [0, 10]
-ENTROPY_MAX: float = 100.0      # system_entropy [0, 100]
-LAG_MAX: float = 10000.0        # kafka_lag [0, 10000]
-LATENCY_MAX: float = 5000.0     # api_latency [0, 5000]
-P99_MAX: float = 5000.0         # rolling_p99 [0, 5000]
-DB_POOL_MAX: float = 100.0      # db_connection_pool [0, 100]
-BANK_STATUS_MAX: float = 2.0    # bank_api_status {0, 1, 2}
-MERCHANT_TIER_MAX: float = 1.0  # merchant_tier {0, 1}
+# Observation bound constants are defined in aepo_types.py and imported above.
+# CHANNEL_MAX, RISK_MAX, ADV_THREAT_MAX, ENTROPY_MAX, LAG_MAX,
+# LATENCY_MAX, P99_MAX, DB_POOL_MAX, BANK_STATUS_MAX, MERCHANT_TIER_MAX
 MERCHANT_TIER_HIDDEN_PROB: float = 0.30   # 30% of steps tier is masked from agent
 MERCHANT_TIER_UNKNOWN: float = 0.5        # sentinel returned to agent when tier is hidden
 
@@ -207,179 +205,10 @@ DIURNAL_AMPLITUDE: float = 100.0   # max lag units added/subtracted per step by 
 
 
 # ---------------------------------------------------------------------------
-# OpenEnv Data Models  (Pydantic v2 — typed contract between agent and gateway)
+# OpenEnv Data Models — defined in aepo_types.py, imported above.
+# AEPOObservation, AEPOAction, UFRGObservation, UFRGAction are all available
+# in this module's namespace via the import at the top of the file.
 # ---------------------------------------------------------------------------
-
-class AEPOObservation(BaseModel):
-    """
-    Ten-field typed observation for the Autonomous Enterprise Payment Orchestrator.
-
-    Stores raw values with Pydantic Field constraints.
-    Call .normalized() to get agent-facing values, all in [0.0, 1.0].
-    Raw values are exposed to graders via info["raw_obs"] (Phase 4).
-    """
-
-    # ── Risk layer ────────────────────────────────────────────────────────────
-    channel: float = Field(
-        ge=0.0, le=CHANNEL_MAX,
-        description="Payment channel: 0=P2P, 1=P2M, 2=AutoPay — raw range [0, 2]",
-    )
-    risk_score: float = Field(
-        ge=0.0, le=RISK_MAX,
-        description="Transaction fraud risk [0, 100] — above 80 is HIGH RISK",
-    )
-    adversary_threat_level: float = Field(
-        default=0.0, ge=0.0, le=ADV_THREAT_MAX,
-        description="Adversary escalation level [0, 10] — rises with defender performance (Phase 6)",
-    )
-    system_entropy: float = Field(
-        default=0.0, ge=0.0, le=ENTROPY_MAX,
-        description="System entropy index [0, 100] — above 70 triggers latency spike",
-    )
-
-    # ── Infrastructure layer ──────────────────────────────────────────────────
-    kafka_lag: float = Field(
-        ge=0.0, le=LAG_MAX,
-        description="Kafka consumer-group message lag [0, 10000] — above 4000 = CRASH",
-    )
-    api_latency: float = Field(
-        ge=0.0, le=LATENCY_MAX,
-        description="Downstream bank API latency in ms [0, 5000]",
-    )
-    rolling_p99: float = Field(
-        ge=0.0, le=P99_MAX,
-        description=(
-            "EMA-smoothed latency in ms [0, 5000] used as the agent's SLA training signal. "
-            "Formula: 0.8 * prev + 0.2 * api_latency. Above 800 = SLA BREACH penalty. "
-            "True P99 from a 20-step ring buffer is exposed separately in info['true_p99']."
-        ),
-    )
-    db_connection_pool: float = Field(
-        default=50.0, ge=0.0, le=DB_POOL_MAX,
-        description="DB connection pool utilization [0, 100] — above 80 triggers retry overhead",
-    )
-
-    # ── Business layer ────────────────────────────────────────────────────────
-    bank_api_status: float = Field(
-        default=0.0, ge=0.0, le=BANK_STATUS_MAX,
-        description="Bank API status: 0=Healthy, 1=Degraded, 2=Unknown",
-    )
-    merchant_tier: float = Field(
-        default=0.0, ge=0.0, le=MERCHANT_TIER_MAX,
-        description="Merchant tier: 0=Small, 1=Enterprise — shapes optimal app_priority",
-    )
-
-    def normalized(self) -> dict[str, float]:
-        """
-        Return all 10 fields normalized to [0.0, 1.0] for agent consumption.
-
-        Raw values are clipped to valid range before division so the output
-        is always in [0.0, 1.0] regardless of how the model was constructed.
-
-        Notes:
-          - 'channel' field maps to key 'transaction_type' (AEPO spec naming).
-          - bank_api_status: 0 → 0.0, 1 → 0.5, 2 → 1.0 (divide by BANK_STATUS_MAX=2).
-        """
-        return {
-            # 'channel' stored for Phase 2 backward compat; exposed as AEPO spec name
-            "transaction_type": float(np.clip(self.channel, 0.0, CHANNEL_MAX)) / CHANNEL_MAX,
-            "risk_score": float(np.clip(self.risk_score, 0.0, RISK_MAX)) / RISK_MAX,
-            "adversary_threat_level": float(np.clip(self.adversary_threat_level, 0.0, ADV_THREAT_MAX)) / ADV_THREAT_MAX,
-            "system_entropy": float(np.clip(self.system_entropy, 0.0, ENTROPY_MAX)) / ENTROPY_MAX,
-            "kafka_lag": float(np.clip(self.kafka_lag, 0.0, LAG_MAX)) / LAG_MAX,
-            "api_latency": float(np.clip(self.api_latency, 0.0, LATENCY_MAX)) / LATENCY_MAX,
-            "rolling_p99": float(np.clip(self.rolling_p99, 0.0, P99_MAX)) / P99_MAX,
-            "db_connection_pool": float(np.clip(self.db_connection_pool, 0.0, DB_POOL_MAX)) / DB_POOL_MAX,
-            "bank_api_status": float(np.clip(self.bank_api_status, 0.0, BANK_STATUS_MAX)) / BANK_STATUS_MAX,
-            "merchant_tier": float(np.clip(self.merchant_tier, 0.0, MERCHANT_TIER_MAX)) / MERCHANT_TIER_MAX,
-        }
-
-    @classmethod
-    def from_array(cls, obs: np.ndarray) -> "AEPOObservation":
-        """Construct from a 10-element (or legacy 5-element) numpy observation vector."""
-        if len(obs) >= 10:
-            return cls(
-                channel=float(obs[0]),
-                risk_score=float(obs[1]),
-                adversary_threat_level=float(obs[2]),
-                system_entropy=float(obs[3]),
-                kafka_lag=float(obs[4]),
-                api_latency=float(obs[5]),
-                rolling_p99=float(obs[6]),
-                db_connection_pool=float(obs[7]),
-                bank_api_status=float(obs[8]),
-                merchant_tier=float(obs[9]),
-            )
-        # Legacy UFRG Round-1 array format: [channel, risk, lag, latency, p99]
-        return cls(
-            channel=float(obs[0]),
-            risk_score=float(obs[1]),
-            kafka_lag=float(obs[2]),
-            api_latency=float(obs[3]),
-            rolling_p99=float(obs[4]),
-        )
-
-    def to_array(self) -> np.ndarray:
-        """Serialize to a 10-element float32 numpy vector for Gymnasium compatibility."""
-        return np.array(
-            [
-                self.channel, self.risk_score, self.adversary_threat_level,
-                self.system_entropy, self.kafka_lag, self.api_latency,
-                self.rolling_p99, self.db_connection_pool,
-                self.bank_api_status, self.merchant_tier,
-            ],
-            dtype=np.float32,
-        )
-
-
-# Backward-compatibility alias — Round-1 code that imports UFRGObservation
-# continues to work without modification. Deprecated; migrate to AEPOObservation.
-UFRGObservation = AEPOObservation
-
-
-class AEPOAction(BaseModel):
-    """
-    Six-field typed action for the Autonomous Enterprise Payment Orchestrator.
-
-    All fields validated on construction; out-of-range integers rejected before
-    reaching step logic. Fields 4–6 (db_retry_policy, settlement_policy,
-    app_priority) have safe defaults so Round-1 three-field call sites still work.
-    """
-
-    # ── Risk layer ────────────────────────────────────────────────────────────
-    risk_decision: int = Field(
-        ge=0, le=2,
-        description="Risk disposition: 0=Approve, 1=Reject, 2=Challenge",
-    )
-    crypto_verify: int = Field(
-        ge=0, le=1,
-        description="Crypto gate: 0=FullVerify, 1=SkipVerify",
-    )
-
-    # ── Infrastructure layer ──────────────────────────────────────────────────
-    infra_routing: int = Field(
-        ge=0, le=2,
-        description="Infrastructure tier: 0=Normal, 1=Throttle, 2=CircuitBreaker",
-    )
-    db_retry_policy: int = Field(
-        default=0, ge=0, le=1,
-        description="DB retry: 0=FailFast, 1=ExponentialBackoff — backoff when pool<20 → -0.10",
-    )
-
-    # ── Business layer ────────────────────────────────────────────────────────
-    settlement_policy: int = Field(
-        default=0, ge=0, le=1,
-        description="Settlement: 0=StandardSync, 1=DeferredAsyncFallback",
-    )
-    app_priority: int = Field(
-        default=2, ge=0, le=2,
-        description="App priority: 0=UPI, 1=Credit, 2=Balanced — match merchant_tier for +0.02 bonus",
-    )
-
-
-# Backward-compatibility alias — Round-1 code that imports UFRGAction continues
-# to work without modification. Deprecated; migrate to AEPOAction.
-UFRGAction = AEPOAction
 
 
 class UFRGReward(BaseModel):

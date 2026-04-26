@@ -55,7 +55,7 @@ except ImportError:
 
 # AEPOAction and AEPOObservation are imported ONLY for type-safe action
 # construction and response parsing — UnifiedFintechEnv is never instantiated.
-from unified_gateway import AEPOAction, AEPOObservation
+from aepo_types import AEPOAction, AEPOObservation  # shared contract; NOT from server module
 from dynamics_model import LagPredictor, build_input_vector
 from graders import get_grader
 
