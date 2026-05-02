@@ -1,0 +1,96 @@
+/*
+ * AEPO Java Mirror — Gradle build script (Groovy DSL).
+ *
+ * Mirrors the Python project at one level up (../). Python is the authoritative
+ * submission surface; this Java module is the Java-developer view of the same
+ * system, runnable as a Spring Boot service on port 7860.
+ *
+ * Stack:
+ *   * Spring Boot 3.2.x       — REST controller, embedded Tomcat
+ *   * Java 21 LTS              — records, sealed types, pattern-matching switch, virtual threads
+ *   * JUnit 5 (Jupiter)        — unit + slice tests
+ *   * Spring Boot Test         — @SpringBootTest, MockMvc for controller tests
+ *   * Jakarta Validation       — bean validation on DTOs (Pydantic mirror)
+ *
+ * No external RL libraries required — every numeric primitive that Python
+ * pulls from numpy is implemented inline in pure Java (clamp, EMA, percentile).
+ */
+
+plugins {
+    // Java application + Spring Boot fat-jar packaging.
+    id 'java'
+    id 'org.springframework.boot'              version '3.2.5'
+    // Resolves Spring Boot's curated BOM so we don't pin individual versions.
+    id 'io.spring.dependency-management'       version '1.1.4'
+}
+
+group   = 'aepo'
+version = '0.2.0'
+
+java {
+    // Java 21 LTS — records, sealed types, switch expressions, pattern matching
+    // for switch (final, no preview), virtual threads, sequenced collections.
+    // Using sourceCompatibility (not toolchain) so the build runs on any
+    // installed JDK ≥ 21 without forcing Gradle to download a specific JDK.
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    // Maven Central is enough — Spring Boot artefacts are mirrored there.
+    mavenCentral()
+}
+
+dependencies {
+    // Web layer: @RestController, embedded Tomcat.
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // Bean validation: @Min, @Max on DTOs (mirror of Pydantic Field).
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Test scope — pulls in JUnit 5, AssertJ, MockMvc, Mockito.
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    // JUnit 5 (Jupiter) — Boot 3 already configures this, but be explicit so
+    // someone copy-pasting the file into another module doesn't get JUnit 4.
+    useJUnitPlatform()
+
+    // Discover both unit tests (*Test.class — Gradle default) AND integration
+    // tests (*IT.class — Maven Failsafe naming convention we adopt for Spring
+    // @SpringBootTest classes that boot a real Tomcat). One `./gradlew test`
+    // command runs the full suite; CI can split via --tests filtering if needed.
+    include '**/*Test.class'
+    include '**/*IT.class'
+
+    // Pretty test output: every test logged as PASSED/FAILED with stdout.
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        showStandardStreams = false
+        exceptionFormat = 'short'
+    }
+}
+
+// Optional: a focused `integrationTest` task for CI lanes that want to run only
+// the slow boot-the-context tests separately. Aliases to `test --tests *IT`.
+tasks.register('integrationTest', Test) {
+    group       = 'verification'
+    description = 'Runs only the *IT integration tests (real Tomcat, real HTTP).'
+    useJUnitPlatform()
+    include '**/*IT.class'
+    shouldRunAfter 'test'
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Convenience tasks
+// ────────────────────────────────────────────────────────────────────
+
+// `gradle run` is the typical alias for `gradle bootRun`. Add a thin wrapper
+// so a Java engineer who hasn't worked with Boot before still gets a "run"
+// task they can find in IntelliJ's Gradle pane.
+tasks.register('run') {
+    group       = 'application'
+    description = 'Alias for bootRun — starts the Spring Boot server on :7860.'
+    dependsOn   'bootRun'
+}

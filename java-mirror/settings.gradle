@@ -1,0 +1,7 @@
+/*
+ * AEPO Java Mirror — Gradle settings.
+ *
+ * Single-module project; the root project name is what shows up in IDEs and
+ * is used to derive the produced jar name.
+ */
+rootProject.name = 'aepo-java-mirror'

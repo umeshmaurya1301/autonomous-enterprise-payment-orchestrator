@@ -1,0 +1,14 @@
+# AEPO Java Mirror — Spring Boot configuration.
+# Port mirrors the Python server (server/app.py uses 7860 — HF Spaces convention).
+server:
+  port: 7860
+
+spring:
+  application:
+    name: aepo-java-mirror
+  jackson:
+    # Pretty-print JSON in dev so /step output is human-readable.
+    serialization:
+      indent-output: true
+    # Map Java records → JSON snake_case (matches Pydantic .model_dump() output).
+    property-naming-strategy: SNAKE_CASE
