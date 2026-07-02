@@ -41,6 +41,7 @@ Read in order the first time. Each document assumes you've read the previous one
 | 14 | [Cheat Sheet](14_Cheat_Sheet.md) | One-page rapid revision before the interview | Before interview |
 | 15 | [Project Summary](15_Project_Summary.md) | The whole thing in 5 minutes | Final review |
 | 16 | [Production Scenarios & Debugging](16_Production_Scenarios.md) | "It's on fire — what do you do?" runbooks | After 11 |
+| 17 | [Resume Defense](17_Resume_Defense.md) | Your resume bullets — every claim verified, decoded, and defended | Before any interview |
 
 ---
 

@@ -39,6 +39,11 @@
 | **Catastrophic forgetting** | Learning a new task overwrites an old task's knowledge | fixed via per-task Q-tables |
 | **Reward shaping** | Designing reward terms to guide learning | AEPO's bonuses/penalties/proximity gradients |
 | **Reward hacking** | Agent exploits a reward loophole for cheap score | defeated by "no free actions" |
+| **Degenerate policy** | A collapsed, trivial policy that games the reward instead of solving the task ("always X") | always-CB caps at 0.3/step; always-Reject → spam penalty + throughput counter-incentive |
+| **Emergent behavior** | Behavior not explicitly programmed, arising from learning dynamics + incentives | blind spot #1: the *incentive* was designed, the *policy* was discovered (ep 335/41) |
+| **Markov chain** | A state sequence where the next state depends only on the current state, via fixed transition probabilities | bank flapping: Spike H→D 30%/D→H 40%; Attack 80%/5% |
+| **Contextual bandit** | An RL problem with one action per context and no next-state — a single-step MDP | the `AdversaryPolicy` (one Burst/Sustain/Fade pick per episode) |
+| **Mixed-radix encoding** | Packing several small discrete fields into one integer using positional "digits" of different bases | 6 action fields → int [0,215] via strides (72,36,12,6,3,1) |
 | **Training** | Learning the policy/weights | `mvn package` (build the artifact) |
 | **Inference** | Using the learned policy to act | `java -jar` (run the artifact) |
 
@@ -106,6 +111,9 @@
 | **Dual-mode** | One env class used in-process *and* behind HTTP, unchanged |
 | **4-tuple** | `step()` returns `(obs, reward, done, info)` (OpenEnv, not Gymnasium 5-tuple) |
 | **info dict** | The ~30-key telemetry envelope returned each step |
+| **Circuit-breaker FSM** | The CB state machine: open (steps 1–5, −0.50/step, drains 500 lag/step) → half-open probe (−0.10) → closed (+0.05 if lag < 2000); tracked by the consecutive-CB-step counter |
+| **Bank flapping** | Phase-dependent Markov chain on `bank_api_status` — rapid flapping in Spike, sticky degradation in Attack |
+| **Grand Finale** | The onsite finale (Bangalore) of the Meta PyTorch OpenEnv Hackathon × Scaler School of Technology — top 800 from 31,000+ registrations; AEPO evolved from the Round-1 UFRG |
 
 ## Python / tooling terms
 
@@ -160,6 +168,7 @@
 | **HTTP 400** | Bad Request (here: no active episode) | `ResponseStatusException(BAD_REQUEST)` |
 | **`asyncio.Lock`** | Async mutex serializing coroutine access | `ReentrantLock` |
 | **EMA** | Exponential Moving Average (`α·new + (1−α)·old`) | the smoothing you know from P99 work |
+| **FSM (finite-state machine)** | A system of named states + transition rules between them | the circuit breaker (open/half-open/closed); payment-switch state handling |
 
 ### Summary
 
